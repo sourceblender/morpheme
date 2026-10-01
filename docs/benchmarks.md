@@ -183,4 +183,3 @@ older Python comparison above):
 
 Dedicated-hardware trend tracking remains future work. The baseline runner and
 Criterion provide the repeatable measurements needed to start that tracking.
-
