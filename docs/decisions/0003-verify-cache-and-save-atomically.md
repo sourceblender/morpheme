@@ -59,3 +59,6 @@ replaces the link itself, so shared Hub blobs are not modified by saves.
   definitive. When the revision is a commit hash, the Hub's
   `x-repo-commit` must equal it, so a mirror serving another commit is an
   error rather than a misleading `refs/<hash>` entry.
+  `FromPretrainedParameters::anonymous()` skips the `HF_TOKEN` and
+  token-file lookup so public downloads (and the network tests) send no
+  credentials.

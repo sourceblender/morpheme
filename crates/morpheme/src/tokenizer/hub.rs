@@ -50,9 +50,12 @@ pub struct FromPretrainedParameters {
     /// Extra `key/value` pairs appended to the `User-Agent` header.
     pub user_agent: HashMap<String, String>,
     /// Access token for private or gated repositories. Defaults to
-    /// `HF_TOKEN`, then the token saved by `huggingface-cli login`. An
-    /// empty string disables both and sends no token at all.
+    /// `HF_TOKEN`, then the token saved by `huggingface-cli login`
+    /// (unless [`anonymous`](Self::anonymous) is set).
     pub token: Option<String>,
+    /// Do not read `HF_TOKEN` or the token file: send no token unless
+    /// one is given explicitly with [`token`](Self::token).
+    pub anonymous: bool,
     /// Cache directory. Defaults to the shared Hugging Face cache.
     pub cache_dir: Option<PathBuf>,
 }
@@ -63,6 +66,7 @@ impl Default for FromPretrainedParameters {
             revision: "main".to_owned(),
             user_agent: HashMap::new(),
             token: None,
+            anonymous: false,
             cache_dir: None,
         }
     }
@@ -80,6 +84,16 @@ impl FromPretrainedParameters {
     #[must_use]
     pub fn token(mut self, token: impl Into<String>) -> Self {
         self.token = Some(token.into());
+        self
+    }
+
+    /// Do not read `HF_TOKEN` or the token file saved by
+    /// `huggingface-cli login`: requests for public repositories carry
+    /// no credentials. A token passed with [`token`](Self::token) is
+    /// still used.
+    #[must_use]
+    pub fn anonymous(mut self) -> Self {
+        self.anonymous = true;
         self
     }
 
@@ -429,9 +443,11 @@ pub(crate) fn from_pretrained(
     if let Some(dir) = &params.cache_dir {
         config.cache_dir = dir.clone();
     }
+    if params.anonymous {
+        config.token = None;
+    }
     if let Some(token) = &params.token {
-        // An explicit empty token opts out of the environment lookup.
-        config.token = Some(token.clone()).filter(|t| !t.is_empty());
+        config.token = Some(token.clone());
     }
     resolve(repo_id, &params, &config)
 }

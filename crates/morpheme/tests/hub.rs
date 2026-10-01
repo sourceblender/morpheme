@@ -8,11 +8,11 @@ use std::path::Path;
 
 use morpheme::{FromPretrainedParameters, Tokenizer};
 
-/// Public repositories need no credentials: an empty token opts out of
+/// Public repositories need no credentials: `anonymous` skips
 /// `HF_TOKEN` and the `huggingface-cli login` token file, so the
 /// developer's real token is never sent by these tests.
 fn anonymous() -> FromPretrainedParameters {
-    FromPretrainedParameters::default().token("")
+    FromPretrainedParameters::default().anonymous()
 }
 
 /// Revision of google-bert/bert-base-uncased pinned in
