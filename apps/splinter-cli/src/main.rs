@@ -6,7 +6,7 @@
 //! the full pipeline stored in it; nothing is replaced or dropped.
 
 use std::collections::HashSet;
-use std::io::Read;
+use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
@@ -93,6 +93,10 @@ enum Command {
         /// Training text files (one or more).
         #[arg(required = true, num_args = 1..)]
         files: Vec<PathBuf>,
+        /// Don't show progress bars (they are only shown when stderr is a
+        /// terminal).
+        #[arg(short, long)]
+        quiet: bool,
     },
 }
 
@@ -152,6 +156,7 @@ fn main() -> Result<()> {
             special_tokens,
             out,
             files,
+            quiet,
         } => train(
             model,
             preset,
@@ -160,6 +165,7 @@ fn main() -> Result<()> {
             special_tokens,
             &out,
             &files,
+            !quiet && std::io::stderr().is_terminal(),
         ),
     }
 }
@@ -391,6 +397,7 @@ fn train(
     special_tokens: Vec<String>,
     out: &PathBuf,
     files: &[PathBuf],
+    show_progress: bool,
 ) -> Result<()> {
     let preset = preset.unwrap_or_else(|| default_preset(model));
     let specials = if special_tokens.is_empty() {
@@ -458,7 +465,7 @@ fn train(
             .min_frequency(min_frequency)
             .special_tokens(added.clone())
             .initial_alphabet(initial_alphabet)
-            .show_progress(false)
+            .show_progress(show_progress)
             .build()
             .into(),
         ModelKind::Wordpiece => WordPieceTrainer::builder()
@@ -466,21 +473,21 @@ fn train(
             .min_frequency(min_frequency)
             .special_tokens(added.clone())
             .initial_alphabet(initial_alphabet)
-            .show_progress(false)
+            .show_progress(show_progress)
             .build()
             .into(),
         ModelKind::Wordlevel => WordLevelTrainer::builder()
             .vocab_size(vocab_size)
             .min_frequency(min_frequency)
             .special_tokens(added.clone())
-            .show_progress(false)
+            .show_progress(show_progress)
             .build()
             .into(),
         ModelKind::Unigram => UnigramTrainer::builder()
             .vocab_size(vocab_size as u32)
             .special_tokens(added.clone())
             .unk_token(unk.clone())
-            .show_progress(false)
+            .show_progress(show_progress)
             .build()?
             .into(),
     };

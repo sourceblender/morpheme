@@ -11,6 +11,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::added_vocabulary::AddedToken;
 use crate::error::Result;
 use crate::models::bpe::{Bpe, MergeMap, Word};
+use crate::progress::Progress;
 use crate::traits::Trainer;
 
 type Pair = (u32, u32);
@@ -330,11 +331,21 @@ impl BpeTrainer {
         // 2. Alphabet, then 3. split words into alphabet symbols.
         let sorted = Self::sorted_words(word_counts);
         self.compute_alphabet(&sorted, &mut vocab);
+        let progress = Progress::new(
+            self.show_progress,
+            "Tokenize words",
+            Some(sorted.len() as u64),
+        );
         let mut words = self.tokenize_words(&sorted, &mut vocab);
+        progress.set_position(sorted.len() as u64);
+        progress.finish();
         let counts: Vec<u64> = sorted.iter().map(|(_, c)| *c).collect();
 
         // 4. Initial pair counts.
+        let progress = Progress::new(self.show_progress, "Count pairs", Some(words.len() as u64));
         let (mut pair_counts, mut where_to_update) = Self::count_pairs(&words, &counts);
+        progress.set_position(words.len() as u64);
+        progress.finish();
         let mut queue: BinaryHeap<Candidate> = BinaryHeap::with_capacity(pair_counts.len());
         for (pair, pos) in where_to_update.drain() {
             let count = pair_counts[&pair];
@@ -348,6 +359,12 @@ impl BpeTrainer {
         }
 
         // 5. Merge until the vocabulary is big enough.
+        let progress = Progress::new(
+            self.show_progress,
+            "Compute merges",
+            Some(self.vocab_size.saturating_sub(vocab.len()) as u64),
+        );
+        let initial_vocab = vocab.len();
         let mut merges: Vec<(Pair, u32)> = Vec::new();
         while vocab.len() < self.vocab_size {
             let Some(mut top) = queue.pop() else { break };
@@ -370,6 +387,7 @@ impl BpeTrainer {
             let new_token = format!("{a}{b}");
             let new_id = vocab.get_or_insert(&new_token);
             merges.push((top.pair, new_id));
+            progress.set_position((vocab.len() - initial_vocab) as u64);
 
             let mut positions: Vec<usize> = top.pos.iter().copied().collect();
             positions.sort_unstable();
@@ -395,6 +413,8 @@ impl BpeTrainer {
             }
         }
 
+        progress.finish();
+
         // Later duplicates of a pair override earlier ranks, as in HF.
         let mut merge_map = MergeMap::default();
         for (rank, (pair, new_id)) in merges.into_iter().enumerate() {
@@ -412,15 +432,21 @@ impl BpeTrainer {
 }
 
 /// Count words from a corpus in parallel.
-pub(crate) fn count_words<I, S, F>(iterator: I, process: F) -> Result<HashMap<String, u64>>
+pub(crate) fn count_words<I, S, F>(
+    iterator: I,
+    process: F,
+    show_progress: bool,
+) -> Result<HashMap<String, u64>>
 where
     I: Iterator<Item = S> + Send,
     S: AsRef<str> + Send,
     F: Fn(&str) -> Result<Vec<String>> + Sync,
 {
-    iterator
+    let progress = Progress::new(show_progress, "Pre-processing sequences", None);
+    let counts = iterator
         .par_bridge()
         .map(|sequence| -> Result<HashMap<String, u64>> {
+            progress.inc(1);
             let mut map = HashMap::new();
             for word in process(sequence.as_ref())? {
                 *map.entry(word).or_default() += 1;
@@ -432,7 +458,9 @@ where
                 *acc.entry(k).or_default() += v;
             }
             Ok(acc)
-        })
+        });
+    progress.finish();
+    counts
 }
 
 impl Trainer for BpeTrainer {
@@ -452,7 +480,7 @@ impl Trainer for BpeTrainer {
         S: AsRef<str> + Send,
         F: Fn(&str) -> Result<Vec<String>> + Sync,
     {
-        self.words = count_words(iterator, process)?;
+        self.words = count_words(iterator, process, self.show_progress)?;
         Ok(())
     }
 }

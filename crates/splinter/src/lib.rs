@@ -43,6 +43,7 @@ pub mod pattern;
 pub mod pre_tokenized_string;
 pub mod pre_tokenizers;
 pub mod processors;
+mod progress;
 pub mod tokenizer;
 pub mod trainers;
 pub mod traits;

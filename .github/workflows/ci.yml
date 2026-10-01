@@ -38,7 +38,9 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - name: clippy (library, no default features)
+        run: cargo clippy -p splinter --all-targets --no-default-features --locked -- -D warnings
 
   test:
     name: test (stable)
@@ -84,6 +86,45 @@ jobs:
         run: ./scripts/fetch-hf-fixtures.sh
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked
+
+  benches:
+    # Compile (don't run) the Criterion suite so it can't rot.
+    name: benches compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo bench --no-run --workspace --locked
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Cache HF tokenizer fixtures
+        uses: actions/cache@v6
+        with:
+          path: crates/splinter/tests/data
+          key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
+      - name: Fetch HF tokenizer fixtures
+        shell: bash
+        run: ./scripts/fetch-hf-fixtures.sh
+      - name: Test with coverage
+        run: cargo llvm-cov --workspace --all-features --locked --lcov --output-path lcov.info
+      - name: Coverage summary
+        run: cargo llvm-cov report --summary-only | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lcov
+          path: lcov.info
 
   docs:
     name: rustdoc

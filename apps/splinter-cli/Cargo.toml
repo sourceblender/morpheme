@@ -18,6 +18,7 @@ path = "src/main.rs"
 # The binary has no API to document, and its name collides with the
 # library's docs.
 doc = false
+bench = false
 
 [features]
 default = ["hub"]

@@ -92,10 +92,29 @@ When you start work on a module:
 - **Regression tests** for fixed bugs go in
   `crates/splinter/tests/regressions.rs`, one test per bug, named after it.
 
+### Coverage
+
+CI's `coverage` job runs the whole suite under
+[`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov), prints a
+summary on the run page and uploads `lcov.info` as an artifact (line
+coverage was 91.5% when it was added). Locally:
+
+```sh
+cargo install cargo-llvm-cov   # once; needs `rustup component add llvm-tools-preview`
+cargo llvm-cov --workspace --all-features --summary-only
+cargo llvm-cov --workspace --all-features --html   # target/llvm-cov/html
+```
+
+New code should come with tests; look at the uncovered lines of the
+files you touched rather than chasing the total.
+
 ## Benchmarking
 
+- `cargo bench -p splinter` runs the Criterion suite (`encode`, `train`,
+  `normalize`); use `--save-baseline` / `--baseline` to compare a change
+  against `main`. CI only compiles it.
 - `cargo run --release --example bench_encode -- <tokenizer.json> <text>`
-  measures encode throughput.
+  measures encode and decode throughput on any file.
 - Methodology and results: [`docs/benchmarks.md`](./benchmarks.md).
 
 ## Style

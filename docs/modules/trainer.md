@@ -33,8 +33,20 @@ nothing is silently skipped. Feeding again replaces previously fed words.
 All are built with `X::builder()...build()`; `UnigramTrainerBuilder::build()`
 returns a `Result` (it rejects `vocab_size` 0, `shrinking_factor`
 outside `(0, 1)`, `n_sub_iterations` 0, `max_piece_length` 0). Special
-tokens always get the first ids, in the order given. `show_progress` is
-accepted for compatibility; no progress output is printed.
+tokens always get the first ids, in the order given.
+
+## Progress
+
+With `show_progress` (the default, as in HF) and the `progressbar` cargo
+feature (on by default), trainers draw progress bars on stderr:
+"Pre-processing sequences" while counting words, then "Tokenize words",
+"Count pairs" and "Compute merges" for BPE and WordPiece, or "Suffix
+array seeds" and "EM training" (with the current/target piece count)
+for Unigram. Bars are hidden automatically when stderr is not a
+terminal, so logs and CI output stay clean. Pass `show_progress(false)`
+to silence them, or build with `default-features = false` to drop the
+`indicatif` dependency entirely. The CLI shows progress only when
+stderr is a terminal; `splinter train --quiet` turns it off.
 
 ## How they work
 

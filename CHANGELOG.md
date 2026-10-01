@@ -59,12 +59,20 @@ format, and is now verified against the reference implementation.
   check with Python (`scripts/check_python_interop.py`), property tests,
   per-component ground-truth tests, regression tests for every defect
   found in review.
-- `bench_encode` example and measured results in `docs/benchmarks.md`.
+- Benchmarks: Criterion suite (`cargo bench`: encode/decode on four
+  pretrained tokenizers, BPE/WordPiece/Unigram training, normalization),
+  compiled in CI; `bench_encode` example reporting encode and decode
+  throughput; measured encode, decode, training and peak-memory
+  comparisons with Python `tokenizers` in `docs/benchmarks.md`.
 - `Tokenizer::from_pretrained` (feature `hub`): download `tokenizer.json`
   from the Hugging Face Hub into the standard cache shared with Python,
   with revisions, tokens (`HF_TOKEN` / saved login), `HF_ENDPOINT`,
   offline mode and cache fallback. The CLI accepts Hub model ids for
   `-t` (plus `--revision`).
+- Trainer progress bars (`show_progress`, as in Hugging Face) behind the
+  default `progressbar` feature (`indicatif`); hidden when stderr is not
+  a terminal. CLI `train --quiet`.
+- Coverage reporting in CI (`cargo-llvm-cov`, lcov artifact).
 
 ### Changed
 

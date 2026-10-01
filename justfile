@@ -40,3 +40,11 @@ golden: fixtures
 # Check that Python `tokenizers` loads splinter-trained files identically.
 interop:
     uv run --with tokenizers==0.23.2 scripts/check_python_interop.py
+
+# Run the Criterion benchmark suite (extra args go to Criterion).
+bench *ARGS: fixtures
+    cargo bench -p splinter -- {{ ARGS }}
+
+# Line coverage summary (needs cargo-llvm-cov).
+coverage: fixtures
+    cargo llvm-cov --workspace --all-features --summary-only

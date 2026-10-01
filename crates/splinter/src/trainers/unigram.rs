@@ -18,6 +18,7 @@ use rayon::prelude::*;
 use crate::added_vocabulary::AddedToken;
 use crate::error::{Error, Result};
 use crate::models::unigram::{Lattice, Unigram};
+use crate::progress::Progress;
 use crate::traits::Trainer;
 
 /// A piece and its score.
@@ -576,19 +577,25 @@ impl UnigramTrainer {
 
         // A training-time unknown piece always sits at id 0.
         let mut pieces: Vec<SentencePiece> = vec![("<UNK>".into(), f64::NAN)];
+        let progress = Progress::new(self.show_progress, "Suffix array seeds", None);
         pieces.extend(self.make_seed_sentence_pieces(&sentences));
+        progress.set_message(format!("Suffix array seeds: {}", pieces.len() - 1));
+        progress.finish();
 
         let desired = (self.vocab_size as usize * 11) / 10;
         let mut current = Unigram::from(pieces.clone(), Some(0), false)?;
+        let progress = Progress::new(self.show_progress, "EM training", None);
         loop {
             for _ in 0..self.n_sub_iterations {
                 let expected = self.run_e_step(&current, &sentences);
                 pieces = self.run_m_step(&pieces, &expected);
                 current = Unigram::from(pieces.clone(), Some(0), false)?;
+                progress.inc(1);
             }
             if pieces.len() <= desired {
                 break;
             }
+            progress.set_message(format!("EM training: {} → {desired} pieces", pieces.len()));
             let pruned = self.prune_sentence_pieces(&current, &pieces, &sentences);
             if pruned.len() >= pieces.len() {
                 // No progress possible; avoid looping forever.
@@ -597,6 +604,8 @@ impl UnigramTrainer {
             pieces = pruned;
             current = Unigram::from(pieces.clone(), Some(0), false)?;
         }
+
+        progress.finish();
 
         *model = self.finalize(&current, required)?;
         Ok(self.special_tokens.clone())
@@ -622,9 +631,11 @@ impl Trainer for UnigramTrainer {
         S: AsRef<str> + Send,
         F: Fn(&str) -> Result<Vec<String>> + Sync,
     {
+        let progress = Progress::new(self.show_progress, "Pre-processing sequences", None);
         let words = iterator
             .par_bridge()
             .map(|seq| -> Result<HashMap<String, u32>> {
+                progress.inc(1);
                 let mut map = HashMap::new();
                 for w in process(seq.as_ref())? {
                     *map.entry(w).or_insert(0u32) += 1;
@@ -637,6 +648,7 @@ impl Trainer for UnigramTrainer {
                 }
                 Ok(acc)
             })?;
+        progress.finish();
         self.words = words;
         Ok(())
     }

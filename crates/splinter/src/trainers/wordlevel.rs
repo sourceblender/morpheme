@@ -134,7 +134,7 @@ impl Trainer for WordLevelTrainer {
         S: AsRef<str> + Send,
         F: Fn(&str) -> Result<Vec<String>> + Sync,
     {
-        self.words = count_words(iterator, process)?;
+        self.words = count_words(iterator, process, self.show_progress)?;
         Ok(())
     }
 }

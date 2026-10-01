@@ -32,9 +32,11 @@
 ## Then
 
 - [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
-- [ ] Progress reporting for trainers (`show_progress`).
-- [ ] Criterion benchmark suite with regression tracking in CI; decode
-      and memory measurements.
+- [x] Progress reporting for trainers (`show_progress`, `progressbar`
+      feature).
+- [x] Criterion benchmark suite (compiled in CI); decode and memory
+      measurements; coverage reporting in CI.
+- [ ] Benchmark regression tracking on dedicated hardware.
 - [ ] Accept the legacy untagged normalizer/decoder JSON forms (no file
       in the fixture set needs them today).
 

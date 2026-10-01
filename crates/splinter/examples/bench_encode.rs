@@ -1,6 +1,13 @@
-//! Rough encode throughput: `cargo run --release --example bench_encode --
-//! <tokenizer.json> <text file>`. Encodes every line one at a time, then
-//! as one parallel batch. See docs/benchmarks.md.
+//! Rough end-to-end throughput on any tokenizer and text file:
+//!
+//! ```sh
+//! cargo run --release --example bench_encode -- <tokenizer.json> <text file>
+//! ```
+//!
+//! Encodes every line one at a time, then as one parallel batch, then
+//! decodes the batch (sequentially and in parallel). For statistically
+//! sound numbers use the Criterion suite (`cargo bench`). See
+//! docs/benchmarks.md.
 
 use std::time::Instant;
 
@@ -12,7 +19,9 @@ fn main() -> splinter::Result<()> {
         eprintln!("usage: bench_encode <tokenizer.json> <text file>");
         std::process::exit(2);
     };
-    let tok = Tokenizer::from_file(tokenizer)?;
+    let mut tok = Tokenizer::from_file(tokenizer)?;
+    tok.set_padding(None);
+    tok.set_truncation(None)?;
     let text = std::fs::read_to_string(text)?;
     let lines: Vec<&str> = text.lines().collect();
     let mb = text.len() as f64 / 1e6;
@@ -29,15 +38,32 @@ fn main() -> splinter::Result<()> {
     let batched = start.elapsed().as_secs_f64();
     assert_eq!(batch.iter().map(|e| e.len()).sum::<usize>(), n_tokens);
 
+    let ids: Vec<&[u32]> = batch.iter().map(|e| e.ids()).collect();
+    let start = Instant::now();
+    for seq in &ids {
+        tok.decode(seq, true)?;
+    }
+    let dec_single = start.elapsed().as_secs_f64();
+    let start = Instant::now();
+    tok.decode_batch(&ids, true)?;
+    let dec_batched = start.elapsed().as_secs_f64();
+    let mtok = n_tokens as f64 / 1e6;
+
     println!(
-        "{} lines, {:.1} MB, {} tokens | sequential {:.2}s ({:.1} MB/s) | batch {:.2}s ({:.1} MB/s)",
+        "{} lines, {:.1} MB, {} tokens\n\
+         encode: sequential {:.2}s ({:.1} MB/s) | batch {:.2}s ({:.1} MB/s)\n\
+         decode: sequential {:.2}s ({:.1} M tokens/s) | batch {:.2}s ({:.1} M tokens/s)",
         lines.len(),
         mb,
         n_tokens,
         single,
         mb / single,
         batched,
-        mb / batched
+        mb / batched,
+        dec_single,
+        mtok / dec_single,
+        dec_batched,
+        mtok / dec_batched
     );
     Ok(())
 }

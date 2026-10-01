@@ -100,8 +100,6 @@ Deliberate differences, all in the direction of *accepting more* or
 - **Hub downloads** (`from_pretrained`, feature `hub`) fetch only
   `tokenizer.json`, not the other files of a repository, and use the
   same cache layout as `huggingface_hub`.
-- **Progress bars** are not printed by trainers (`show_progress` is
-  accepted and ignored).
 
 Kept on purpose because HF does it: a BPE model with neither
 `unk_token` nor `byte_fallback` silently drops characters it cannot

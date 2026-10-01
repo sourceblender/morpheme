@@ -1,9 +1,9 @@
 # `make` fallback for users without `just`. Same recipes.
 
-.PHONY: default gate build run fmt fix fixtures golden interop
+.PHONY: default gate build run fmt fix fixtures golden interop bench coverage
 
 default:
-	@echo "Targets: gate build run fmt fix fixtures golden interop"
+	@echo "Targets: gate build run fmt fix fixtures golden interop bench coverage"
 
 gate: fixtures
 	cargo fmt --all -- --check
@@ -31,3 +31,9 @@ golden: fixtures
 
 interop:
 	uv run --with tokenizers==0.23.2 scripts/check_python_interop.py
+
+bench: fixtures
+	cargo bench -p splinter
+
+coverage: fixtures
+	cargo llvm-cov --workspace --all-features --summary-only
