@@ -27,11 +27,12 @@
       Guidelines naming) and rustdoc examples.
 - [x] Release pipeline (`dist`): CLI binaries for six targets, checksums,
       installers; crates.io publishing.
+- [x] Released v0.1.0 (2026-10-01): [`morpheme`](https://crates.io/crates/morpheme)
+      and [`morpheme-cli`](https://crates.io/crates/morpheme-cli) on crates.io,
+      binaries on the [GitHub Release](https://github.com/sourceblender/morpheme/releases/tag/v0.1.0).
 
 ## Next
 
-- [ ] Tag `v0.1.0`: publishes `morpheme` and `morpheme-cli` to crates.io
-      and attaches binaries to the GitHub Release.
 - [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
 - [ ] Benchmark regression tracking on dedicated hardware.
 - [ ] Accept the legacy untagged normalizer/decoder JSON forms (no file
