@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 
 use morpheme::decoders::BpeDecoder;
-use morpheme::models::{Bpe, Unigram, WordPiece};
+use morpheme::models::{Bpe, ModelWrapper, Unigram, WordPiece};
 use morpheme::pre_tokenizers::{Whitespace, WhitespaceSplit};
 use morpheme::trainers::BpeTrainer;
 use morpheme::{Encoding, Model, Tokenizer};
@@ -472,4 +472,210 @@ fn wordpiece_max_input_chars_per_word_zero_makes_every_word_unk() {
 
     let reloaded = Tokenizer::from_json(&tok.to_json(false).unwrap()).unwrap();
     assert_eq!(reloaded.encode("a", false).unwrap().tokens(), ["[UNK]"]);
+}
+
+// ---------------------------------------------------------------------------
+// Unigram subword-regularization sampling (#52) and `Tokenizer::model_mut`
+// ---------------------------------------------------------------------------
+
+/// A bare tokenizer (no normalizer / pre-tokenizer) around the ALBERT
+/// fixture's Unigram model, so inputs reach the model untouched.
+fn albert_tokenizer() -> Tokenizer {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/data/hf/albert-base-v2.json"
+    );
+    let loaded = Tokenizer::from_file(path).unwrap();
+    match loaded.model() {
+        ModelWrapper::Unigram(u) => Tokenizer::new(u.clone()),
+        other => panic!("expected a Unigram model, got {other:?}"),
+    }
+}
+
+/// Configure Unigram sampling in place through `Tokenizer::model_mut`.
+fn set_unigram_sampling(tok: &mut Tokenizer, alpha: f64, nbest_size: i32, seed: Option<u64>) {
+    match tok.model_mut() {
+        ModelWrapper::Unigram(u) => {
+            u.set_sampling(alpha, nbest_size).unwrap();
+            u.set_seed(seed);
+        }
+        other => panic!("expected a Unigram model, got {other:?}"),
+    }
+}
+
+fn unigram_sampling(tok: &Tokenizer) -> Option<(f64, i32)> {
+    match tok.model() {
+        ModelWrapper::Unigram(u) => u.sampling(),
+        other => panic!("expected a Unigram model, got {other:?}"),
+    }
+}
+
+/// The ALBERT tokenizer with sampling configured through `model_mut`.
+fn sampled_albert(alpha: f64, nbest_size: i32, seed: Option<u64>) -> Tokenizer {
+    let mut tok = albert_tokenizer();
+    set_unigram_sampling(&mut tok, alpha, nbest_size, seed);
+    tok
+}
+
+fn pieces(tok: &Tokenizer, input: &str) -> Vec<String> {
+    tok.encode(input, false).unwrap().tokens().to_vec()
+}
+
+const SAMPLING_INPUTS: &[&str] = &[
+    "▁hello",
+    "▁unbelievable",
+    "▁tokenization",
+    "▁internationalization",
+    "▁the▁quick▁brown▁fox",
+    "▁ünïcödé",
+];
+
+fn check_encoding_covers(input: &str, e: &Encoding) {
+    let mut pos = 0;
+    let mut text = String::new();
+    for &(start, end) in e.offsets() {
+        assert_eq!(start, pos, "offsets must be contiguous for {input:?}");
+        assert!(end >= start);
+        text.push_str(&input[start..end]);
+        pos = end;
+    }
+    assert_eq!(pos, input.len());
+    assert_eq!(text, input);
+    let joined: String = e.tokens().concat();
+    assert_eq!(joined, input, "pieces must concatenate back to the input");
+}
+
+/// `model_mut` hands out the same model `model` shows, and a runtime
+/// change made through it is visible to `encode` without `set_model`.
+#[test]
+fn tokenizer_model_mut_changes_runtime_settings_in_place() {
+    let mut tok = albert_tokenizer();
+    assert_eq!(unigram_sampling(&tok), None);
+    let before = pieces(&tok, "▁unbelievable");
+
+    set_unigram_sampling(&mut tok, 0.1, -1, Some(3));
+    assert_eq!(unigram_sampling(&tok), Some((0.1, -1)));
+    let seeded = pieces(&tok, "▁unbelievable");
+    assert_eq!(seeded, pieces(&tok, "▁unbelievable"), "seeded draws repeat");
+
+    // Switching sampling off again through the same accessor restores
+    // the Viterbi result, and the vocabulary is untouched.
+    set_unigram_sampling(&mut tok, 0.0, -1, None);
+    assert_eq!(unigram_sampling(&tok), None);
+    assert_eq!(pieces(&tok, "▁unbelievable"), before);
+    assert_eq!(
+        tok.model().vocab_size(),
+        albert_tokenizer().model().vocab_size()
+    );
+    assert_eq!(
+        tok.token_to_id("▁hello"),
+        albert_tokenizer().token_to_id("▁hello")
+    );
+}
+
+#[test]
+fn unigram_sampling_nbest_one_equals_viterbi() {
+    let viterbi = albert_tokenizer();
+    let one = sampled_albert(0.5, 1, None);
+    assert_eq!(unigram_sampling(&one), None);
+    let zero_alpha = sampled_albert(0.0, -1, None);
+    assert_eq!(unigram_sampling(&zero_alpha), None);
+    for input in SAMPLING_INPUTS {
+        let expected = pieces(&viterbi, input);
+        assert_eq!(pieces(&one, input), expected);
+        assert_eq!(pieces(&zero_alpha, input), expected);
+    }
+    let mut bad = albert_tokenizer();
+    if let ModelWrapper::Unigram(u) = bad.model_mut() {
+        assert!(u.set_sampling(-0.1, -1).is_err());
+        assert!(u.set_sampling(f64::NAN, -1).is_err());
+    }
+}
+
+#[test]
+fn unigram_sampling_with_seed_is_reproducible() {
+    let run = |nbest: i32, seed: u64| -> Vec<Vec<String>> {
+        let tok = sampled_albert(0.1, nbest, Some(seed));
+        SAMPLING_INPUTS.iter().map(|s| pieces(&tok, s)).collect()
+    };
+    assert_eq!(run(-1, 42), run(-1, 42));
+    assert_eq!(run(8, 42), run(8, 42));
+    // A different seed changes at least one sample over this many inputs.
+    assert_ne!(run(-1, 42), run(-1, 43));
+}
+
+#[test]
+fn unigram_sampling_produces_distinct_valid_segmentations() {
+    for nbest in [-1, 16] {
+        let tok = sampled_albert(0.1, nbest, None);
+        let input = "▁unbelievable";
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..200 {
+            let e = tok.encode(input, false).unwrap();
+            check_encoding_covers(input, &e);
+            seen.insert(e.tokens().to_vec());
+        }
+        assert!(
+            seen.len() >= 2,
+            "nbest_size={nbest}: expected several segmentations, got {seen:?}"
+        );
+    }
+}
+
+#[test]
+fn unigram_sampling_large_alpha_converges_to_viterbi() {
+    let viterbi = albert_tokenizer();
+    let sharp = sampled_albert(1e6, -1, None);
+    let sharp_nbest = sampled_albert(1e6, 8, None);
+    for input in SAMPLING_INPUTS {
+        let expected = pieces(&viterbi, input);
+        for _ in 0..20 {
+            assert_eq!(pieces(&sharp, input), expected);
+            assert_eq!(pieces(&sharp_nbest, input), expected);
+        }
+    }
+}
+
+#[test]
+fn unigram_sampling_encode_batch_under_rayon() {
+    let tok = sampled_albert(0.1, -1, Some(7)).with_pre_tokenizer(WhitespaceSplit);
+    let inputs = repeated_batch(&["hello", "unbelievable", "tokenization", "fox"], 2000);
+    let encodings = tok.encode_batch(inputs.clone(), false).unwrap();
+    assert_eq!(encodings.len(), inputs.len());
+    // Seeded sampling is a pure function of the sentence, so batches match
+    // sequential encodes whatever the thread schedule.
+    for (input, enc) in inputs.iter().zip(&encodings) {
+        let single = tok.encode(input.as_str(), false).unwrap();
+        assert_eq!(enc.tokens(), single.tokens());
+        assert_eq!(enc.offsets(), single.offsets());
+    }
+}
+
+/// `model_mut` also reaches `Bpe::set_dropout`, the runtime BPE setting
+/// the accessor's docs name: dropout 1 skips every merge and the cached
+/// deterministic result is not served afterwards.
+#[test]
+fn tokenizer_model_mut_sets_bpe_dropout() {
+    let v = vocab(&[("a", 0), ("b", 1), ("ab", 2)]);
+    let bpe = Bpe::builder()
+        .vocab_and_merges(v, merges(&[("a", "b")]))
+        .build()
+        .unwrap();
+    let mut tok = Tokenizer::new(bpe);
+    assert_eq!(tok.encode("ab", false).unwrap().tokens(), ["ab"]);
+
+    match tok.model_mut() {
+        ModelWrapper::Bpe(b) => b.set_dropout(Some(1.0)).unwrap(),
+        other => panic!("expected a BPE model, got {other:?}"),
+    }
+    assert_eq!(tok.encode("ab", false).unwrap().tokens(), ["a", "b"]);
+
+    match tok.model_mut() {
+        ModelWrapper::Bpe(b) => {
+            assert!(b.set_dropout(Some(2.0)).is_err());
+            b.set_dropout(None).unwrap();
+        }
+        other => panic!("expected a BPE model, got {other:?}"),
+    }
+    assert_eq!(tok.encode("ab", false).unwrap().tokens(), ["ab"]);
 }

@@ -380,6 +380,25 @@ impl Bpe {
         self.dropout
     }
 
+    /// Set the BPE-dropout probability at runtime, with the same
+    /// validation as the builder: `None` or a value in `[0, 1]`, where
+    /// `Some(0.0)` is normalized to `None` (it never skips a merge).
+    /// Anything else, including `NaN`, is a config error and leaves the
+    /// model unchanged. The word cache is cleared, since cached results
+    /// assume the previous merge behaviour.
+    pub fn set_dropout(&mut self, dropout: Option<f32>) -> Result<()> {
+        if let Some(p) = dropout {
+            if !(0.0..=1.0).contains(&p) {
+                return Err(Error::Config(format!(
+                    "BPE dropout must be between 0 and 1, got {p}"
+                )));
+            }
+        }
+        self.dropout = dropout.filter(|&p| p != 0.0);
+        self.clear_cache();
+        Ok(())
+    }
+
     /// Whether consecutive unknown chars are fused into one unknown token.
     pub fn fuse_unk(&self) -> bool {
         self.fuse_unk
@@ -613,6 +632,42 @@ mod tests {
             .iter()
             .map(|t| (t.value.as_str(), t.id, t.offsets))
             .collect()
+    }
+
+    #[test]
+    fn set_dropout_validates_normalizes_and_clears_the_cache() {
+        let v = vocab(&[("a", 0), ("b", 1), ("ab", 2)]);
+        let mut bpe = Bpe::builder()
+            .vocab_and_merges(v, vec![("a".into(), "b".into())])
+            .build()
+            .unwrap();
+        assert_eq!(bpe.dropout(), None);
+        // Deterministic: the merge applies and the word is cached.
+        assert_eq!(values(&bpe.tokenize("ab").unwrap()), [("ab", 2, (0, 2))]);
+
+        // Dropout 1 skips every merge; the cached merged result must not
+        // be served.
+        bpe.set_dropout(Some(1.0)).unwrap();
+        assert_eq!(bpe.dropout(), Some(1.0));
+        assert_eq!(
+            values(&bpe.tokenize("ab").unwrap()),
+            [("a", 0, (0, 1)), ("b", 1, (1, 2))]
+        );
+
+        // `Some(0.0)` is normalized to `None`, like the builder.
+        bpe.set_dropout(Some(0.0)).unwrap();
+        assert_eq!(bpe.dropout(), None);
+        assert_eq!(values(&bpe.tokenize("ab").unwrap()), [("ab", 2, (0, 2))]);
+        bpe.set_dropout(None).unwrap();
+        assert_eq!(bpe.dropout(), None);
+
+        // Out-of-range values are rejected and leave the setting as is.
+        bpe.set_dropout(Some(0.5)).unwrap();
+        for bad in [-0.1, 1.5, f32::NAN, f32::INFINITY] {
+            let err = bpe.set_dropout(Some(bad)).unwrap_err();
+            assert!(err.to_string().contains("dropout"), "{err}");
+            assert_eq!(bpe.dropout(), Some(0.5));
+        }
     }
 
     #[test]

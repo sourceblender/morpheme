@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>morpheme token counter</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input[type=text], textarea { width: 100%; box-sizing: border-box; font: inherit; padding: .4rem; }
+    textarea { min-height: 8rem; }
+    #status { color: #666; }
+    #count { font-size: 2rem; font-weight: 700; }
+    .tok { display: inline-block; margin: 2px; padding: 0 .3rem; border-radius: 3px; background: #e8eefc; white-space: pre; }
+    .err { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>morpheme token counter</h1>
+  <p id="status">Loading wasm module…</p>
+
+  <label for="url">tokenizer.json URL</label>
+  <input type="text" id="url" value="https://huggingface.co/gpt2/resolve/main/tokenizer.json">
+  <button id="load">Load tokenizer</button>
+
+  <label for="text">Text</label>
+  <textarea id="text">Hello, world! Tokenizers in the browser.</textarea>
+  <label><input type="checkbox" id="special" checked> add special tokens</label>
+
+  <p><span id="count">–</span> tokens</p>
+  <div id="tokens"></div>
+
+  <script type="module">
+    // `../pkg` is produced by `wasm-pack build --target web` (see README.md).
+    import init, { Tokenizer } from "../pkg/morpheme_wasm.js";
+
+    const $ = (id) => document.getElementById(id);
+    let tokenizer = null;
+
+    function show(msg, isError = false) {
+      $("status").textContent = msg;
+      $("status").className = isError ? "err" : "";
+    }
+
+    function update() {
+      if (!tokenizer) return;
+      const text = $("text").value;
+      const special = $("special").checked;
+      try {
+        // One encode per keystroke: the count is the token list's length
+        // (`count()` would run the same encode again).
+        const tokens = tokenizer.tokens(text, special);
+        $("count").textContent = tokens.length;
+        $("tokens").replaceChildren(...tokens.map((t) => {
+          const span = document.createElement("span");
+          span.className = "tok";
+          span.textContent = t;
+          return span;
+        }));
+      } catch (e) {
+        show(`encode failed: ${e.message ?? e}`, true);
+      }
+    }
+
+    async function load() {
+      const url = $("url").value;
+      show(`Fetching ${url}…`);
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        const json = await response.text();
+        // Parse into a temporary first: if the JSON is rejected, the
+        // previous tokenizer stays usable and is never left freed.
+        const next = Tokenizer.fromJson(json);
+        if (tokenizer) tokenizer.free();
+        tokenizer = next;
+        show(`Loaded ${url}`);
+        update();
+      } catch (e) {
+        show(`load failed: ${e.message ?? e}`, true);
+      }
+    }
+
+    await init();
+    show("Module ready. Load a tokenizer.");
+    $("load").addEventListener("click", load);
+    $("text").addEventListener("input", update);
+    $("special").addEventListener("change", update);
+  </script>
+</body>
+</html>

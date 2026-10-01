@@ -38,7 +38,8 @@
 - [x] Executable document-budget consumer with atomic dataset publication,
       pinned/offline Hub replay, and a 10,000-record stress check.
 
-- [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
+- [x] Unigram subword-regularization sampling (`alpha`, `nbest_size`) with
+      seeded, order-independent draws (2026-10-01).
 - [x] Repeatable local performance baselines with input fingerprints, diverse
       text, isolated load memory, and opt-in timing/RSS regression thresholds.
 - [ ] Benchmark regression tracking on dedicated hardware (in progress:
@@ -55,10 +56,11 @@
       module with maturin (load from file / string / Hub, encode, decode, batch
       variants, count, vocab lookups, save). Platform wheels in CI and a
       published package are still to do.
-- [ ] WASM target via `wasm-bindgen`. Partial: the library compiles for
+- [x] WASM target via `wasm-bindgen`: the library compiles for
       `wasm32-unknown-unknown` (`parallel` feature gates rayon with a
-      sequential fallback; `save` is compiled out there) and CI checks it.
-      The `wasm-bindgen` binding crate and browser example are still to do.
+      sequential fallback; `save` is compiled out there), and
+      `bindings/wasm` exposes `fromJson`/`encode`/`tokens`/`count`/`decode`
+      with a browser token-counter example. Not published to npm.
 
 ## Out of scope
 

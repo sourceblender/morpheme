@@ -22,7 +22,8 @@
 ```
 morpheme/
 ├── crates/morpheme      # the library
-└── apps/morpheme-cli    # `morpheme` binary: train / encode / decode / inspect
+├── apps/morpheme-cli    # `morpheme` binary: train / encode / decode / inspect
+└── bindings/wasm        # `morpheme-wasm`: wasm-bindgen glue + browser example (unpublished)
 ```
 
 ## Pipeline
@@ -109,13 +110,22 @@ fallback.
   sequentially on the calling thread (`#[cfg(feature = "parallel")]` picks
   `par_iter`/`par_chunks`/`par_bridge` or their `std` counterparts at each
   site), which is what single-threaded targets want.
-- `hub`: see below.
+- `hub`: see below. Native targets only: on wasm32 the feature is a
+  documented no-op (`ureq`'s rustls stack does not build there), so
+  `from_pretrained` and `FromPretrainedParameters` are absent.
 
-The library compiles for `wasm32-unknown-unknown`. `tempfile` is a
-non-wasm dependency there, so `Tokenizer::save` (atomic replace through a
-temporary file) is compiled out on wasm32; `from_bytes`/`to_json` cover
-the browser. CI checks `--no-default-features --target
-wasm32-unknown-unknown`.
+The library compiles for `wasm32-unknown-unknown` with any feature set.
+`tempfile`, `ureq`, `sha1` and `sha2` are non-wasm dependencies, so
+`Tokenizer::save` (atomic replace through a temporary file) and the Hub
+client are compiled out on wasm32; `from_bytes`/`to_json` cover the
+browser. CI checks `--no-default-features` and `--all-features` on
+`--target wasm32-unknown-unknown`.
+
+`bindings/wasm` (`morpheme-wasm`) wraps `Tokenizer` for JavaScript with
+`wasm-bindgen`: `fromJson`, `encode`, `tokens`, `count`, `decode`, with
+Rust errors thrown as JS `Error`s. It depends on the library with
+`default-features = false` and is built with `wasm-pack build --target
+web`; see `bindings/wasm/README.md` and the `www/index.html` example.
 
 ## Hub downloads
 
