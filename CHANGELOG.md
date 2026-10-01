@@ -73,6 +73,13 @@ format, and is now verified against the reference implementation.
   default `progressbar` feature (`indicatif`); hidden when stderr is not
   a terminal. CLI `train --quiet`.
 - Coverage reporting in CI (`cargo-llvm-cov`, lcov artifact).
+- Release automation with [`dist`](https://opensource.axo.dev/cargo-dist/):
+  a `vX.Y.Z` tag builds the CLI for macOS (arm64, x86-64), Linux (gnu
+  arm64/x86-64, musl x86-64) and Windows, attaches archives, SHA-256
+  checksums and shell/PowerShell installers to a GitHub Release, and
+  publishes both crates to crates.io.
+- The published library crate excludes tests, benchmarks and test data
+  (~3 MB → 128 KB).
 
 ### Changed
 

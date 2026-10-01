@@ -34,3 +34,7 @@ rayon = "1"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# Profile used by `dist` for release binaries.
+[profile.dist]
+inherits = "release"

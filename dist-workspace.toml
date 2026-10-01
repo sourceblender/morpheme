@@ -1,0 +1,23 @@
+# Release automation: https://opensource.axo.dev/cargo-dist/
+# Pushing a `vX.Y.Z` tag builds the CLI for every target below, attaches
+# archives + checksums + installers to a GitHub Release, and publishes the
+# crates (.github/workflows/publish-crates.yml).
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.33.0"
+ci = "github"
+installers = ["shell", "powershell"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "x86_64-pc-windows-msvc",
+]
+install-path = "CARGO_HOME"
+publish-jobs = ["./publish-crates"]
+# Run the release plan on PRs that touch release config, without building.
+pr-run-mode = "plan"

@@ -11,6 +11,18 @@ authors.workspace = true
 readme = "../../README.md"
 keywords = ["tokenizer", "bpe", "wordpiece", "sentencepiece", "nlp"]
 categories = ["text-processing", "science"]
+# Keep test data, tests and benchmarks out of the published crate; they
+# need the downloaded Hugging Face fixtures anyway.
+exclude = [
+    "tests/",
+    "benches/",
+    "examples/",
+    "src/pre_tokenizers/testdata/",
+    "src/pre_tokenizers/tests.rs",
+    "src/models/bpe/fixture_data.rs",
+    "src/models/bpe/fixture_tests.rs",
+    "src/trainers/bpe/parity_data.rs",
+]
 
 [lib]
 # Benchmarks live in benches/ (Criterion); keep libtest's bench harness
