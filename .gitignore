@@ -1,0 +1,14 @@
+# Rust / cargo
+/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Tooling caches
+.prettier-cache/
+.bun/
