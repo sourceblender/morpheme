@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sequentially. The library now compiles for `wasm32-unknown-unknown`
   (`Tokenizer::save` is compiled out there, as `tempfile` is a non-wasm
   dependency), and CI checks that target (#51).
+- `bindings/wasm`: the unpublished `morpheme-wasm` crate wraps
+  `Tokenizer` for the browser with `wasm-bindgen` (`fromJson`, `encode`,
+  `tokens`, `count`, `decode`; Rust errors become JS exceptions), with a
+  `www/index.html` token counter and `wasm-pack` build instructions (#51).
 - Unigram subword-regularization sampling: `Unigram::set_sampling(alpha,
   nbest_size)` / `with_sampling` (n-best sampling for `nbest_size > 1`,
   whole-lattice forward-filtering backward-sampling for `nbest_size < 0`)

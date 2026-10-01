@@ -2,12 +2,12 @@
 //! Hugging Face `tokenizer.json` format.
 
 mod decode_stream;
-#[cfg(feature = "hub")]
+#[cfg(all(feature = "hub", not(target_arch = "wasm32")))]
 mod hub;
 mod serialization;
 
 pub use decode_stream::DecodeStream;
-#[cfg(feature = "hub")]
+#[cfg(all(feature = "hub", not(target_arch = "wasm32")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "hub")))]
 pub use hub::FromPretrainedParameters;
 
@@ -508,7 +508,7 @@ impl Tokenizer {
     /// let pinned = Tokenizer::from_pretrained("my-org/my-model", Some(params))?;
     /// # Ok::<(), morpheme::Error>(())
     /// ```
-    #[cfg(feature = "hub")]
+    #[cfg(all(feature = "hub", not(target_arch = "wasm32")))]
     #[cfg_attr(docsrs, doc(cfg(feature = "hub")))]
     pub fn from_pretrained(
         identifier: &str,

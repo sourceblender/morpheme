@@ -39,16 +39,19 @@ unicode-segmentation = { workspace = true }
 fancy-regex = { workspace = true }
 aho-corasick = { workspace = true }
 rayon = { workspace = true, optional = true }
-ureq = { workspace = true, optional = true }
-sha1 = { version = "0.11", optional = true }
-sha2 = { version = "0.11", optional = true }
 indicatif = { workspace = true, optional = true }
 
 # Atomic `Tokenizer::save` (and the `hub` cache) write through a temporary
 # file. wasm32 has no usable filesystem, so the dependency and `save` are
 # compiled out there; `from_bytes`/`from_json` still work in the browser.
+# The `hub` client (ureq's rustls stack does not build for
+# wasm32-unknown-unknown) is likewise native-only: the feature is a no-op
+# on wasm32 and `from_pretrained` is absent there.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tempfile = { workspace = true }
+ureq = { workspace = true, optional = true }
+sha1 = { version = "0.11", optional = true }
+sha2 = { version = "0.11", optional = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -63,6 +66,7 @@ progressbar = ["dep:indicatif"]
 # what single-threaded targets such as wasm32-unknown-unknown want.
 parallel = ["dep:rayon"]
 # `Tokenizer::from_pretrained`: download tokenizers from the Hugging Face Hub.
+# Native targets only; on wasm32 the feature compiles to nothing.
 hub = ["dep:ureq", "dep:sha1", "dep:sha2"]
 
 [dev-dependencies]
