@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use unicode_normalization_alignments::UnicodeNormalization;
 
 use crate::Offsets;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::pattern::Pattern;
 
 /// A byte range expressed in one of the two coordinate systems of a
@@ -563,14 +563,22 @@ impl NormalizedString {
             }
         };
 
-        Ok(spans
+        // Empty spans (from patterns that match the empty string, such as
+        // `$` or `\b`) carry no text and are discarded by
+        // `PreTokenizedString::split` anyway; slicing them is not
+        // meaningful once a normalizer has changed the byte length.
+        spans
             .into_iter()
-            .filter(|(_, remove)| !remove)
+            .filter(|((s, e), remove)| !remove && s < e)
             .map(|((s, e), _)| {
-                self.slice(OffsetRange::Normalized(s..e))
-                    .expect("pattern matches are on char boundaries")
+                self.slice(OffsetRange::Normalized(s..e)).ok_or_else(|| {
+                    Error::PreTokenizer(format!(
+                        "pattern match {s}..{e} is not on char boundaries of {:?}",
+                        self.normalized
+                    ))
+                })
             })
-            .collect())
+            .collect()
     }
 
     /// Remove leading whitespace.
@@ -634,26 +642,14 @@ impl NormalizedString {
 /// Convert a byte range of `s` to a char range. `None` if the range does
 /// not fall on char boundaries.
 pub fn bytes_to_char(s: &str, range: std::ops::Range<usize>) -> Option<std::ops::Range<usize>> {
-    if range == (0..0) {
-        return Some(0..0);
+    if range.start > range.end {
+        return None;
     }
-    let mut start = None;
-    let mut end = None;
-    for (i, (b, c)) in s.char_indices().enumerate() {
-        if b > range.end {
-            break;
-        }
-        if b == range.start {
-            start = Some(i);
-        }
-        if b == range.end {
-            end = Some(i);
-        }
-        if b + c.len_utf8() == range.end {
-            end = Some(i + 1);
-        }
-    }
-    Some(start?..end?)
+    // `str::get` returns `None` unless both ends are char boundaries, so
+    // an empty range at the end of the string is accepted like any other.
+    let start = s.get(..range.start)?.chars().count();
+    let end = start + s.get(range.start..range.end)?.chars().count();
+    Some(start..end)
 }
 
 #[cfg(test)]

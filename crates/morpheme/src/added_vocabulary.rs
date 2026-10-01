@@ -315,14 +315,26 @@ impl AddedVocabulary {
     }
 
     /// Add tokens with explicit ids (as loaded from `tokenizer.json`).
+    ///
+    /// Fails if two tokens in `tokens` use the same id, since only one
+    /// content can map to an id.
     pub fn add_tokens_with_ids(
         &mut self,
         tokens: &[AddedTokenWithId],
         normalizer: Option<&dyn Normalizer>,
     ) -> Result<()> {
+        let mut seen: HashMap<u32, &str> = HashMap::new();
         for t in tokens {
             if t.token.content.is_empty() {
                 continue;
+            }
+            if let Some(prev) = seen.insert(t.id, &t.token.content) {
+                if prev != t.token.content {
+                    return Err(Error::Config(format!(
+                        "added token id {} is used by both {prev:?} and {:?}",
+                        t.id, t.token.content
+                    )));
+                }
             }
             self.insert(t.id, t.token.clone());
         }
@@ -333,6 +345,15 @@ impl AddedVocabulary {
         if let Some(old_id) = self.by_content.insert(token.content.clone(), id) {
             if old_id != id {
                 self.by_id.remove(&old_id);
+            }
+        }
+        // The id's previous content must not keep resolving to it.
+        if let Some(previous) = self.by_id.get(&id) {
+            if previous.content != token.content {
+                if self.by_content.get(&previous.content) == Some(&id) {
+                    self.by_content.remove(&previous.content);
+                }
+                self.special.remove(&previous.content);
             }
         }
         if token.special {
@@ -413,6 +434,15 @@ impl AddedVocabulary {
                 let rest = &sentence[stop..];
                 stop += rest.len() - rest.trim_start_matches(char::is_whitespace).len();
             }
+            // A previous `rstrip` token may already own the whitespace this
+            // match starts in (or, with `lstrip`, the clamp above may have
+            // moved `start` past `stop`). Every byte belongs to at most one
+            // split, so clamp to the cursor and drop what is left empty.
+            // (HF lets the spans overlap here.)
+            start = start.max(cursor);
+            if start >= stop {
+                continue;
+            }
             if cursor < start {
                 splits.push((None, (cursor, start)));
             }
@@ -429,21 +459,26 @@ impl AddedVocabulary {
         &self,
         sentence: NormalizedString,
         matcher: &Option<Matcher>,
-    ) -> Vec<(NormalizedString, Option<Vec<Token>>)> {
+    ) -> Result<Vec<(NormalizedString, Option<Vec<Token>>)>> {
         self.find_matches(sentence.get(), matcher)
             .into_iter()
             .map(|(id, (s, e))| {
                 let slice = sentence
                     .slice(OffsetRange::Normalized(s..e))
-                    .expect("added-token matches are on char boundaries");
-                match id {
+                    .ok_or_else(|| {
+                        Error::PreTokenizer(format!(
+                            "added-token match {s}..{e} is not on char boundaries of {:?}",
+                            sentence.get()
+                        ))
+                    })?;
+                Ok(match id {
                     Some(id) => {
                         let value = slice.get().to_owned();
                         let len = value.len();
                         (slice, Some(vec![Token::new(id, value, (0, len))]))
                     }
                     None => (slice, None),
-                }
+                })
             })
             .collect()
     }
@@ -457,12 +492,12 @@ impl AddedVocabulary {
         sequence: &str,
     ) -> Result<PreTokenizedString> {
         let mut pretokenized = PreTokenizedString::from(sequence);
-        pretokenized.split(|_, s| Ok(self.split_with_matches(s, &self.raw_matcher)))?;
+        pretokenized.split(|_, s| self.split_with_matches(s, &self.raw_matcher))?;
         pretokenized.split(|_, mut s| {
             if let Some(n) = normalizer {
                 n.normalize(&mut s)?;
             }
-            Ok(self.split_with_matches(s, &self.normalized_matcher))
+            self.split_with_matches(s, &self.normalized_matcher)
         })?;
         Ok(pretokenized)
     }

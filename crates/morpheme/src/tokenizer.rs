@@ -439,10 +439,17 @@ impl Tokenizer {
     // ----- components -------------------------------------------------
 
     /// Set the normalizer (builder style).
+    ///
+    /// # Panics
+    ///
+    /// Panics if an added token cannot be normalized with the new
+    /// normalizer (see [`set_normalizer`](Self::set_normalizer), which
+    /// returns the error instead and leaves the tokenizer unchanged).
     #[must_use]
     pub fn with_normalizer(mut self, normalizer: impl Into<NormalizerWrapper>) -> Self {
-        self.set_normalizer(Some(normalizer.into()))
-            .expect("refreshing added tokens cannot fail for a valid normalizer");
+        if let Err(e) = self.set_normalizer(Some(normalizer.into())) {
+            panic!("Tokenizer::with_normalizer: cannot normalize added tokens: {e}");
+        }
         self
     }
 
@@ -468,11 +475,13 @@ impl Tokenizer {
     }
 
     /// Replace the normalizer. Added tokens that match normalized text
-    /// are re-normalized.
+    /// are re-normalized. On error, the tokenizer is left unchanged.
     pub fn set_normalizer(&mut self, normalizer: Option<NormalizerWrapper>) -> Result<()> {
+        let mut added_vocabulary = self.added_vocabulary.clone();
+        added_vocabulary.refresh(normalizer.as_ref().map(|n| n as &dyn Normalizer))?;
         self.normalizer = normalizer;
-        self.added_vocabulary
-            .refresh(self.normalizer.as_ref().map(|n| n as &dyn Normalizer))
+        self.added_vocabulary = added_vocabulary;
+        Ok(())
     }
 
     /// Replace the pre-tokenizer.
