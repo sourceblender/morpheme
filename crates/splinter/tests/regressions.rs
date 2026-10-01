@@ -193,3 +193,32 @@ fn bpe_byte_fallback_uses_hex_byte_tokens() {
         .collect();
     assert_eq!(values, ["a", "<0xC3>", "<0xA9>"]);
 }
+
+#[test]
+fn vocab_with_shared_ids_round_trips_losslessly() {
+    // Found by fuzzing: two tokens sharing an id (HF accepts this) lost
+    // one of them on save, so the reloaded tokenizer encoded differently
+    // and BPE merges could reference a vanished token.
+    for model in [
+        r#"{"type":"BPE","vocab":{"a":0,"b":1,"ab":1},"merges":[["a","b"]]}"#,
+        r#"{"type":"WordLevel","vocab":{"x":0,"y":0,"[UNK]":1},"unk_token":"[UNK]"}"#,
+        r###"{"type":"WordPiece","vocab":{"[UNK]":0,"x":1,"y":1},"unk_token":"[UNK]",
+              "continuing_subword_prefix":"##","max_input_chars_per_word":100}"###,
+    ] {
+        let json = format!(
+            r#"{{"version":"1.0","pre_tokenizer":{{"type":"WhitespaceSplit"}},"model":{model}}}"#
+        );
+        let tok = Tokenizer::from_json(&json).unwrap();
+        let saved = tok.to_json(false).unwrap();
+        let reloaded = Tokenizer::from_json(&saved).unwrap();
+        assert_eq!(reloaded.to_json(false).unwrap(), saved, "{model}");
+        assert_eq!(reloaded.get_vocab(false), tok.get_vocab(false), "{model}");
+        for text in ["ab", "x y", "a b"] {
+            assert_eq!(
+                tok.encode(text, false).unwrap(),
+                reloaded.encode(text, false).unwrap(),
+                "{model}: {text}"
+            );
+        }
+    }
+}

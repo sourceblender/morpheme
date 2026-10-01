@@ -9,7 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::Token;
 use crate::error::{Error, Result};
-use crate::models::bpe::{Bpe, OrderedVocab};
+use crate::models::bpe::{Bpe, OrderedVocab, reverse_vocab};
 use crate::traits::Model;
 
 /// `token -> id`.
@@ -72,7 +72,7 @@ impl WordPieceBuilder {
 
     /// Build the model.
     pub fn build(self) -> Result<WordPiece> {
-        let vocab_r = self.vocab.iter().map(|(k, v)| (*v, k.clone())).collect();
+        let vocab_r = reverse_vocab(&self.vocab);
         Ok(WordPiece {
             vocab: self.vocab,
             vocab_r,
@@ -138,7 +138,7 @@ impl WordPiece {
     }
 
     pub(crate) fn set_vocab(&mut self, vocab: Vocab) {
-        self.vocab_r = vocab.iter().map(|(k, v)| (*v, k.clone())).collect();
+        self.vocab_r = reverse_vocab(&vocab);
         self.vocab = vocab;
     }
 
@@ -214,7 +214,7 @@ impl Serialize for WordPiece {
         s.serialize_field("unk_token", &self.unk_token)?;
         s.serialize_field("continuing_subword_prefix", &self.continuing_subword_prefix)?;
         s.serialize_field("max_input_chars_per_word", &self.max_input_chars_per_word)?;
-        s.serialize_field("vocab", &OrderedVocab(&self.vocab_r))?;
+        s.serialize_field("vocab", &OrderedVocab(&self.vocab))?;
         s.end()
     }
 }

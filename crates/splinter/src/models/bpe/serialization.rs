@@ -8,16 +8,33 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::model::{Bpe, BpeBuilder, Merges, Vocab};
 
-/// Serializes `id -> token` as a JSON object ordered by id. Holes in the
-/// id space are skipped.
-pub(crate) struct OrderedVocab<'a>(pub(crate) &'a FxHashMap<u32, String>);
+/// Serializes `token -> id` as a JSON object ordered by id (then token).
+///
+/// Every entry is written, including tokens that share an id (Hugging
+/// Face accepts such files), so a save → load round trip is lossless.
+pub(crate) struct OrderedVocab<'a>(pub(crate) &'a Vocab);
 
 impl Serialize for OrderedVocab<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut ids: Vec<&u32> = self.0.keys().collect();
-        ids.sort_unstable();
-        serializer.collect_map(ids.into_iter().map(|id| (&self.0[id], *id)))
+        let mut entries: Vec<(&String, &u32)> = self.0.iter().collect();
+        entries.sort_unstable_by(|a, b| a.1.cmp(b.1).then_with(|| a.0.cmp(b.0)));
+        serializer.collect_map(entries)
     }
+}
+
+/// `id -> token`. When several tokens share an id, the smallest token
+/// wins, so the mapping doesn't depend on hash-map iteration order.
+pub(crate) fn reverse_vocab(vocab: &Vocab) -> FxHashMap<u32, String> {
+    let mut reversed: FxHashMap<u32, String> = FxHashMap::default();
+    for (token, &id) in vocab {
+        match reversed.get(&id) {
+            Some(existing) if existing <= token => {}
+            _ => {
+                reversed.insert(id, token.clone());
+            }
+        }
+    }
+    reversed
 }
 
 impl Serialize for Bpe {
@@ -31,8 +48,8 @@ impl Serialize for Bpe {
         s.serialize_field("fuse_unk", &self.fuse_unk)?;
         s.serialize_field("byte_fallback", &self.byte_fallback)?;
         s.serialize_field("ignore_merges", &self.ignore_merges)?;
-        s.serialize_field("vocab", &OrderedVocab(&self.vocab_r))?;
-        s.serialize_field("merges", &self.merges())?;
+        s.serialize_field("vocab", &OrderedVocab(&self.vocab))?;
+        s.serialize_field("merges", &self.merge_list)?;
         s.end()
     }
 }

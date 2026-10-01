@@ -3,6 +3,7 @@ use std::sync::RwLock;
 
 use rustc_hash::FxHashMap;
 
+use super::serialization::reverse_vocab;
 use super::word::{MergeMap, Word};
 use crate::Token;
 use crate::error::{Error, Result};
@@ -181,8 +182,7 @@ impl BpeBuilder {
                 )));
             }
         }
-        let vocab_r: FxHashMap<u32, String> =
-            self.vocab.iter().map(|(k, v)| (*v, k.clone())).collect();
+        let vocab_r: FxHashMap<u32, String> = reverse_vocab(&self.vocab);
         let prefix = self.continuing_subword_prefix.as_deref().unwrap_or("");
 
         let mut merges = MergeMap::default();
@@ -201,6 +201,7 @@ impl BpeBuilder {
             vocab: self.vocab,
             vocab_r,
             merges,
+            merge_list: self.merges,
             cache: (self.cache_capacity > 0).then(|| WordCache::new(self.cache_capacity)),
             dropout: self.dropout,
             unk_token: self.unk_token,
@@ -218,6 +219,10 @@ pub struct Bpe {
     pub(crate) vocab: Vocab,
     pub(crate) vocab_r: FxHashMap<u32, String>,
     pub(crate) merges: MergeMap,
+    /// The merges as given (or trained), in priority order. Kept verbatim
+    /// for serialization: rebuilding them from ids is lossy when several
+    /// tokens share an id.
+    pub(crate) merge_list: Merges,
     cache: Option<WordCache>,
     /// BPE-dropout probability (`None` = deterministic).
     pub dropout: Option<f32>,
@@ -271,6 +276,7 @@ impl Clone for Bpe {
             vocab: self.vocab.clone(),
             vocab_r: self.vocab_r.clone(),
             merges: self.merges.clone(),
+            merge_list: self.merge_list.clone(),
             cache: self.cache.as_ref().map(|c| WordCache::new(c.capacity)),
             dropout: self.dropout,
             unk_token: self.unk_token.clone(),
@@ -317,6 +323,11 @@ impl Bpe {
 
     /// Merges ordered by priority, as token strings.
     pub fn merges(&self) -> Merges {
+        self.merge_list.clone()
+    }
+
+    /// Merges ordered by priority, rebuilt from the merge map.
+    fn merges_from_map(&self) -> Merges {
         let mut ranked: Vec<(&super::Pair, u32)> = self
             .merges
             .iter()
@@ -349,9 +360,11 @@ impl Bpe {
         continuing_subword_prefix: Option<String>,
         end_of_word_suffix: Option<String>,
     ) {
-        self.vocab_r = vocab.iter().map(|(k, v)| (*v, k.clone())).collect();
+        self.vocab_r = reverse_vocab(&vocab);
         self.vocab = vocab;
         self.merges = merges;
+        // Trained vocabularies have unique ids, so this is exact.
+        self.merge_list = self.merges_from_map();
         self.continuing_subword_prefix = continuing_subword_prefix;
         self.end_of_word_suffix = end_of_word_suffix;
         self.clear_cache();

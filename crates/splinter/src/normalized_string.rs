@@ -324,12 +324,19 @@ impl NormalizedString {
         self.normalized.replace_range(n_range, &new_text);
     }
 
-    /// [`transform_range`](Self::transform_range) over the whole string.
+    /// [`transform_range`](Self::transform_range) over the whole normalized
+    /// string.
+    ///
+    /// The range is addressed in normalized coordinates: chars with an
+    /// empty alignment (inserted at the very start or end, e.g. by an
+    /// empty-pattern `replace`) have no original range, so an
+    /// original-coordinates "whole string" would exclude them while `dest`
+    /// still covers them.
     pub fn transform<I>(&mut self, dest: I, initial_offset: usize)
     where
         I: IntoIterator<Item = (char, isize)>,
     {
-        self.transform_range(OffsetRange::Original(..), dest, initial_offset);
+        self.transform_range(OffsetRange::Normalized(..), dest, initial_offset);
     }
 
     /// Unicode NFD.
@@ -388,6 +395,9 @@ impl NormalizedString {
 
     /// Prepend `s` to the normalized text. No-op on an empty string.
     pub fn prepend(&mut self, s: &str) -> &mut Self {
+        if s.is_empty() {
+            return self;
+        }
         if let Some(first) = self.normalized.chars().next() {
             let dest = s
                 .chars()
@@ -668,6 +678,33 @@ mod tests {
         assert_eq!(n.get(), "▁Hey▁friend");
         let first = n.convert_offsets(OffsetRange::Normalized(0.."▁".len()));
         assert_eq!(first, Some(0..1));
+    }
+
+    #[test]
+    fn empty_prepend_is_a_no_op() {
+        // Found by fuzzing: prepend("") left the first char with an empty
+        // alignment, and a following nfd() indexed out of bounds.
+        let mut n = NormalizedString::from("日本語のテ");
+        n.prepend("");
+        n.nfd();
+        assert_eq!(n.get(), "日本語のテ");
+        assert_eq!(n.convert_offsets(OffsetRange::Normalized(0..3)), Some(0..3));
+    }
+
+    #[test]
+    fn transform_after_insertion_at_start_does_not_panic() {
+        // Text inserted before the first char has no original range; a
+        // whole-string transform must still cover it.
+        let mut n = NormalizedString::from("ab");
+        let re = crate::pattern::SysRegex::new("^").unwrap();
+        n.replace(&re, "→").unwrap();
+        assert_eq!(n.get(), "→ab");
+        n.nfkd().lowercase();
+        assert_eq!(n.get(), "→ab");
+        assert_eq!(
+            n.get_range_original(OffsetRange::Normalized(3..5)),
+            Some("ab")
+        );
     }
 
     #[test]

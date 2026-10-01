@@ -14,7 +14,7 @@ mod word;
 mod fixture_tests;
 
 pub use model::{Bpe, BpeBuilder, Merges, Vocab};
-pub(crate) use serialization::OrderedVocab;
+pub(crate) use serialization::{OrderedVocab, reverse_vocab};
 pub(crate) use word::{MergeMap, Word};
 
 /// A pair of token ids.

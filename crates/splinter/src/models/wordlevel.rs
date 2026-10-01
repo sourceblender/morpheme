@@ -9,7 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::Token;
 use crate::error::{Error, Result};
-use crate::models::bpe::OrderedVocab;
+use crate::models::bpe::{OrderedVocab, reverse_vocab};
 use crate::traits::Model;
 
 /// `token -> id`.
@@ -53,7 +53,7 @@ impl WordLevelBuilder {
 
     /// Build the model.
     pub fn build(self) -> Result<WordLevel> {
-        let vocab_r = self.vocab.iter().map(|(k, v)| (*v, k.clone())).collect();
+        let vocab_r = reverse_vocab(&self.vocab);
         Ok(WordLevel {
             vocab: self.vocab,
             vocab_r,
@@ -95,7 +95,7 @@ impl WordLevel {
     }
 
     pub(crate) fn set_vocab(&mut self, vocab: Vocab) {
-        self.vocab_r = vocab.iter().map(|(k, v)| (*v, k.clone())).collect();
+        self.vocab_r = reverse_vocab(&vocab);
         self.vocab = vocab;
     }
 }
@@ -139,7 +139,7 @@ impl Serialize for WordLevel {
     fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
         let mut s = serializer.serialize_struct("WordLevel", 3)?;
         s.serialize_field("type", "WordLevel")?;
-        s.serialize_field("vocab", &OrderedVocab(&self.vocab_r))?;
+        s.serialize_field("vocab", &OrderedVocab(&self.vocab))?;
         s.serialize_field("unk_token", &self.unk_token)?;
         s.end()
     }
