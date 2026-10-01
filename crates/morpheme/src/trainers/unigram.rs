@@ -606,14 +606,30 @@ impl UnigramTrainer {
             .collect();
         let mut required: Vec<String> = required_chars.into_iter().collect();
         required.sort();
+        let learned = |c: &str| existing.get(c).copied().filter(|s| s.is_finite());
+        // A required char the model did not learn gets the lowest learned
+        // score (plus a growing penalty, as HF tokenizers does). With no
+        // learned score at all (an empty corpus), HF uses the model's
+        // `min_score` of `+inf` and saves `null`, which cannot be loaded
+        // back; give those chars a uniform log-probability instead.
+        let base = if model.min_score.is_finite() {
+            model.min_score
+        } else {
+            let unscored = required
+                .iter()
+                .filter(|c| !inserted.contains(*c) && learned(c).is_none())
+                .count()
+                .max(1);
+            0.0 - (unscored as f64).ln()
+        };
         for c in required {
             if inserted.contains(&c) {
                 continue;
             }
-            let score = match existing.get(c.as_str()) {
-                Some(&s) => s,
+            let score = match learned(&c) {
+                Some(s) => s,
                 None => {
-                    let s = model.min_score + penalty;
+                    let s = base + penalty;
                     penalty += PENALTY_DELTA;
                     s
                 }
@@ -643,7 +659,10 @@ impl UnigramTrainer {
             .and_then(|unk| reserved.iter().position(|t| t == unk));
         let mut vocab: Vec<SentencePiece> = reserved.into_iter().map(|t| (t, 0.0)).collect();
         vocab.extend(pieces);
+        // Every score above is finite; `Unigram::new` checks it anyway so
+        // a trained model can always be saved and loaded back.
         Unigram::new(vocab, unk_id, model.byte_fallback())
+            .map_err(|e| Error::Training(format!("invalid trained model: {e}")))
     }
 
     /// Train on `(word, count)` pairs.
@@ -678,13 +697,13 @@ impl UnigramTrainer {
         progress.finish();
 
         let desired = (self.vocab_size as usize * 11) / 10;
-        let mut current = Unigram::new(pieces.clone(), Some(0), false)?;
+        let mut current = Unigram::with_any_scores(pieces.clone(), Some(0), false)?;
         let progress = Progress::new(self.show_progress, "EM training", None);
         loop {
             for _ in 0..self.n_sub_iterations {
                 let expected = self.run_e_step(&current, &sentences);
                 pieces = self.run_m_step(&pieces, &expected);
-                current = Unigram::new(pieces.clone(), Some(0), false)?;
+                current = Unigram::with_any_scores(pieces.clone(), Some(0), false)?;
                 progress.inc(1);
             }
             if pieces.len() <= desired {
@@ -697,7 +716,7 @@ impl UnigramTrainer {
                 break;
             }
             pieces = pruned;
-            current = Unigram::new(pieces.clone(), Some(0), false)?;
+            current = Unigram::with_any_scores(pieces.clone(), Some(0), false)?;
         }
 
         progress.finish();

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Unigram scores are always finite, so a saved tokenizer can be loaded
+  back. `Unigram::new` (and loading) rejects a `NaN` or infinite score
+  with an error naming the piece; serializing a non-finite score is an
+  error instead of writing `null`, so `Tokenizer::save` leaves an
+  existing file untouched; and `UnigramTrainer` on an empty corpus gives
+  the required chars a uniform log-probability instead of `+inf` (#86).
+
 ### Changed
 
 - Release: no prebuilt Intel macOS (`x86_64-apple-darwin`) CLI archive;

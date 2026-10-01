@@ -58,7 +58,8 @@ fn main() -> morpheme::Result<()> {
 
 - `Unigram::new(vocab: Vec<(String, f64)>, unk_id: Option<usize>,
   byte_fallback: bool) -> Result<Unigram>` — the id of a piece is its
-  index. Fails on an empty vocabulary or an out-of-range `unk_id`.
+  index. Fails on an empty vocabulary, an out-of-range `unk_id`, or a
+  non-finite (`NaN` or infinite) score, naming the offending piece.
 - `Unigram::default()` — `[("<unk>", 0.0)]` with `unk_id` 0 (HF default).
 - `encode(&str) -> Result<Vec<String>>`, `unk_id()`, `byte_fallback()`,
   `pieces()` (the `(piece, score)` pairs), `clear_cache()`, plus the
@@ -142,5 +143,10 @@ fn main() -> morpheme::Result<()> {
 Missing `"type"` or `byte_fallback` (older files) is accepted; a wrong
 `"type"` is an error. Output is byte-identical to HF's for T5, ALBERT and
 XLM-RoBERTa.
+
+Scores are always finite. JSON has no `NaN` or infinity (`serde_json`
+would write `null`, which neither morpheme nor HF can load back), so
+serializing a model with a non-finite score is an error, and
+`Tokenizer::save` fails before it touches an existing file.
 
 See [trainer.md](./trainer.md) for `UnigramTrainer`.
