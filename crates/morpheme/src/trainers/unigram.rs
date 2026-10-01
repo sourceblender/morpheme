@@ -13,6 +13,7 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::{HashMap, HashSet};
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 use crate::added_vocabulary::AddedToken;
@@ -391,8 +392,11 @@ impl UnigramTrainer {
     fn run_e_step(&self, model: &Unigram, sentences: &[Sentence]) -> Vec<f64> {
         let size = model.len();
         let all_freq: f64 = sentences.iter().map(|(_, n)| f64::from(*n)).sum();
-        let partials: Vec<(f64, Vec<f64>)> = sentences
-            .par_chunks(CHUNK_SIZE)
+        #[cfg(feature = "parallel")]
+        let chunks = sentences.par_chunks(CHUNK_SIZE);
+        #[cfg(not(feature = "parallel"))]
+        let chunks = sentences.chunks(CHUNK_SIZE);
+        let partials: Vec<(f64, Vec<f64>)> = chunks
             .map(|chunk| {
                 let mut expected = vec![0.0; size];
                 let mut objective = 0.0;
@@ -449,8 +453,11 @@ impl UnigramTrainer {
 
         // How each piece would be re-segmented if it were removed: its
         // second-best segmentation.
-        let per_piece: Vec<(bool, Vec<usize>)> = pieces
-            .par_iter()
+        #[cfg(feature = "parallel")]
+        let piece_iter = pieces.par_iter();
+        #[cfg(not(feature = "parallel"))]
+        let piece_iter = pieces.iter();
+        let per_piece: Vec<(bool, Vec<usize>)> = piece_iter
             .enumerate()
             .map(|(id, (token, _))| {
                 if id == 0 {
@@ -477,8 +484,11 @@ impl UnigramTrainer {
         // Viterbi-segment the corpus: piece frequencies and, for each
         // piece, the sentences using it.
         let indexed: Vec<(usize, &Sentence)> = sentences.iter().enumerate().collect();
-        let partials: Vec<(f64, Vec<f64>, Vec<Vec<usize>>)> = indexed
-            .par_chunks(CHUNK_SIZE)
+        #[cfg(feature = "parallel")]
+        let chunks = indexed.par_chunks(CHUNK_SIZE);
+        #[cfg(not(feature = "parallel"))]
+        let chunks = indexed.chunks(CHUNK_SIZE);
+        let partials: Vec<(f64, Vec<f64>, Vec<Vec<usize>>)> = chunks
             .map(|chunk| {
                 let mut vsum = 0.0;
                 let mut freq = vec![0.0; n_pieces];
@@ -717,22 +727,31 @@ impl Trainer for UnigramTrainer {
         F: Fn(&str) -> Result<Vec<String>> + Sync,
     {
         let progress = Progress::new(self.show_progress, "Pre-processing sequences", None);
+        let count = |seq: S| -> Result<HashMap<String, u32>> {
+            progress.inc(1);
+            let mut map = HashMap::new();
+            for w in process(seq.as_ref())? {
+                *map.entry(w).or_insert(0u32) += 1;
+            }
+            Ok(map)
+        };
+        let merge = |mut acc: HashMap<String, u32>,
+                     m: HashMap<String, u32>|
+         -> Result<HashMap<String, u32>> {
+            for (k, v) in m {
+                *acc.entry(k).or_insert(0) += v;
+            }
+            Ok(acc)
+        };
+        #[cfg(feature = "parallel")]
         let words = iterator
             .par_bridge()
-            .map(|seq| -> Result<HashMap<String, u32>> {
-                progress.inc(1);
-                let mut map = HashMap::new();
-                for w in process(seq.as_ref())? {
-                    *map.entry(w).or_insert(0u32) += 1;
-                }
-                Ok(map)
-            })
-            .try_reduce(HashMap::new, |mut acc, m| {
-                for (k, v) in m {
-                    *acc.entry(k).or_insert(0) += v;
-                }
-                Ok(acc)
-            })?;
+            .map(count)
+            .try_reduce(HashMap::new, merge)?;
+        #[cfg(not(feature = "parallel"))]
+        let words = iterator
+            .map(count)
+            .try_fold(HashMap::new(), |acc, m| merge(acc, m?))?;
         progress.finish();
         self.words = words;
         Ok(())

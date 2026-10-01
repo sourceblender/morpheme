@@ -38,21 +38,30 @@ unicode_categories = { workspace = true }
 unicode-segmentation = { workspace = true }
 fancy-regex = { workspace = true }
 aho-corasick = { workspace = true }
-rayon = { workspace = true }
+rayon = { workspace = true, optional = true }
 ureq = { workspace = true, optional = true }
-tempfile = { workspace = true }
 sha1 = { version = "0.11", optional = true }
 sha2 = { version = "0.11", optional = true }
 indicatif = { workspace = true, optional = true }
+
+# Atomic `Tokenizer::save` (and the `hub` cache) write through a temporary
+# file. wasm32 has no usable filesystem, so the dependency and `save` are
+# compiled out there; `from_bytes`/`from_json` still work in the browser.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tempfile = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["progressbar"]
+default = ["progressbar", "parallel"]
 # Trainer progress bars on stderr (`show_progress`), like Hugging Face.
 progressbar = ["dep:indicatif"]
+# Rayon-parallel `encode_batch`/`decode_batch`, batch padding and trainers.
+# Without it those paths run sequentially on the calling thread, which is
+# what single-threaded targets such as wasm32-unknown-unknown want.
+parallel = ["dep:rayon"]
 # `Tokenizer::from_pretrained`: download tokenizers from the Hugging Face Hub.
 hub = ["dep:ureq", "dep:sha1", "dep:sha2"]
 

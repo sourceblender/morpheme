@@ -50,7 +50,10 @@
 ## Ecosystem
 
 - [ ] Python bindings via PyO3.
-- [ ] WASM target via `wasm-bindgen`.
+- [ ] WASM target via `wasm-bindgen`. Partial: the library compiles for
+      `wasm32-unknown-unknown` (`parallel` feature gates rayon with a
+      sequential fallback; `save` is compiled out there) and CI checks it.
+      The `wasm-bindgen` binding crate and browser example are still to do.
 
 ## Out of scope
 
