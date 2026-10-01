@@ -5,7 +5,44 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use morpheme::{Encoding, PaddingStrategy, Tokenizer};
+use morpheme::{Encoding, NormalizedString, OffsetRange, PaddingStrategy, Tokenizer};
+
+/// `check_alignment` skips strings longer than this (bytes): the check is
+/// quadratic, and anything this big is a work budget, not a bug.
+pub const ALIGNMENT_CHECK_MAX_LEN: usize = 4096 * 4;
+
+/// Every normalized char must map back to a valid slice of the original
+/// text, and original ranges must map into bounds of the normalized text.
+pub fn check_alignment(n: &NormalizedString) {
+    // `convert_offsets` is a linear scan, so checking every char is
+    // quadratic: skip the check for results far over the budget.
+    if n.len() > ALIGNMENT_CHECK_MAX_LEN {
+        return;
+    }
+    let original = n.original();
+    let normalized = n.get();
+    let (start, end) = n.offsets_original();
+    assert!(start <= end, "offsets_original reversed");
+    for (b, c) in normalized.char_indices() {
+        let range = b..b + c.len_utf8();
+        let mapped = n
+            .convert_offsets(OffsetRange::Normalized(range.clone()))
+            .unwrap_or_else(|| panic!("no mapping for normalized {range:?} in {normalized:?}"));
+        assert!(
+            original.get(mapped.clone()).is_some(),
+            "normalized {range:?} ({c:?}) maps to {mapped:?}, not a valid slice of {original:?}"
+        );
+    }
+    // Mapping original ranges into normalized text must stay in bounds too.
+    for (b, c) in original.char_indices() {
+        if let Some(r) = n.convert_offsets(OffsetRange::Original(b..b + c.len_utf8())) {
+            assert!(
+                r.start <= r.end && r.end <= normalized.len(),
+                "original→normalized {r:?} out of bounds"
+            );
+        }
+    }
+}
 
 /// Real tokenizers from `crates/morpheme/tests/data/hf` (fetched by
 /// `scripts/fetch-hf-fixtures.sh`); missing files are skipped.

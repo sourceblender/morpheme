@@ -3,7 +3,11 @@
 
 #![no_main]
 
+#[path = "common.rs"]
+mod common;
+
 use arbitrary::Arbitrary;
+use common::check_alignment as check;
 use libfuzzer_sys::fuzz_target;
 use morpheme::{NormalizedString, OffsetRange, SplitDelimiterBehavior};
 
@@ -63,39 +67,9 @@ struct Input {
     ops: Vec<Op>,
 }
 
-/// Work budget for one input (bytes of normalized text).
+/// Work budget for one input (bytes of normalized text). The alignment
+/// check itself stops at `common::ALIGNMENT_CHECK_MAX_LEN` (4× this).
 const MAX_LEN: usize = 4096;
-
-fn check(n: &NormalizedString) {
-    // `convert_offsets` is a linear scan, so checking every char is
-    // quadratic: skip the check for results far over the budget.
-    if n.len() > MAX_LEN * 4 {
-        return;
-    }
-    let original = n.original();
-    let normalized = n.get();
-    let (start, end) = n.offsets_original();
-    assert!(start <= end, "offsets_original reversed");
-    for (b, c) in normalized.char_indices() {
-        let range = b..b + c.len_utf8();
-        let mapped = n
-            .convert_offsets(OffsetRange::Normalized(range.clone()))
-            .unwrap_or_else(|| panic!("no mapping for normalized {range:?} in {normalized:?}"));
-        assert!(
-            original.get(mapped.clone()).is_some(),
-            "normalized {range:?} ({c:?}) maps to {mapped:?}, not a valid slice of {original:?}"
-        );
-    }
-    // Mapping original ranges into normalized text must stay in bounds too.
-    for (b, c) in original.char_indices() {
-        if let Some(r) = n.convert_offsets(OffsetRange::Original(b..b + c.len_utf8())) {
-            assert!(
-                r.start <= r.end && r.end <= normalized.len(),
-                "original→normalized {r:?} out of bounds"
-            );
-        }
-    }
-}
 
 fuzz_target!(|input: Input| {
     let mut n = NormalizedString::from(input.text.as_str());
