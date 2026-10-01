@@ -24,6 +24,13 @@ allow = [
     "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.9
+# `target-lexicon` is a build-time dependency of `pyo3-build-config` (the
+# Python bindings in `bindings/python`). Its license is Apache-2.0 plus the
+# LLVM exception, which only relaxes Apache-2.0's binary-attribution terms;
+# allow it for this one crate rather than globally.
+exceptions = [
+    { name = "target-lexicon", allow = ["Apache-2.0 WITH LLVM-exception"] },
+]
 
 [bans]
 multiple-versions = "warn"
