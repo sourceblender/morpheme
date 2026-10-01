@@ -261,6 +261,16 @@ Inputs that avoid these edge cases produce identical results.
   it, and a `vocab_size` too small for them plus the required chars is an
   `Error::Training`. HF only checks the required chars against
   `vocab_size` and can return more pieces than requested.
+- **`UnigramTrainer` never produces non-finite scores.** On an empty
+  corpus HF gives the required chars (from `initial_alphabet`) a score of
+  `+inf`, saved as `null`, so the file cannot be loaded back. morpheme
+  gives them a uniform log-probability (`-ln(n)` for `n` chars) and the
+  model round-trips. Non-empty corpora are unaffected.
+- **`Unigram::new` rejects non-finite scores.** HF's `Unigram::from`
+  accepts `NaN` and infinite scores and later saves them as `null`;
+  morpheme returns `Error::Config` naming the piece, and serializing a
+  non-finite score is an error rather than `null`. Every valid
+  `tokenizer.json` is unaffected, since JSON cannot encode such scores.
 - **`WordPieceTrainer::default()` uses the `##` prefix**, the same as
   `WordPieceTrainer::builder().build()`. HF's derived `Default` has no
   continuation prefix, so it trains a vocabulary without `##` tokens.
