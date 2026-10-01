@@ -693,6 +693,33 @@ impl Tokenizer {
         &self.model
     }
 
+    /// Mutable access to the model, for runtime settings such as Unigram
+    /// sampling (`Unigram::set_sampling` / `set_seed`) or BPE dropout.
+    ///
+    /// Do not change the vocabulary through this accessor: added tokens
+    /// that already existed in the model are resolved against the model's
+    /// vocabulary at lookup time, and the post-processor's special-token
+    /// ids were bound when the tokenizer was built, so swapping or
+    /// retraining the vocabulary in place can leave those ids stale. Use
+    /// [`set_model`](Self::set_model) (or rebuild the tokenizer) for that.
+    /// Model-internal caches (the BPE word cache, the Unigram sentence
+    /// cache) are managed by the models' own setters.
+    ///
+    /// ```
+    /// use morpheme::models::{ModelWrapper, Unigram};
+    /// use morpheme::Tokenizer;
+    ///
+    /// let mut tok = Tokenizer::new(Unigram::default());
+    /// if let ModelWrapper::Unigram(u) = tok.model_mut() {
+    ///     u.set_sampling(0.1, -1)?;
+    ///     u.set_seed(Some(42));
+    /// }
+    /// # Ok::<(), morpheme::Error>(())
+    /// ```
+    pub fn model_mut(&mut self) -> &mut ModelWrapper {
+        &mut self.model
+    }
+
     /// The post-processor.
     pub fn post_processor(&self) -> Option<&PostProcessorWrapper> {
         self.post_processor.as_ref()

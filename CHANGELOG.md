@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sequentially. The library now compiles for `wasm32-unknown-unknown`
   (`Tokenizer::save` is compiled out there, as `tempfile` is a non-wasm
   dependency), and CI checks that target (#51).
+- Unigram subword-regularization sampling: `Unigram::set_sampling(alpha,
+  nbest_size)` / `with_sampling` (n-best sampling for `nbest_size > 1`,
+  whole-lattice forward-filtering backward-sampling for `nbest_size < 0`)
+  and `set_seed` / `with_seed` for reproducible, batch-order-independent
+  draws from an in-crate PRNG. Sampled encodings bypass the sentence cache;
+  the settings are runtime-only and never written to `tokenizer.json` (#52).
+- `Tokenizer::model_mut` for changing runtime model settings in place,
+  without `set_model`, and `Bpe::set_dropout` as the validated runtime
+  setter for BPE dropout (clears the word cache) (#52).
 
 ## [0.3.0] - 2026-10-01
 
