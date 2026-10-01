@@ -27,15 +27,22 @@ reference implementation.
 
 ## Status
 
-**v0.1, pre-release.** The library API may still change before 1.0.
-Not yet published to crates.io; depend on it from git:
+**v0.1.0** — first release. The library API may still change before 1.0.
 
-```toml
-[dependencies]
-morpheme = { git = "https://github.com/sourceblender/morpheme" }
-# or, to download tokenizers from the Hugging Face Hub:
-morpheme = { git = "https://github.com/sourceblender/morpheme", features = ["hub"] }
+```sh
+cargo add morpheme                    # the library
+cargo add morpheme --features hub     # + download tokenizers from the Hugging Face Hub
 ```
+
+The `morpheme` CLI:
+
+```sh
+cargo install morpheme-cli
+# or a prebuilt binary (macOS, Linux, Windows):
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sourceblender/morpheme/releases/latest/download/morpheme-cli-installer.sh | sh
+```
+
+On Windows: `powershell -ExecutionPolicy Bypass -c "irm https://github.com/sourceblender/morpheme/releases/latest/download/morpheme-cli-installer.ps1 | iex"`.
 
 ## Library
 
@@ -103,7 +110,7 @@ assert_eq!(tokenizer.decode(&ids, false)?, "Any text — even 😀 — round-tri
 ## CLI
 
 ```sh
-cargo install --path apps/morpheme-cli
+cargo install morpheme-cli   # or, from a checkout: cargo install --path apps/morpheme-cli
 
 # Train (presets: byte-level for bpe, bert for wordpiece,
 # sentencepiece for unigram, whitespace for wordlevel)

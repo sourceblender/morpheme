@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-01
 
 The first implementation (BPE/WordPiece/Unigram with a custom JSON
 schema) was found in review to be incompatible with real Hugging Face
@@ -194,3 +194,6 @@ format, and is now verified against the reference implementation.
   - A whole-string normalization (e.g. NFD) after text was inserted
     before the first character (`prepend("")`, an empty-pattern
     `replace`) indexed out of bounds and panicked.
+
+[Unreleased]: https://github.com/sourceblender/morpheme/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/sourceblender/morpheme/releases/tag/v0.1.0
