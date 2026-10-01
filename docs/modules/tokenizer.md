@@ -10,9 +10,10 @@ instance can serve many threads.
 | Method | |
 | --- | --- |
 | `Tokenizer::from_file(path)` / `from_json(&str)` / `from_bytes(..)` / `"…".parse()` | Load a Hugging Face `tokenizer.json` |
-| `to_json(pretty)` / `save(path, pretty)` | Write `tokenizer.json` (byte-compatible with HF) |
+| `to_json(pretty)` / `save(path, pretty)` | Write `tokenizer.json` (byte-compatible with HF); `save` is not available on wasm32 |
 | `Tokenizer::new(model)` + `with_normalizer` / `with_pre_tokenizer` / `with_post_processor` / `with_decoder` | Build in code (builder style) |
 | `set_normalizer` / `set_pre_tokenizer` / `set_model` / `set_post_processor` / `set_decoder` | Replace a component in place |
+| `model_mut()` | Change runtime model settings in place (Unigram sampling, BPE dropout); not for vocabulary changes, which need `set_model` |
 | `normalizer()`, `pre_tokenizer()`, `model()`, `post_processor()`, `decoder()`, `truncation()`, `padding()`, `added_vocabulary()` | Inspect |
 
 ### Atomic saves
@@ -67,8 +68,8 @@ with `--revision`).
 - `encode_char_offsets(input, add_special_tokens)` → the same with
   **char** offsets — what Python `tokenizers` returns.
 - `encode_batch(inputs, add)` / `encode_batch_char_offsets` — parallel
-  (rayon); with `BatchLongest` padding every result is padded to the
-  longest.
+  with the default `parallel` feature (rayon), sequential without it; with
+  `BatchLongest` padding every result is padded to the longest.
 - Inputs: `&str`, `String`, a pair `(a, b)`, or pre-tokenized words
   (`Vec<&str>`, `&[&str]`, `Vec<String>`) — each word is tokenized on its
   own, gets its index as word id, and its offsets are relative to that
@@ -89,7 +90,8 @@ post-processor → padding. `normalize(text)` runs only the normalizer.
 `decode(ids, skip_special_tokens)` maps ids to tokens (added tokens
 first), drops special tokens if asked, and runs the decoder (or joins
 with spaces when there is none). Unknown ids are skipped.
-`decode_batch(&[&[u32]], skip)` runs in parallel.
+`decode_batch(&[&[u32]], skip)` runs in parallel with the `parallel`
+feature.
 
 ### Streaming decode
 

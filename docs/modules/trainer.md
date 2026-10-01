@@ -10,12 +10,13 @@ tokenizer.train_from_files(trainer, &["a.txt"])?;    // lines, endings kept
 ```
 
 `train` normalizes and pre-tokenizes each input, counts the resulting
-words in parallel (rayon), trains, replaces the model, and registers the
-trainer's special tokens as added tokens. If the tokenizer currently
-holds a different kind of model (e.g. a `Bpe` and a `UnigramTrainer`),
-it is replaced by a default model of the trainer's kind. Options the
-trainer doesn't set (BPE `unk_token`, WordPiece/WordLevel `unk_token`)
-come from the model you start with, so build it first:
+words (in parallel with the default `parallel` feature), trains,
+replaces the model, and registers the trainer's special tokens as added
+tokens. If the tokenizer currently holds a different kind of model (e.g.
+a `Bpe` and a `UnigramTrainer`), it is replaced by a default model of
+the trainer's kind. Options the trainer doesn't set (BPE `unk_token`,
+WordPiece/WordLevel `unk_token`) come from the model you start with, so
+build it first:
 `Tokenizer::new(WordLevel::builder().unk_token("[UNK]").build()?)`.
 
 `train_from_files` streams lines without retaining the full corpus, and

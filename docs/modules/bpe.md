@@ -37,7 +37,8 @@ Options:
 - `dropout` (BPE-dropout, `0.0..=1.0`): each merge is skipped with
   probability `p` during tokenization. Used for training-time
   augmentation; it uses an internal PRNG and bypasses the cache. `None` or
-  `0.0` is deterministic.
+  `0.0` is deterministic (`0.0` is normalized to `None`). It can be
+  changed on a loaded tokenizer; see [Runtime settings](#runtime-settings).
 - **Cache:** deterministic models memoize merged words (default capacity
   10 000 words; words ≥ 256 bytes are not cached). The cache is sharded
   so parallel batch encoding does not contend on a single lock.
@@ -100,6 +101,36 @@ Builder methods: `vocab_and_merges`, `unk_token`,
 not in the vocabulary, if a merged token is missing, or if `dropout` is
 outside `0..=1`. Vocabulary ids are kept exactly as given — never
 renumbered — so files with gaps in their ids load correctly.
+
+## Runtime settings
+
+`Bpe::set_dropout(Option<f32>) -> Result<()>` changes the dropout of an
+existing model with the builder's validation: `None` or a value in
+`[0, 1]` (`Some(0.0)` becomes `None`); anything else, including `NaN`, is
+an `Error::Config` and leaves the model unchanged. The word cache is
+cleared, since cached words assume the previous merge behaviour. To reach
+the model inside a `Tokenizer`, use `Tokenizer::model_mut`:
+
+```rust
+use morpheme::models::{Bpe, ModelWrapper};
+use morpheme::Tokenizer;
+
+fn main() -> morpheme::Result<()> {
+    let mut tokenizer = Tokenizer::new(Bpe::default());
+    if let ModelWrapper::Bpe(bpe) = tokenizer.model_mut() {
+        bpe.set_dropout(Some(0.1))?; // augment while preparing training data
+        assert!(bpe.set_dropout(Some(1.5)).is_err());
+        assert_eq!(bpe.dropout(), Some(0.1));
+        bpe.set_dropout(None)?; // deterministic again
+    }
+    Ok(())
+}
+```
+
+Unlike Unigram sampling, `dropout` is part of the Hugging Face format:
+it is written to and read from `tokenizer.json`. `model_mut` is for
+runtime settings only; replace the vocabulary with `set_model`, so that
+added tokens and post-processor ids are rebound.
 
 ## Serialization
 

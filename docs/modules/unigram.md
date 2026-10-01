@@ -72,9 +72,31 @@ Viterbi best one (SentencePiece `SampleEncode`, HF `Unigram(alpha,
 nbest_size)`):
 
 ```rust
-let model = Unigram::new(pieces, Some(0), false)?
-    .with_sampling(0.1, -1)?   // alpha, nbest_size
-    .with_seed(42);            // optional: reproducible draws
+use morpheme::models::{ModelWrapper, Unigram};
+use morpheme::Tokenizer;
+
+fn main() -> morpheme::Result<()> {
+    let pieces = vec![
+        ("<unk>".to_string(), 0.0),
+        ("▁hello".to_string(), -3.0),
+        ("▁he".to_string(), -4.0),
+        ("llo".to_string(), -4.0),
+    ];
+    // Builder style on a model...
+    let model = Unigram::new(pieces, Some(0), false)?
+        .with_sampling(0.1, -1)? // alpha, nbest_size
+        .with_seed(42); // optional: reproducible draws
+    assert_eq!(model.sampling(), Some((0.1, -1)));
+
+    // ...or in place on a loaded tokenizer, through `model_mut`.
+    let mut tokenizer = Tokenizer::new(model);
+    if let ModelWrapper::Unigram(unigram) = tokenizer.model_mut() {
+        unigram.set_sampling(0.0, -1)?; // alpha 0: back to plain Viterbi
+        unigram.set_seed(None);
+        assert_eq!(unigram.sampling(), None);
+    }
+    Ok(())
+}
 ```
 
 - `set_sampling(alpha, nbest_size) -> Result<()>` / `with_sampling`:
@@ -108,7 +130,8 @@ let model = Unigram::new(pieces, Some(0), false)?
   the same.
 - These settings are runtime-only: they are not read from or written
   to `tokenizer.json` (HF's Unigram JSON has no such fields), and
-  `Clone` carries them over.
+  `Clone` carries them over. Set them on a loaded tokenizer with
+  `Tokenizer::model_mut`, as above.
 
 ## Serialization
 
