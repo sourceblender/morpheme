@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Rebind existing added/special tokens after training and allocate new ids
+  above sparse vocabulary ids; report id exhaustion instead of overflowing.
+- Make added-token batches atomic on allocation or normalization errors,
+  and retain existing token options when trainers promote them to specials.
+- Rebind post-processor and padding ids by token text after training;
+  reject missing configured tokens without changing the tokenizer.
+- Keep BPE unknown-token runs before subsequent byte fallback, preserving
+  input order and offsets.
+- Publish Hub cache blobs, snapshots and refs atomically using unique
+  temporary files so concurrent downloads cannot truncate each other's data.
+- Preserve pair-overflow sequence ownership without a post-processor and
+  correct lookups for nonzero or absent sequence ids.
+- Reject impossible special-token truncation budgets and out-of-bounds
+  normalized/original offset ranges.
+
+### Changed
+
+- Stream training files line by line instead of retaining the complete
+  corpus. File and UTF-8 errors still fail training before replacing the model.
+- Document deliberate corrections to edge-case bugs shared with Hugging
+  Face `tokenizers` 0.23.2 in `docs/interop.md` and ADR 0002.
+
 ## [0.1.0] - 2026-10-01
 
 The first implementation (BPE/WordPiece/Unigram with a custom JSON

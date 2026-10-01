@@ -22,7 +22,7 @@
 //! | `HF_HUB_OFFLINE` | `1` to only use the cache |
 
 use std::collections::HashMap;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -459,17 +459,15 @@ fn download(
         if status >= 400 {
             return Err(Fetch::Failed(status_error(status, None, repo_id, revision)));
         }
-        let tmp = blobs.join(format!("{etag}.incomplete"));
-        let mut file = std::fs::File::create(&tmp)?;
+        let mut file = tempfile::NamedTempFile::new_in(&blobs)?;
         let mut reader = resp.into_body().into_reader();
         if let Err(e) = std::io::copy(&mut reader.by_ref(), &mut file) {
-            let _ = std::fs::remove_file(&tmp);
             return Err(Fetch::Failed(Error::Hub(format!(
                 "download interrupted: {e}"
             ))));
         }
-        file.sync_all()?;
-        std::fs::rename(&tmp, &blob)?;
+        file.as_file().sync_all()?;
+        publish_cached_file(file, &blob)?;
     }
 
     // 3. Snapshot entry and ref.
@@ -484,9 +482,41 @@ fn download(
         if let Some(parent) = ref_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(ref_path, &commit)?;
+        let mut file =
+            tempfile::NamedTempFile::new_in(ref_path.parent().expect("ref has a parent"))?;
+        file.write_all(commit.as_bytes())?;
+        file.as_file().sync_all()?;
+        publish_revision_ref(file, &ref_path, &commit)?;
     }
     Ok(snapshot)
+}
+
+/// Refs must remain replaceable when a branch moves to another commit.
+/// Accept an identical concurrent publication even if replacement fails.
+fn publish_revision_ref(
+    file: tempfile::NamedTempFile,
+    path: &Path,
+    commit: &str,
+) -> std::io::Result<()> {
+    if std::fs::read_to_string(path).is_ok_and(|existing| existing == commit) {
+        return Ok(());
+    }
+    match file.persist(path) {
+        Ok(_) => Ok(()),
+        Err(_) if std::fs::read_to_string(path).is_ok_and(|existing| existing == commit) => Ok(()),
+        Err(e) => Err(e.error),
+    }
+}
+
+/// Publish a complete file without replacing an entry another caller
+/// has already published. Temporary files are unique to each download
+/// and are removed on failure.
+fn publish_cached_file(file: tempfile::NamedTempFile, path: &Path) -> std::io::Result<()> {
+    match file.persist_noclobber(path) {
+        Ok(_) => Ok(()),
+        Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists && path.is_file() => Ok(()),
+        Err(e) => Err(e.error),
+    }
 }
 
 /// Point the snapshot at the blob with a relative symlink (as
@@ -496,12 +526,20 @@ fn link_or_copy(blob: &Path, snapshot: &Path, etag: &str) -> std::io::Result<()>
     #[cfg(unix)]
     {
         let target = Path::new("..").join("..").join("blobs").join(etag);
-        if std::os::unix::fs::symlink(&target, snapshot).is_ok() {
-            return Ok(());
+        match std::os::unix::fs::symlink(&target, snapshot) {
+            Ok(()) => return Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && snapshot.is_file() => {
+                return Ok(());
+            }
+            Err(_) => {}
         }
     }
     let _ = etag;
-    std::fs::copy(blob, snapshot).map(|_| ())
+    let mut file =
+        tempfile::NamedTempFile::new_in(snapshot.parent().expect("snapshot has a parent"))?;
+    std::io::copy(&mut std::fs::File::open(blob)?, &mut file)?;
+    file.as_file().sync_all()?;
+    publish_cached_file(file, snapshot)
 }
 
 #[cfg(test)]
@@ -703,6 +741,102 @@ mod tests {
         let pinned = params.clone().revision(COMMIT);
         assert_eq!(resolve("org/model", &pinned, &cfg).unwrap(), path);
         assert_eq!(count.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn concurrent_downloads_publish_complete_cache_entries() {
+        use std::sync::Barrier;
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let body = Arc::new("complete tokenizer contents ".repeat(4096));
+        let barrier = Arc::new(Barrier::new(2));
+        let server_body = body.clone();
+        let server = std::thread::spawn(move || {
+            let mut handlers = Vec::new();
+            // Each caller requests metadata and then the same blob.
+            for stream in listener.incoming().take(4) {
+                let mut stream = stream.unwrap();
+                let body = server_body.clone();
+                let barrier = barrier.clone();
+                handlers.push(std::thread::spawn(move || {
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(10)))
+                        .unwrap();
+                    let mut reader = BufReader::new(stream.try_clone().unwrap());
+                    let mut metadata = false;
+                    let mut line = String::new();
+                    while reader.read_line(&mut line).unwrap() > 0 && line != "\r\n" {
+                        metadata |= line.to_ascii_lowercase().starts_with("range:");
+                        line.clear();
+                    }
+                    let headers = [("X-Repo-Commit", COMMIT), ("ETag", "\"abc123\"")];
+                    if metadata {
+                        stream
+                            .write_all(response("206 Partial Content", &headers, "{").as_bytes())
+                            .unwrap();
+                    } else {
+                        let reply = response("200 OK", &headers, &body);
+                        let cut = reply.len() - body.len() / 2;
+                        stream.write_all(&reply.as_bytes()[..cut]).unwrap();
+                        stream.flush().unwrap();
+                        // Neither blob can finish until both downloads are active.
+                        barrier.wait();
+                        stream.write_all(&reply.as_bytes()[cut..]).unwrap();
+                    }
+                }));
+            }
+            for handler in handlers {
+                handler.join().unwrap();
+            }
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = config(dir.path(), &url, false);
+        let params = FromPretrainedParameters::default();
+        std::thread::scope(|scope| {
+            let first = scope.spawn(|| resolve("org/model", &params, &cfg).unwrap());
+            let second = scope.spawn(|| resolve("org/model", &params, &cfg).unwrap());
+            let first = first.join().unwrap();
+            let second = second.join().unwrap();
+            assert_eq!(first, second);
+            assert_eq!(std::fs::read_to_string(first).unwrap(), *body);
+        });
+        server.join().unwrap();
+        let repo = repo_cache_dir(dir.path(), "org/model");
+        assert_eq!(
+            std::fs::read_to_string(repo.join("blobs/abc123")).unwrap(),
+            *body
+        );
+        assert_eq!(
+            std::fs::read_to_string(repo.join("refs/main")).unwrap(),
+            COMMIT
+        );
+        assert_eq!(std::fs::read_dir(repo.join("blobs")).unwrap().count(), 1);
+        assert_eq!(std::fs::read_dir(repo.join("refs")).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn cache_publication_does_not_replace_an_existing_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("blob");
+        std::fs::write(&path, "winner").unwrap();
+        let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+        file.write_all(b"other download").unwrap();
+        publish_cached_file(file, &path).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "winner");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn revision_refs_accept_identical_publications_and_follow_branch_updates() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("main");
+        for commit in ["old", "old", "new", "new"] {
+            let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+            file.write_all(commit.as_bytes()).unwrap();
+            publish_revision_ref(file, &path, commit).unwrap();
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), commit);
+            assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        }
     }
 
     #[test]

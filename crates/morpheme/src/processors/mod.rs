@@ -46,6 +46,29 @@ pub enum PostProcessorWrapper {
     Sequence(Sequence),
 }
 
+impl PostProcessorWrapper {
+    pub(crate) fn rebind_token_ids(&mut self, lookup: &impl Fn(&str) -> Result<u32>) -> Result<()> {
+        match self {
+            Self::BertProcessing(p) => {
+                p.sep.1 = lookup(&p.sep.0)?;
+                p.cls.1 = lookup(&p.cls.0)?;
+            }
+            Self::RobertaProcessing(p) => {
+                p.sep.1 = lookup(&p.sep.0)?;
+                p.cls.1 = lookup(&p.cls.0)?;
+            }
+            Self::ByteLevel(_) => {}
+            Self::TemplateProcessing(p) => p.rebind_token_ids(lookup)?,
+            Self::Sequence(p) => {
+                for processor in p.processors_mut() {
+                    processor.rebind_token_ids(lookup)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl PostProcessor for PostProcessorWrapper {
     fn added_tokens(&self, is_pair: bool) -> usize {
         match self {

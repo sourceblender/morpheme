@@ -114,7 +114,9 @@ verbatim and never split. Flags: `single_word` (only between non-word
 chars), `lstrip` / `rstrip` (swallow adjacent whitespace), `normalized`
 (match the normalized text instead of the raw input; defaults to
 `!special`), `special` (skippable when decoding). A token already in the
-model keeps the model's id; new ones get ids after the model's vocabulary.
+model keeps the model's id; new ones get ids above the highest occupied
+model or added-token id, even when the vocabulary has gaps. Id exhaustion
+returns an error.
 When loading `tokenizer.json`, ids are taken from the file as written.
 `set_encode_special_tokens(true)` makes special tokens tokenize like
 plain text.
@@ -131,6 +133,8 @@ PaddingParams { strategy: BatchLongest | Fixed(n), direction: Right, pad_to_mult
   will add. Removed tokens become `overflowing()` encodings of at most
   `max_length` tokens overlapping by `stride`; they are post-processed
   and padded too.
+  Encoding with specials returns an error if they do not fit, or if
+  nonempty input has no remaining token budget.
 - Pair strategies: `LongestFirst` (shrink the longer sequence first),
   `OnlyFirst`, `OnlySecond`. `set_truncation` rejects a stride that is not
   smaller than the effective max length.

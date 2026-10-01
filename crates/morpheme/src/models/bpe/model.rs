@@ -452,6 +452,9 @@ impl Bpe {
                     .map(|b| self.vocab.get(&format!("<0x{b:02X}>")).copied())
                     .collect();
                 if let Some(ids) = byte_ids {
+                    if let Some((unk_id, unk_len)) = unk.take() {
+                        word.add(unk_id, unk_len);
+                    }
                     for id in ids {
                         word.add(id, 1);
                     }

@@ -18,8 +18,18 @@ trainer doesn't set (BPE `unk_token`, WordPiece/WordLevel `unk_token`)
 come from the model you start with, so build it first:
 `Tokenizer::new(WordLevel::builder().unk_token("[UNK]").build()?)`.
 
-`train_from_files` reports missing files and invalid UTF-8 as errors;
-nothing is silently skipped. Feeding again replaces previously fed words.
+`train_from_files` streams lines without retaining the full corpus, and
+reports missing files and invalid UTF-8 as errors before replacing the model;
+nothing is silently skipped. Word counts and trainer state still grow with
+the corpus's distinct words. Feeding again replaces previously fed words.
+
+Retraining preserves existing added-token flags and rebuilds their ids
+against the new model. Trainer special tokens use the newly trained ids.
+Post-processor and padding ids are rebound automatically by token text,
+including nested processor sequences and multi-token template expansions.
+If a configured token is absent from the new vocabulary, training fails
+without changing the tokenizer. Include required tokens in the trainer's
+special tokens or register them as added tokens before training.
 
 ## Trainers and options
 

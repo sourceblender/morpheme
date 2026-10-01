@@ -824,8 +824,21 @@ impl Tokenizer {
             Some(trunc) => {
                 let n_added = self.n_added_tokens(pair.is_some());
                 if add_special_tokens && n_added > 0 {
+                    let max_length = trunc.max_length.checked_sub(n_added).ok_or_else(|| {
+                        Error::Truncation(format!(
+                            "max_length {} is smaller than the {n_added} required special tokens",
+                            trunc.max_length
+                        ))
+                    })?;
+                    if max_length == 0
+                        && (!encoding.is_empty() || pair.as_ref().is_some_and(|p| !p.is_empty()))
+                    {
+                        return Err(Error::Truncation(
+                            "no space for input tokens after reserving special tokens".into(),
+                        ));
+                    }
                     let params = TruncationParams {
-                        max_length: trunc.max_length.saturating_sub(n_added),
+                        max_length,
                         ..trunc.clone()
                     };
                     truncate_encodings(encoding, pair, &params)?
@@ -922,14 +935,36 @@ impl Tokenizer {
     /// pre-tokenized with this tokenizer's components before counting.
     /// The trainer's special tokens are registered as added tokens. If
     /// the trainer is for a different kind of model, the model is
-    /// replaced.
+    /// replaced. Existing added tokens retain their options and are
+    /// assigned ids against the new vocabulary. Post-processor and padding
+    /// ids are rebound by token text. If a configured token is missing,
+    /// training fails without changing this tokenizer.
     pub fn train<T, I, S>(&mut self, trainer: T, sequences: I) -> Result<&mut Self>
     where
         T: Into<TrainerWrapper>,
         I: Iterator<Item = S> + Send,
         S: AsRef<str> + Send,
     {
+        self.train_fallible(trainer, sequences.map(Ok))
+    }
+
+    fn train_fallible<T, I, S>(&mut self, trainer: T, sequences: I) -> Result<&mut Self>
+    where
+        T: Into<TrainerWrapper>,
+        I: Iterator<Item = Result<S>> + Send,
+        S: AsRef<str> + Send,
+    {
         let mut trainer: TrainerWrapper = trainer.into();
+        let mut read_error = None;
+        let sequences = sequences
+            .map_while(|sequence| match sequence {
+                Ok(sequence) => Some(sequence),
+                Err(error) => {
+                    read_error = Some(error);
+                    None
+                }
+            })
+            .fuse();
         trainer.feed(sequences, |seq| {
             let normalized = self.normalize(seq)?;
             let pretokenized = self.pre_tokenize(PreTokenizedString::from(normalized))?;
@@ -939,36 +974,90 @@ impl Tokenizer {
                 .map(|(s, _, _)| s.to_owned())
                 .collect())
         })?;
-        let special = trainer.train(&mut self.model)?;
-        self.add_special_tokens(&special)?;
+        if let Some(error) = read_error {
+            return Err(error);
+        }
+        let mut model = self.model.clone();
+        let special = trainer.train(&mut model)?;
+        let mut added_vocabulary = AddedVocabulary::new();
+        added_vocabulary.set_encode_special_tokens(self.added_vocabulary.encode_special_tokens());
+        let mut tokens: Vec<AddedToken> = self
+            .added_vocabulary
+            .tokens_with_ids()
+            .into_iter()
+            .map(|t| t.token)
+            .collect();
+        for token in special {
+            if let Some(existing) = tokens.iter_mut().find(|t| t.content == token.content) {
+                existing.special = true;
+            } else {
+                tokens.push(token.special(true));
+            }
+        }
+        added_vocabulary.add_tokens(
+            &tokens,
+            &model,
+            self.normalizer.as_ref().map(|n| n as &dyn Normalizer),
+        )?;
+        let lookup = |token: &str| {
+            added_vocabulary.token_to_id(token, &model).ok_or_else(|| {
+                Error::Training(format!(
+                    "configured token {token:?} is missing from the trained vocabulary; include it in the trainer's special tokens"
+                ))
+            })
+        };
+        let mut post_processor = self.post_processor.clone();
+        if let Some(processor) = &mut post_processor {
+            processor.rebind_token_ids(&lookup)?;
+        }
+        let mut padding = self.padding.clone();
+        if let Some(padding) = &mut padding {
+            padding.pad_id = lookup(&padding.pad_token)?;
+        }
+        self.model = model;
+        self.added_vocabulary = added_vocabulary;
+        self.post_processor = post_processor;
+        self.padding = padding;
         Ok(self)
     }
 
     /// Train on the lines of text files (line endings are kept, like
-    /// Hugging Face). I/O and UTF-8 errors are reported, not skipped.
+    /// Hugging Face). Lines are streamed rather than retaining the full
+    /// corpus. I/O and UTF-8 errors are reported, not skipped.
     pub fn train_from_files<T, P>(&mut self, trainer: T, files: &[P]) -> Result<&mut Self>
     where
         T: Into<TrainerWrapper>,
         P: AsRef<Path>,
     {
-        let mut lines = Vec::new();
-        for path in files {
-            let path = path.as_ref();
-            let file = std::fs::File::open(path)
-                .map_err(|e| Error::Training(format!("{}: {e}", path.display())))?;
-            let mut reader = std::io::BufReader::new(file);
+        let mut paths = files
+            .iter()
+            .map(|p| p.as_ref().to_owned())
+            .collect::<Vec<_>>()
+            .into_iter();
+        let mut active: Option<(std::path::PathBuf, std::io::BufReader<std::fs::File>)> = None;
+        let lines = std::iter::from_fn(move || {
             loop {
-                let mut line = String::new();
-                let n = reader
-                    .read_line(&mut line)
-                    .map_err(|e| Error::Training(format!("{}: {e}", path.display())))?;
-                if n == 0 {
-                    break;
+                if active.is_none() {
+                    let path = paths.next()?;
+                    match std::fs::File::open(&path) {
+                        Ok(file) => active = Some((path, std::io::BufReader::new(file))),
+                        Err(e) => {
+                            return Some(Err(Error::Training(format!("{}: {e}", path.display()))));
+                        }
+                    }
                 }
-                lines.push(line);
+                let (path, reader) = active.as_mut().expect("file opened above");
+                let mut line = String::new();
+                match reader.read_line(&mut line) {
+                    Ok(0) => active = None,
+                    Ok(_) => return Some(Ok(line)),
+                    Err(e) => {
+                        return Some(Err(Error::Training(format!("{}: {e}", path.display()))));
+                    }
+                }
             }
-        }
-        self.train(trainer, lines.into_iter())
+        });
+        self.train_fallible(trainer, lines)
     }
 }
 

@@ -97,8 +97,8 @@ the standard library. The JSON `"type"` names are unchanged (`"BPE"`,
 
 ## Known deviations
 
-Deliberate differences, all in the direction of *accepting more* or
-*failing safely*:
+Deliberate differences that accept more input, fail safely, or prevent
+data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.md)):
 
 - **Errors instead of panics.** Malformed input (merges referencing
   missing tokens, bad regexes, invalid `unk_id`, malformed Precompiled
@@ -132,6 +132,28 @@ Deliberate differences, all in the direction of *accepting more* or
 - **No id gaps from `WordLevelTrainer`.** A special token that is
   listed twice or also occurs in the corpus gets a single id; HF assigns
   it again, leaving unused ids.
+- **Safe added-token ids.** New added tokens receive ids above the
+  highest occupied model or added-token id, including sparse vocabularies.
+  Exhausting the `u32` id range returns an error. HF starts allocation
+  at the vocabulary count, which can collide with an existing sparse id.
+- **Retraining rebinds added tokens.** Existing added tokens retain their
+  flags and are assigned ids against the newly trained model. Trainer
+  special tokens use the new model's ids instead of retaining stale ids
+  that can shadow ordinary tokens. Post-processor and padding ids are also
+  rebound by token text. If a required configured token is absent from the
+  new vocabulary, training fails without changing the tokenizer; include
+  it in the trainer's special tokens or register it as an added token first.
+- **BPE fallback keeps input order.** An unknown-token run is emitted
+  before a following successful byte fallback. HF can emit the fallback
+  first, reordering tokens and assigning their offsets to the wrong chars.
+- **Truncation rejects impossible special-token budgets.** Encoding with
+  special tokens errors when the maximum cannot hold the required specials,
+  or leaves no room for nonempty input. Empty input may use a budget exactly
+  equal to the specials. Encoding without specials still uses the original
+  maximum.
+- **Sequence ownership is preserved.** Pair overflow retains sequence
+  ranges even without a post-processor. Sequence lookups use the actual
+  ids (including nonzero ids), and a missing sequence yields no match.
 
 Kept on purpose because HF does it: a BPE model with neither
 `unk_token` nor `byte_fallback` silently drops characters it cannot
