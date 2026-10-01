@@ -1034,6 +1034,113 @@ fn tokenizer_json_with_duplicate_added_token_ids_fails_to_load() {
         msg.contains("<s>") && msg.contains("</s>") && msg.contains("id 1"),
         "{msg}"
     );
+
+    // The same id with identical content is a duplicate too.
+    let json = json.replace("\"</s>\"", "\"<s>\"");
+    let err = Tokenizer::from_bytes(json).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("id 1") && msg.matches("\"<s>\"").count() == 2,
+        "{msg}"
+    );
+
+    // Empty-content entries are still skipped, not counted as duplicates.
+    let json = r#"{
+      "version": "1.0",
+      "added_tokens": [
+        {"id": 1, "content": "", "special": false, "single_word": false,
+         "lstrip": false, "rstrip": false, "normalized": false},
+        {"id": 1, "content": "<s>", "special": true, "single_word": false,
+         "lstrip": false, "rstrip": false, "normalized": false}
+      ],
+      "model": {"type": "WordLevel", "vocab": {"[UNK]": 0}, "unk_token": "[UNK]"}
+    }"#;
+    assert_eq!(
+        Tokenizer::from_bytes(json).unwrap().token_to_id("<s>"),
+        Some(1)
+    );
+}
+
+#[test]
+fn decode_stream_prefill_ending_in_a_real_replacement_character() {
+    // PR #57 review: U+FFFD itself can go through byte fallback as
+    // <0xEF><0xBF><0xBD>, which looks like an incomplete character from
+    // the text alone. Removing one of its bytes adds replacement
+    // characters, which an incomplete character never does, so the
+    // prefix is kept whole and nothing is re-emitted.
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/hf/llama.json");
+    if !path.exists() && std::env::var_os("MORPHEME_SKIP_HF_GOLDEN").is_some() {
+        eprintln!("skipping: {} missing", path.display());
+        return;
+    }
+    let stream_rest = |tok: &Tokenizer, shown: &[u32], rest: &[u32]| {
+        let mut stream = tok.decode_stream(false).prefill(shown);
+        let mut emitted = String::new();
+        for &id in rest {
+            if let Some(chunk) = stream.step(id).unwrap() {
+                emitted.push_str(&chunk);
+            }
+        }
+        emitted
+    };
+
+    // Llama has "\u{FFFD}" as a vocabulary token; drop it (and the one
+    // merge producing it) so the character goes through byte fallback.
+    let mut json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    json["model"]["vocab"]
+        .as_object_mut()
+        .unwrap()
+        .remove("\u{FFFD}");
+    json["model"]["merges"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|m| !m.as_str().unwrap().contains('\u{FFFD}'));
+    let tok = Tokenizer::from_bytes(json.to_string()).unwrap();
+    let shown = tok.encode("hi \u{FFFD}", false).unwrap().ids().to_vec();
+    let all = tok
+        .encode("hi \u{FFFD} there", false)
+        .unwrap()
+        .ids()
+        .to_vec();
+    assert!(all.starts_with(&shown), "{shown:?} {all:?}");
+    let byte_tokens = shown
+        .iter()
+        .rev()
+        .take_while(|&&id| tok.id_to_token(id).is_some_and(|t| t.starts_with("<0x")))
+        .count();
+    assert_eq!(
+        byte_tokens, 3,
+        "U+FFFD should be three byte-fallback tokens"
+    );
+    assert_eq!(tok.decode(&shown, false).unwrap(), "hi \u{FFFD}");
+
+    assert_eq!(stream_rest(&tok, &shown, &all[shown.len()..]), " there");
+    // A prefill ending one or two bytes into the character completes it.
+    for cut in 1..=2 {
+        let at = shown.len() - cut;
+        assert_eq!(stream_rest(&tok, &all[..at], &all[at..]), "\u{FFFD} there");
+    }
+
+    // With the stock vocabulary "\u{FFFD}" is a single id, which cannot
+    // be told from an incomplete byte: it is emitted again (documented in
+    // docs/interop.md; HF re-emits the whole prompt here).
+    let tok = Tokenizer::from_file(&path).unwrap();
+    let shown = tok.encode("hi \u{FFFD}", false).unwrap().ids().to_vec();
+    let all = tok
+        .encode("hi \u{FFFD} there", false)
+        .unwrap()
+        .ids()
+        .to_vec();
+    assert!(all.starts_with(&shown), "{shown:?} {all:?}");
+    assert_eq!(
+        tok.id_to_token(*shown.last().unwrap()).as_deref(),
+        Some("\u{FFFD}")
+    );
+    assert_eq!(
+        stream_rest(&tok, &shown, &all[shown.len()..]),
+        "\u{FFFD} there"
+    );
 }
 
 #[test]

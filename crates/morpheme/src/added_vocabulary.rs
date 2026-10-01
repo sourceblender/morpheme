@@ -316,8 +316,8 @@ impl AddedVocabulary {
 
     /// Add tokens with explicit ids (as loaded from `tokenizer.json`).
     ///
-    /// Fails if two tokens in `tokens` use the same id, since only one
-    /// content can map to an id.
+    /// Fails if an id appears more than once in `tokens` (whatever the
+    /// contents), since only one content can map to an id.
     pub fn add_tokens_with_ids(
         &mut self,
         tokens: &[AddedTokenWithId],
@@ -329,12 +329,10 @@ impl AddedVocabulary {
                 continue;
             }
             if let Some(prev) = seen.insert(t.id, &t.token.content) {
-                if prev != t.token.content {
-                    return Err(Error::Config(format!(
-                        "added token id {} is used by both {prev:?} and {:?}",
-                        t.id, t.token.content
-                    )));
-                }
+                return Err(Error::Config(format!(
+                    "added token id {} is used by both {prev:?} and {:?}",
+                    t.id, t.token.content
+                )));
             }
             self.insert(t.id, t.token.clone());
         }

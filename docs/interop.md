@@ -200,6 +200,11 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
   is treated as already shown. HF emits the entire prompt again with that
   first chunk. Later chunks are identical. `tests/hf_golden.rs` strips
   the re-emitted prompt from HF's recorded first chunk for this case.
+  Both libraries recognise an incomplete character by the trailing
+  U+FFFD it decodes to. morpheme tells a real U+FFFD apart when it is
+  made of several byte-fallback tokens (`<0xEF><0xBF><0xBD>`); a single
+  id whose text is just U+FFFD remains ambiguous and is emitted again
+  with the next chunk (HF re-emits the whole prompt in both cases).
 
 Kept on purpose because HF does it:
 

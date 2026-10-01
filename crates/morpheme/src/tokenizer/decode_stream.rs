@@ -54,6 +54,13 @@ impl<'tok> DecodeStream<'tok> {
     /// the next chunk is decoded in their context but not re-emitted.
     /// The prefill may end inside a multi-token character; that character
     /// is emitted by the step that completes it.
+    ///
+    /// Like HF, incomplete characters are recognised by the trailing
+    /// U+FFFD their bytes decode to. A real U+FFFD at the end of the
+    /// prefill is told apart when it comes from several byte tokens
+    /// (removing one of them would *add* replacement characters), but a
+    /// single id whose text is just U+FFFD is indistinguishable from an
+    /// incomplete byte and is emitted again with the next chunk.
     #[must_use]
     pub fn prefill(mut self, ids: &[u32]) -> Self {
         self.ids.extend_from_slice(ids);
@@ -78,16 +85,33 @@ impl<'tok> DecodeStream<'tok> {
         // stay as context so the character is emitted once completed. A
         // character is at most 4 bytes, so at most 3 trailing byte tokens
         // can be incomplete; anything longer is real U+FFFD text.
+        //
+        // Walking back must not split a *complete* character that happens
+        // to be U+FFFD (bytes EF BF BD): removing one of its bytes turns
+        // the remaining ones into more replacement characters, whereas
+        // removing bytes of an incomplete character never adds any (a
+        // byte-fallback run is replaced as a whole, a byte-level one per
+        // maximal invalid sequence, so the texts themselves are not
+        // compared). A single id whose text is U+FFFD stays ambiguous.
         if self.pending_prefill {
             self.pending_prefill = false;
+            let len = self.ids.len();
             let full = decode(&self.ids)?;
-            let (mut k, mut prefix) = (self.ids.len(), full.clone());
-            while prefix.ends_with('\u{FFFD}') && k > 0 && k + 3 > self.ids.len() {
-                k -= 1;
-                prefix = decode(&self.ids[..k])?;
+            let trailing_fffd = |s: &str| s.chars().rev().take_while(|&c| c == '\u{FFFD}').count();
+            let (mut k, mut prefix) = (len, full.clone());
+            let mut fffd = trailing_fffd(&full);
+            while fffd > 0 && k > 0 && k + 3 > len {
+                let shorter = decode(&self.ids[..k - 1])?;
+                let shorter_fffd = trailing_fffd(&shorter);
+                if shorter_fffd > fffd {
+                    // Removing this id split a complete character.
+                    break;
+                }
+                (k, prefix, fffd) = (k - 1, shorter, shorter_fffd);
             }
-            if prefix.ends_with('\u{FFFD}') {
-                (k, prefix) = (self.ids.len(), full);
+            if fffd > 0 {
+                // Not an incomplete character: real U+FFFD text.
+                (k, prefix) = (len, full);
             }
             self.prefix = prefix;
             self.prefix_index = k;
