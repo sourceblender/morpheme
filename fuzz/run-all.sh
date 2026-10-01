@@ -9,7 +9,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 seconds="${1:-60}"
-targets=(load_json encode normalized_string components_json)
+targets=(load_json encode normalized_string components_json precompiled decode)
 
 [ -d fuzz/corpus ] || python3 fuzz/make_corpus.py
 mkdir -p fuzz/logs

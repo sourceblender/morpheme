@@ -558,12 +558,35 @@ impl UnigramTrainer {
         new_pieces
     }
 
+    /// The tokens that occupy the first ids regardless of the corpus, in
+    /// id order and without duplicates: the unknown token first unless it
+    /// is one of the special tokens, then the special tokens.
+    fn reserved_tokens(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::with_capacity(self.special_tokens.len() + 1);
+        if let Some(unk) = &self.unk_token {
+            if !self.special_tokens.iter().any(|t| &t.content == unk) {
+                out.push(unk.clone());
+            }
+        }
+        for t in &self.special_tokens {
+            if !out.contains(&t.content) {
+                out.push(t.content.clone());
+            }
+        }
+        out
+    }
+
     fn finalize(&self, model: &Unigram, required_chars: HashSet<String>) -> Result<Unigram> {
         const PENALTY_DELTA: f64 = 0.0001;
         let mut penalty = 0.0;
         let mut pieces: Vec<SentencePiece> = Vec::new();
-        let mut inserted: HashSet<String> = HashSet::new();
-        // The training-time unknown piece is not part of the result.
+        // Everything already in the vocabulary (or excluded from it), so
+        // no token is emitted twice: the special tokens and the unknown
+        // token take the first ids (even when they also occur as a
+        // required char or a learned piece), and the training-time
+        // unknown piece is not part of the result.
+        let reserved = self.reserved_tokens();
+        let mut inserted: HashSet<String> = reserved.iter().cloned().collect();
         inserted.insert("<UNK>".into());
 
         let existing: HashMap<&str, f64> = model
@@ -574,6 +597,9 @@ impl UnigramTrainer {
         let mut required: Vec<String> = required_chars.into_iter().collect();
         required.sort();
         for c in required {
+            if inserted.contains(&c) {
+                continue;
+            }
             let score = match existing.get(c.as_str()) {
                 Some(&s) => s,
                 None => {
@@ -586,33 +612,26 @@ impl UnigramTrainer {
             pieces.push((c, score));
         }
 
-        let (unk_id, add_unk) = match &self.unk_token {
-            Some(unk) => match self.special_tokens.iter().position(|t| &t.content == unk) {
-                Some(i) => (Some(i), false),
-                None => (Some(0), true),
-            },
-            None => (None, false),
-        };
-        let budget = (self.vocab_size as usize)
-            .saturating_sub(self.special_tokens.len())
-            .saturating_sub(usize::from(add_unk));
+        // `vocab_size` is a hard cap that includes the reserved tokens;
+        // `do_train` has already checked that the required chars fit.
+        let budget = (self.vocab_size as usize).saturating_sub(reserved.len());
         for (token, score) in model.pieces() {
+            if pieces.len() >= budget {
+                break;
+            }
             if inserted.contains(token) {
                 continue;
             }
             inserted.insert(token.clone());
             pieces.push((token.clone(), if score.is_nan() { 0.0 } else { *score }));
-            if pieces.len() == budget {
-                break;
-            }
         }
         pieces.sort_by(|a, b| desc(a.1, b.1));
 
-        let mut vocab: Vec<SentencePiece> = Vec::new();
-        if add_unk {
-            vocab.push((self.unk_token.clone().unwrap_or_default(), 0.0));
-        }
-        vocab.extend(self.special_tokens.iter().map(|t| (t.content.clone(), 0.0)));
+        let unk_id = self
+            .unk_token
+            .as_ref()
+            .and_then(|unk| reserved.iter().position(|t| t == unk));
+        let mut vocab: Vec<SentencePiece> = reserved.into_iter().map(|t| (t, 0.0)).collect();
         vocab.extend(pieces);
         Unigram::new(vocab, unk_id, model.byte_fallback())
     }
@@ -626,12 +645,18 @@ impl UnigramTrainer {
         // Hash-map order is random; sort so training is deterministic.
         sentences.sort_unstable();
 
+        // `vocab_size` is a hard cap: the unknown token, the special
+        // tokens and every required char must all fit in it.
         let required = self.required_chars(&sentences);
-        if required.len() > self.vocab_size as usize {
+        let reserved = self.reserved_tokens();
+        let required_extra = required.iter().filter(|c| !reserved.contains(c)).count();
+        if reserved.len() + required_extra > self.vocab_size as usize {
             return Err(Error::Training(format!(
-                "the vocabulary size ({}) is smaller than the number of required chars ({})",
+                "the vocabulary size ({}) is smaller than the number of required chars ({}) \
+                 plus special tokens (including the unknown token: {})",
                 self.vocab_size,
-                required.len()
+                required_extra,
+                reserved.len()
             )));
         }
 
@@ -893,6 +918,114 @@ mod tests {
         let t = trainer().vocab_size(2).build().unwrap();
         let mut m = Unigram::default();
         assert!(t.do_train(vec![("abc".into(), 1)], &mut m).is_err());
+    }
+
+    #[test]
+    fn vocab_size_is_a_hard_cap_including_special_tokens() {
+        // Issue #32: 2 specials + 3 required chars do not fit in 4.
+        let specials = || vec![AddedToken::new("<s>", true), AddedToken::new("</s>", true)];
+        let corpus = || {
+            vec![
+                ("ab".to_string(), 3),
+                ("abc".to_string(), 2),
+                ("bc".to_string(), 1),
+            ]
+        };
+        let t = trainer()
+            .vocab_size(4)
+            .special_tokens(specials())
+            .build()
+            .unwrap();
+        let err = t.do_train(corpus(), &mut Unigram::default()).unwrap_err();
+        assert!(matches!(err, Error::Training(_)), "{err:?}");
+        assert!(err.to_string().contains("special tokens"), "{err}");
+
+        // The unknown token counts too: 1 unk + 2 specials + 3 chars > 5.
+        let t = trainer()
+            .vocab_size(5)
+            .special_tokens(specials())
+            .unk_token("<unk>")
+            .build()
+            .unwrap();
+        assert!(t.do_train(corpus(), &mut Unigram::default()).is_err());
+
+        // Exactly enough room for the reserved tokens and the chars.
+        let t = trainer()
+            .vocab_size(5)
+            .special_tokens(specials())
+            .build()
+            .unwrap();
+        let mut m = Unigram::default();
+        t.do_train(corpus(), &mut m).unwrap();
+        assert_eq!(m.vocab_size(), 5);
+        let got: Vec<&str> = m.pieces().iter().map(|(s, _)| s.as_str()).collect();
+        assert_eq!(&got[..2], ["<s>", "</s>"]);
+        let mut chars = got[2..].to_vec();
+        chars.sort_unstable();
+        assert_eq!(chars, ["a", "b", "c"]);
+
+        // Any larger budget is still never exceeded.
+        for size in 6..12 {
+            let t = trainer()
+                .vocab_size(size)
+                .special_tokens(specials())
+                .unk_token("<unk>")
+                .build()
+                .unwrap();
+            let mut m = Unigram::default();
+            t.do_train(corpus(), &mut m).unwrap();
+            assert!(m.vocab_size() <= size, "{size}: {}", m.vocab_size());
+        }
+    }
+
+    #[test]
+    fn special_and_unk_tokens_are_not_duplicated_by_corpus_pieces() {
+        // Issue #34: "a" is a special token and also a corpus piece.
+        let corpus = || {
+            vec![
+                ("a".to_string(), 1),
+                ("b".to_string(), 1),
+                ("ab".to_string(), 1),
+            ]
+        };
+        let t = trainer()
+            .special_tokens(vec![AddedToken::new("a", true)])
+            .build()
+            .unwrap();
+        let mut m = Unigram::default();
+        t.do_train(corpus(), &mut m).unwrap();
+        let tokens: Vec<&str> = m.pieces().iter().map(|(s, _)| s.as_str()).collect();
+        let unique: HashSet<&str> = tokens.iter().copied().collect();
+        assert_eq!(unique.len(), tokens.len(), "duplicates in {tokens:?}");
+        assert_eq!(m.token_to_id("a"), Some(0));
+        assert_eq!(m.pieces()[0], ("a".to_string(), 0.0));
+
+        // Same with an unknown token that is not a special token.
+        let t = trainer().unk_token("b").build().unwrap();
+        let mut m = Unigram::default();
+        t.do_train(corpus(), &mut m).unwrap();
+        let tokens: Vec<&str> = m.pieces().iter().map(|(s, _)| s.as_str()).collect();
+        let unique: HashSet<&str> = tokens.iter().copied().collect();
+        assert_eq!(unique.len(), tokens.len(), "duplicates in {tokens:?}");
+        assert_eq!(m.token_to_id("b"), Some(0));
+        assert_eq!(m.unk_id(), Some(0));
+
+        // A special token listed twice gets one id, and the unk id still
+        // points at the right piece.
+        let t = trainer()
+            .special_tokens(vec![
+                AddedToken::new("<s>", true),
+                AddedToken::new("<s>", true),
+                AddedToken::new("<unk>", true),
+            ])
+            .unk_token("<unk>")
+            .build()
+            .unwrap();
+        let mut m = Unigram::default();
+        t.do_train(corpus(), &mut m).unwrap();
+        assert_eq!(m.token_to_id("<s>"), Some(0));
+        assert_eq!(m.token_to_id("<unk>"), Some(1));
+        assert_eq!(m.unk_id(), Some(1));
     }
 
     #[test]
