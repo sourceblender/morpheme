@@ -42,7 +42,7 @@ rayon = { workspace = true }
 ureq = { workspace = true, optional = true }
 tempfile = { workspace = true }
 sha1 = { version = "0.10", optional = true }
-sha2 = { version = "0.10", optional = true }
+sha2 = { version = "0.11", optional = true }
 indicatif = { workspace = true, optional = true }
 
 [package.metadata.docs.rs]
@@ -57,7 +57,7 @@ progressbar = ["dep:indicatif"]
 hub = ["dep:ureq", "dep:sha1", "dep:sha2"]
 
 [dev-dependencies]
-sha2 = "0.10"
+sha2 = "0.11"
 criterion = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
