@@ -34,6 +34,8 @@ pub struct DecodeStream<'tok> {
     /// next decode.
     prefix: String,
     prefix_index: usize,
+    /// `prefill` was called and its prefix is not computed yet.
+    pending_prefill: bool,
 }
 
 impl<'tok> DecodeStream<'tok> {
@@ -44,14 +46,18 @@ impl<'tok> DecodeStream<'tok> {
             ids: Vec::new(),
             prefix: String::new(),
             prefix_index: 0,
+            pending_prefill: false,
         }
     }
 
     /// Start from ids whose text was already shown (e.g. the prompt), so
     /// the next chunk is decoded in their context but not re-emitted.
+    /// The prefill may end inside a multi-token character; that character
+    /// is emitted by the step that completes it.
     #[must_use]
     pub fn prefill(mut self, ids: &[u32]) -> Self {
         self.ids.extend_from_slice(ids);
+        self.pending_prefill = !self.ids.is_empty();
         self
     }
 
@@ -66,12 +72,25 @@ impl<'tok> DecodeStream<'tok> {
         let (tokenizer, skip) = (self.tokenizer, self.skip_special_tokens);
         let decode = |ids: &[u32]| tokenizer.decode(ids, skip);
 
-        if self.prefix.is_empty() && !self.ids.is_empty() {
-            let prefix = decode(&self.ids)?;
-            if !prefix.ends_with('\u{FFFD}') {
-                self.prefix = prefix;
-                self.prefix_index = self.ids.len();
+        // First step after `prefill`: the prefilled text was already shown.
+        // If the prefill ends inside a character (byte fallback), only the
+        // ids up to the last complete character count as shown; the rest
+        // stay as context so the character is emitted once completed. A
+        // character is at most 4 bytes, so at most 3 trailing byte tokens
+        // can be incomplete; anything longer is real U+FFFD text.
+        if self.pending_prefill {
+            self.pending_prefill = false;
+            let full = decode(&self.ids)?;
+            let (mut k, mut prefix) = (self.ids.len(), full.clone());
+            while prefix.ends_with('\u{FFFD}') && k > 0 && k + 3 > self.ids.len() {
+                k -= 1;
+                prefix = decode(&self.ids[..k])?;
             }
+            if prefix.ends_with('\u{FFFD}') {
+                (k, prefix) = (self.ids.len(), full);
+            }
+            self.prefix = prefix;
+            self.prefix_index = k;
         }
 
         self.ids.extend_from_slice(ids);

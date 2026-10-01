@@ -163,6 +163,22 @@ fn check_stream(
     r.check(ctx, got, want);
 }
 
+/// If `ids` decode to text ending inside a character, the text of the
+/// ids up to the last complete character (what HF re-emits on the first
+/// completed chunk after `prefill`).
+fn re_emitted_prompt(tok: &Tokenizer, ids: &[u32]) -> Option<String> {
+    let mut prefix = tok.decode(ids, false).unwrap();
+    if !prefix.ends_with('\u{FFFD}') {
+        return None;
+    }
+    let mut k = ids.len();
+    while prefix.ends_with('\u{FFFD}') && k > 0 && k + 3 > ids.len() {
+        k -= 1;
+        prefix = tok.decode(&ids[..k], false).unwrap();
+    }
+    (!prefix.ends_with('\u{FFFD}')).then_some(prefix)
+}
+
 fn run_cases(r: &mut Report, label: &str, tok: &Tokenizer, golden: &Value) {
     for (i, case) in golden["cases"].as_array().unwrap().iter().enumerate() {
         let input = case["input"].as_str().unwrap();
@@ -196,13 +212,22 @@ fn run_cases(r: &mut Report, label: &str, tok: &Tokenizer, golden: &Value) {
         let half = ids.len() / 2;
         let ctx = format!("[{label}] case {i} {short:?} stream_prefill_half");
         let mut stream = tok.decode_stream(false).prefill(&ids[..half]);
-        check_stream(
-            r,
-            &ctx,
-            &mut stream,
-            &ids[half..],
-            &case["stream_prefill_half"],
-        );
+        let mut want = case["stream_prefill_half"].clone();
+        // Known deviation (docs/interop.md): when the prefill ends inside
+        // a character, HF re-emits the whole prompt with the first chunk;
+        // morpheme emits only the text after the last complete character.
+        if let Some(shown) = re_emitted_prompt(tok, &ids[..half]) {
+            if let Some(first) = want
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|v| v.is_string())
+            {
+                let rest = first.as_str().unwrap().strip_prefix(&shown).unwrap();
+                *first = Value::String(rest.to_owned());
+            }
+        }
+        check_stream(r, &ctx, &mut stream, &ids[half..], &want);
     }
 
     for (i, pair) in golden["pairs"].as_array().unwrap().iter().enumerate() {
