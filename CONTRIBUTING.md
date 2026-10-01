@@ -1,4 +1,4 @@
-# Contributing to splinter
+# Contributing to morpheme
 
 Thanks for your interest in contributing! This document covers the day-to-day workflow. The deeper design discussion lives in [`docs/contributing.md`](./docs/contributing.md).
 
@@ -11,7 +11,11 @@ By participating, you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.
 1. Fork the repository.
 2. Create a topic branch: `git switch -c feat/my-change`.
 3. Make your change. Add tests. Update docs.
-4. Run the local gate:
+4. Fetch the Hugging Face fixtures used by the golden tests (once):
+   ```sh
+   ./scripts/fetch-hf-fixtures.sh
+   ```
+5. Run the local gate:
    ```sh
    cargo fmt --all -- --check
    cargo clippy --workspace --all-targets -- -D warnings
@@ -31,7 +35,7 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 <footer>
 ```
 
-Common scopes: `lib`, `cli`, `bpe`, `wordpiece`, `unigram`, `pre-tokenizer`, `normalizer`, `decoder`, `post-processor`, `trainer`, `docs`, `ci`.
+Common scopes: `lib`, `cli`, `models`, `normalizers`, `pre-tokenizers`, `processors`, `decoders`, `trainers`, `interop`, `docs`, `ci`.
 
 ## Reporting bugs
 

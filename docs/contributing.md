@@ -6,12 +6,13 @@
 ## Workspace layout
 
 ```
-splinter/
-├── crates/splinter/        # library — public API lives here
-├── apps/splinter-cli/      # CLI binary
+morpheme/
+├── crates/morpheme/        # library — public API lives here
+├── apps/morpheme-cli/      # CLI binary
 ├── docs/                   # markdown documentation (this folder)
-├── benches/                # Criterion benchmarks
-├── tests/                  # cross-crate integration tests
+├── examples/               # sample corpus + trained tokenizers
+├── scripts/                # HF fixtures, golden generation, interop check
+├── fuzz/                   # cargo-fuzz targets (separate nightly workspace)
 └── .github/                # CI + issue / PR templates
 ```
 
@@ -19,7 +20,7 @@ splinter/
 
 Requirements:
 
-- Rust **stable** (the CI also runs `1.74` for MSRV).
+- Rust **stable** (the CI also runs `1.85`, the MSRV).
 - `rustfmt` and `clippy` (installed by default with rustup).
 - `cargo`, `git`.
 
@@ -33,8 +34,32 @@ First run:
 ```sh
 cargo build --workspace
 cargo test --workspace
-cargo run -p splinter-cli -- --help
+cargo run -p morpheme-cli -- --help
 ```
+
+## Golden tests and Hugging Face fixtures
+
+`crates/morpheme/tests/hf_golden.rs` compares morpheme with Python
+`tokenizers` on real tokenizer files. The files are pinned in
+`scripts/hf-fixtures.txt` and downloaded (not committed) by:
+
+```sh
+./scripts/fetch-hf-fixtures.sh      # or: just fixtures
+```
+
+The expected outputs in `crates/morpheme/tests/golden/` are generated
+from Python and committed. Regenerate them after changing the input
+sentences or the fixture list (needs [`uv`](https://docs.astral.sh/uv/)):
+
+```sh
+just golden    # uv run --with tokenizers==0.23.2 scripts/gen_golden.py
+```
+
+Never hand-edit golden files to make a test pass: a golden mismatch
+means morpheme disagrees with the reference implementation.
+
+`just interop` checks the reverse direction (Python loading
+morpheme-trained files).
 
 ## Local gate
 
@@ -62,16 +87,64 @@ When you start work on a module:
 ## Testing
 
 - **Unit tests** live next to the code (`#[cfg(test)] mod tests`).
-- **Integration tests** live in `crates/splinter/tests/`.
-- **Property tests** use `proptest` (already a workspace dependency) for
-  round-trip invariants (encode → decode → encode).
+- **Integration tests** live in `crates/morpheme/tests/`.
+- **Property tests** use `proptest` for round-trip and offset
+  invariants (`crates/morpheme/tests/roundtrip.rs`).
+- **Regression tests** for fixed bugs go in
+  `crates/morpheme/tests/regressions.rs`, one test per bug, named after it.
+
+### Coverage
+
+CI's `coverage` job runs the whole suite under
+[`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov), prints a
+summary on the run page and uploads `lcov.info` as an artifact (line
+coverage was 91.5% when it was added). Locally:
+
+```sh
+cargo install cargo-llvm-cov   # once; needs `rustup component add llvm-tools-preview`
+cargo llvm-cov --workspace --all-features --summary-only
+cargo llvm-cov --workspace --all-features --html   # target/llvm-cov/html
+```
+
+New code should come with tests; look at the uncovered lines of the
+files you touched rather than chasing the total.
+
+## Fuzzing
+
+`fuzz/` holds [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz)
+targets. It is a separate workspace (excluded from the main one) because
+it needs nightly Rust:
+
+| Target | What it checks |
+| --- | --- |
+| `load_json` | Arbitrary bytes as `tokenizer.json`: loading never panics; anything that loads can encode/decode and survives save → load unchanged. |
+| `encode` | Arbitrary text through real tokenizers (BERT, GPT-2, Llama, T5, Qwen2.5): encoding never fails, offsets are valid slices, GPT-2 round-trips losslessly. |
+| `normalized_string` | Random sequences of normalization ops: alignments always map back into the original text. |
+| `components_json` | Arbitrary JSON for each component type: loading never panics; loaded components run and re-serialize. |
+
+```sh
+rustup toolchain install nightly
+cargo install cargo-fuzz
+./scripts/fetch-hf-fixtures.sh     # real tokenizers for `encode` and the seeds
+./fuzz/run-all.sh 300              # all targets in parallel, 5 minutes each
+cargo +nightly fuzz run encode     # or one target, until Ctrl-C
+```
+
+Seed corpora come from `fuzz/make_corpus.py` (real component configs
+and the golden inputs). Crashes land in `fuzz/artifacts/<target>/`;
+`cargo +nightly fuzz fmt <target> <file>` prints the input. Fix the root
+cause and add a regression test that reproduces it. A weekly CI workflow
+(`.github/workflows/fuzz.yml`, also runnable by hand) fuzzes every target
+for 5 minutes and uploads any crash as an artifact.
 
 ## Benchmarking
 
-- Criterion benchmarks live in `crates/splinter/benches/`.
-- Run with `cargo bench -p splinter`.
-- Methodology and machine details go in
-  [`docs/benchmarks.md`](./benchmarks.md).
+- `cargo bench -p morpheme` runs the Criterion suite (`encode`, `train`,
+  `normalize`); use `--save-baseline` / `--baseline` to compare a change
+  against `main`. CI only compiles it.
+- `cargo run --release --example bench_encode -- <tokenizer.json> <text>`
+  measures encode and decode throughput on any file.
+- Methodology and results: [`docs/benchmarks.md`](./benchmarks.md).
 
 ## Style
 

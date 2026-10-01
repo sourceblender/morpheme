@@ -12,7 +12,7 @@ What is the user-facing problem?
 
 ## Proposed solution
 
-What do you want `splinter` to do?
+What do you want `morpheme` to do?
 
 ## Alternatives
 
@@ -24,15 +24,14 @@ What else did you consider?
 Which module(s) does this touch? See docs/modules/.
 -->
 
-- [ ] `normalizer`
-- [ ] `pre_tokenizer`
-- [ ] `bpe`
-- [ ] `wordpiece`
-- [ ] `unigram`
-- [ ] `post_processor`
-- [ ] `decoder`
-- [ ] `trainer`
-- [ ] `tokenizer` (glue)
+- [ ] `normalizers`
+- [ ] `pre_tokenizers`
+- [ ] `models` (BPE / WordPiece / WordLevel / Unigram)
+- [ ] `processors` (post-processors)
+- [ ] `decoders`
+- [ ] `trainers`
+- [ ] core (`tokenizer`, `encoding`, `normalized_string`, `added_vocabulary`)
+- [ ] `tokenizer.json` (de)serialization / Hugging Face interop
 - [ ] `cli`
 - [ ] other (describe)
 

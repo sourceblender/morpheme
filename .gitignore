@@ -13,5 +13,7 @@ Cargo.lock.bak
 .prettier-cache/
 .bun/
 
-# Generated trainer outputs
-examples/tokenizer.json
+# Generated trainer outputs (see scripts/regenerate-examples.sh for the tracked ones)
+/tokenizer.json
+# Downloaded HF tokenizer fixtures (scripts/fetch-hf-fixtures.sh)
+crates/morpheme/tests/data/

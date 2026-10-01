@@ -7,7 +7,7 @@
 | latest  | :white_check_mark: |
 | < latest | :x:                |
 
-`splinter` is pre-alpha. Security fixes will be backported only at the
+`morpheme` is pre-release (v0.x). Security fixes will be backported only at the
 discretion of the maintainers, and only for the most recent release line.
 
 ## Reporting a vulnerability
@@ -27,8 +27,10 @@ disclose coordinated fixes within **90 days** of the report.
 
 In scope:
 
-- Memory unsafety in the `splinter` library or `splinter-cli` binary.
+- Memory unsafety in the `morpheme` library or `morpheme-cli` binary.
 - Panic-causing malformed tokenizer JSON that crosses a trust boundary.
+  (Loading and encoding are fuzzed weekly in CI; see the fuzzing section
+  of [`docs/contributing.md`](./docs/contributing.md).)
 - Dependency vulnerabilities that we can address without breaking compatibility.
 
 Out of scope:

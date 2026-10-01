@@ -20,15 +20,14 @@ about: Open a pull request
 
 <!-- Tick all that apply; reference docs/modules/. -->
 
-- [ ] `normalizer`
-- [ ] `pre_tokenizer`
-- [ ] `bpe`
-- [ ] `wordpiece`
-- [ ] `unigram`
-- [ ] `post_processor`
-- [ ] `decoder`
-- [ ] `trainer`
-- [ ] `tokenizer` (glue)
+- [ ] `normalizers`
+- [ ] `pre_tokenizers`
+- [ ] `models` (BPE / WordPiece / WordLevel / Unigram)
+- [ ] `processors` (post-processors)
+- [ ] `decoders`
+- [ ] `trainers`
+- [ ] core (`tokenizer`, `encoding`, `normalized_string`, `added_vocabulary`)
+- [ ] `tokenizer.json` (de)serialization / Hugging Face interop
 - [ ] `cli`
 - [ ] other (describe)
 
@@ -41,7 +40,7 @@ about: Open a pull request
 - [ ] I ran the local gate:
   - [ ] `cargo fmt --all -- --check`
   - [ ] `cargo clippy --workspace --all-targets -- -D warnings`
-  - [ ] `cargo test --workspace`
+  - [ ] `cargo test --workspace` (after `./scripts/fetch-hf-fixtures.sh`)
 
 ## Related issues
 

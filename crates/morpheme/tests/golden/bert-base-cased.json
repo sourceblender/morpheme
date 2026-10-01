@@ -1,0 +1,10282 @@
+{
+ "fixture": "bert-base-cased",
+ "tokenizers_version": "0.23.2",
+ "vocab_size_with_added": 28996,
+ "vocab_size_without_added": 28996,
+ "cases": [
+  {
+   "input": "",
+   "with_special": {
+    "ids": [
+     101,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [],
+    "tokens": [],
+    "offsets": [],
+    "type_ids": [],
+    "special_tokens_mask": [],
+    "attention_mask": [],
+    "word_ids": []
+   },
+   "decode_keep_special": "[CLS] [SEP]",
+   "decode_skip_special": "",
+   "stream_keep_special": [
+    "[CLS]",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    null
+   ],
+   "stream_prefill_half": [
+    " [SEP]"
+   ]
+  },
+  {
+   "input": " ",
+   "with_special": {
+    "ids": [
+     101,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [],
+    "tokens": [],
+    "offsets": [],
+    "type_ids": [],
+    "special_tokens_mask": [],
+    "attention_mask": [],
+    "word_ids": []
+   },
+   "decode_keep_special": "[CLS] [SEP]",
+   "decode_skip_special": "",
+   "stream_keep_special": [
+    "[CLS]",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    null
+   ],
+   "stream_prefill_half": [
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "Hello, World!",
+   "with_special": {
+    "ids": [
+     101,
+     8667,
+     117,
+     1291,
+     106,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "Hello",
+     ",",
+     "World",
+     "!",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      7,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     8667,
+     117,
+     1291,
+     106
+    ],
+    "tokens": [
+     "Hello",
+     ",",
+     "World",
+     "!"
+    ],
+    "offsets": [
+     [
+      0,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      7,
+      12
+     ],
+     [
+      12,
+      13
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3
+    ]
+   },
+   "decode_keep_special": "[CLS] Hello, World! [SEP]",
+   "decode_skip_special": "Hello, World!",
+   "stream_keep_special": [
+    "[CLS]",
+    " Hello",
+    ",",
+    " World",
+    "!",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "Hello",
+    ",",
+    " World",
+    "!",
+    null
+   ],
+   "stream_prefill_half": [
+    " World",
+    "!",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "hello world",
+   "with_special": {
+    "ids": [
+     101,
+     19082,
+     1362,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "hello",
+     "world",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      6,
+      11
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     19082,
+     1362
+    ],
+    "tokens": [
+     "hello",
+     "world"
+    ],
+    "offsets": [
+     [
+      0,
+      5
+     ],
+     [
+      6,
+      11
+     ]
+    ],
+    "type_ids": [
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1
+    ]
+   },
+   "decode_keep_special": "[CLS] hello world [SEP]",
+   "decode_skip_special": "hello world",
+   "stream_keep_special": [
+    "[CLS]",
+    " hello",
+    " world",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "hello",
+    " world",
+    null
+   ],
+   "stream_prefill_half": [
+    " world",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "  leading and trailing spaces  ",
+   "with_special": {
+    "ids": [
+     101,
+     2020,
+     1105,
+     13161,
+     6966,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "leading",
+     "and",
+     "trailing",
+     "spaces",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      2,
+      9
+     ],
+     [
+      10,
+      13
+     ],
+     [
+      14,
+      22
+     ],
+     [
+      23,
+      29
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     2020,
+     1105,
+     13161,
+     6966
+    ],
+    "tokens": [
+     "leading",
+     "and",
+     "trailing",
+     "spaces"
+    ],
+    "offsets": [
+     [
+      2,
+      9
+     ],
+     [
+      10,
+      13
+     ],
+     [
+      14,
+      22
+     ],
+     [
+      23,
+      29
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3
+    ]
+   },
+   "decode_keep_special": "[CLS] leading and trailing spaces [SEP]",
+   "decode_skip_special": "leading and trailing spaces",
+   "stream_keep_special": [
+    "[CLS]",
+    " leading",
+    " and",
+    " trailing",
+    " spaces",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "leading",
+    " and",
+    " trailing",
+    " spaces",
+    null
+   ],
+   "stream_prefill_half": [
+    " trailing",
+    " spaces",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "multiple   internal    spaces",
+   "with_special": {
+    "ids": [
+     101,
+     2967,
+     4422,
+     6966,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "multiple",
+     "internal",
+     "spaces",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      8
+     ],
+     [
+      11,
+      19
+     ],
+     [
+      23,
+      29
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     2967,
+     4422,
+     6966
+    ],
+    "tokens": [
+     "multiple",
+     "internal",
+     "spaces"
+    ],
+    "offsets": [
+     [
+      0,
+      8
+     ],
+     [
+      11,
+      19
+     ],
+     [
+      23,
+      29
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2
+    ]
+   },
+   "decode_keep_special": "[CLS] multiple internal spaces [SEP]",
+   "decode_skip_special": "multiple internal spaces",
+   "stream_keep_special": [
+    "[CLS]",
+    " multiple",
+    " internal",
+    " spaces",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "multiple",
+    " internal",
+    " spaces",
+    null
+   ],
+   "stream_prefill_half": [
+    " internal",
+    " spaces",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "tabs\tand\nnewlines\r\nmixed",
+   "with_special": {
+    "ids": [
+     101,
+     27629,
+     4832,
+     1105,
+     1207,
+     10443,
+     3216,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "ta",
+     "##bs",
+     "and",
+     "new",
+     "##lines",
+     "mixed",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      5,
+      8
+     ],
+     [
+      9,
+      12
+     ],
+     [
+      12,
+      17
+     ],
+     [
+      19,
+      24
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     1,
+     2,
+     2,
+     3,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     27629,
+     4832,
+     1105,
+     1207,
+     10443,
+     3216
+    ],
+    "tokens": [
+     "ta",
+     "##bs",
+     "and",
+     "new",
+     "##lines",
+     "mixed"
+    ],
+    "offsets": [
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      5,
+      8
+     ],
+     [
+      9,
+      12
+     ],
+     [
+      12,
+      17
+     ],
+     [
+      19,
+      24
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     1,
+     2,
+     2,
+     3
+    ]
+   },
+   "decode_keep_special": "[CLS] tabs and newlines mixed [SEP]",
+   "decode_skip_special": "tabs and newlines mixed",
+   "stream_keep_special": [
+    "[CLS]",
+    " ta",
+    "bs",
+    " and",
+    " new",
+    "lines",
+    " mixed",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "ta",
+    "bs",
+    " and",
+    " new",
+    "lines",
+    " mixed",
+    null
+   ],
+   "stream_prefill_half": [
+    " new",
+    "lines",
+    " mixed",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "The quick brown fox jumps over the lazy dog.",
+   "with_special": {
+    "ids": [
+     101,
+     1109,
+     3613,
+     3058,
+     17594,
+     15457,
+     1166,
+     1103,
+     16688,
+     3676,
+     119,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "The",
+     "quick",
+     "brown",
+     "fox",
+     "jumps",
+     "over",
+     "the",
+     "lazy",
+     "dog",
+     ".",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      9
+     ],
+     [
+      10,
+      15
+     ],
+     [
+      16,
+      19
+     ],
+     [
+      20,
+      25
+     ],
+     [
+      26,
+      30
+     ],
+     [
+      31,
+      34
+     ],
+     [
+      35,
+      39
+     ],
+     [
+      40,
+      43
+     ],
+     [
+      43,
+      44
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     1109,
+     3613,
+     3058,
+     17594,
+     15457,
+     1166,
+     1103,
+     16688,
+     3676,
+     119
+    ],
+    "tokens": [
+     "The",
+     "quick",
+     "brown",
+     "fox",
+     "jumps",
+     "over",
+     "the",
+     "lazy",
+     "dog",
+     "."
+    ],
+    "offsets": [
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      9
+     ],
+     [
+      10,
+      15
+     ],
+     [
+      16,
+      19
+     ],
+     [
+      20,
+      25
+     ],
+     [
+      26,
+      30
+     ],
+     [
+      31,
+      34
+     ],
+     [
+      35,
+      39
+     ],
+     [
+      40,
+      43
+     ],
+     [
+      43,
+      44
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9
+    ]
+   },
+   "decode_keep_special": "[CLS] The quick brown fox jumps over the lazy dog. [SEP]",
+   "decode_skip_special": "The quick brown fox jumps over the lazy dog.",
+   "stream_keep_special": [
+    "[CLS]",
+    " The",
+    " quick",
+    " brown",
+    " fox",
+    " jumps",
+    " over",
+    " the",
+    " lazy",
+    " dog",
+    ".",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "The",
+    " quick",
+    " brown",
+    " fox",
+    " jumps",
+    " over",
+    " the",
+    " lazy",
+    " dog",
+    ".",
+    null
+   ],
+   "stream_prefill_half": [
+    " over",
+    " the",
+    " lazy",
+    " dog",
+    ".",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "I'm sure they'll say it's fine, don't you think? We've seen it.",
+   "with_special": {
+    "ids": [
+     101,
+     146,
+     112,
+     182,
+     1612,
+     1152,
+     112,
+     1325,
+     1474,
+     1122,
+     112,
+     188,
+     2503,
+     117,
+     1274,
+     112,
+     189,
+     1128,
+     1341,
+     136,
+     1284,
+     112,
+     1396,
+     1562,
+     1122,
+     119,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "I",
+     "'",
+     "m",
+     "sure",
+     "they",
+     "'",
+     "ll",
+     "say",
+     "it",
+     "'",
+     "s",
+     "fine",
+     ",",
+     "don",
+     "'",
+     "t",
+     "you",
+     "think",
+     "?",
+     "We",
+     "'",
+     "ve",
+     "seen",
+     "it",
+     ".",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      4,
+      8
+     ],
+     [
+      9,
+      13
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      14,
+      16
+     ],
+     [
+      17,
+      20
+     ],
+     [
+      21,
+      23
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      24,
+      25
+     ],
+     [
+      26,
+      30
+     ],
+     [
+      30,
+      31
+     ],
+     [
+      32,
+      35
+     ],
+     [
+      35,
+      36
+     ],
+     [
+      36,
+      37
+     ],
+     [
+      38,
+      41
+     ],
+     [
+      42,
+      47
+     ],
+     [
+      47,
+      48
+     ],
+     [
+      49,
+      51
+     ],
+     [
+      51,
+      52
+     ],
+     [
+      52,
+      54
+     ],
+     [
+      55,
+      59
+     ],
+     [
+      60,
+      62
+     ],
+     [
+      62,
+      63
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     146,
+     112,
+     182,
+     1612,
+     1152,
+     112,
+     1325,
+     1474,
+     1122,
+     112,
+     188,
+     2503,
+     117,
+     1274,
+     112,
+     189,
+     1128,
+     1341,
+     136,
+     1284,
+     112,
+     1396,
+     1562,
+     1122,
+     119
+    ],
+    "tokens": [
+     "I",
+     "'",
+     "m",
+     "sure",
+     "they",
+     "'",
+     "ll",
+     "say",
+     "it",
+     "'",
+     "s",
+     "fine",
+     ",",
+     "don",
+     "'",
+     "t",
+     "you",
+     "think",
+     "?",
+     "We",
+     "'",
+     "ve",
+     "seen",
+     "it",
+     "."
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      4,
+      8
+     ],
+     [
+      9,
+      13
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      14,
+      16
+     ],
+     [
+      17,
+      20
+     ],
+     [
+      21,
+      23
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      24,
+      25
+     ],
+     [
+      26,
+      30
+     ],
+     [
+      30,
+      31
+     ],
+     [
+      32,
+      35
+     ],
+     [
+      35,
+      36
+     ],
+     [
+      36,
+      37
+     ],
+     [
+      38,
+      41
+     ],
+     [
+      42,
+      47
+     ],
+     [
+      47,
+      48
+     ],
+     [
+      49,
+      51
+     ],
+     [
+      51,
+      52
+     ],
+     [
+      52,
+      54
+     ],
+     [
+      55,
+      59
+     ],
+     [
+      60,
+      62
+     ],
+     [
+      62,
+      63
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24
+    ]
+   },
+   "decode_keep_special": "[CLS] I ' m sure they ' ll say it ' s fine, don ' t you think? We ' ve seen it. [SEP]",
+   "decode_skip_special": "I ' m sure they ' ll say it ' s fine, don ' t you think? We ' ve seen it.",
+   "stream_keep_special": [
+    "[CLS]",
+    " I",
+    " '",
+    " m",
+    " sure",
+    " they",
+    " '",
+    " ll",
+    " say",
+    " it",
+    " '",
+    " s",
+    " fine",
+    ",",
+    " don",
+    " '",
+    " t",
+    " you",
+    " think",
+    "?",
+    " We",
+    " '",
+    " ve",
+    " seen",
+    " it",
+    ".",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "I",
+    " '",
+    " m",
+    " sure",
+    " they",
+    " '",
+    " ll",
+    " say",
+    " it",
+    " '",
+    " s",
+    " fine",
+    ",",
+    " don",
+    " '",
+    " t",
+    " you",
+    " think",
+    "?",
+    " We",
+    " '",
+    " ve",
+    " seen",
+    " it",
+    ".",
+    null
+   ],
+   "stream_prefill_half": [
+    ",",
+    " don",
+    " '",
+    " t",
+    " you",
+    " think",
+    "?",
+    " We",
+    " '",
+    " ve",
+    " seen",
+    " it",
+    ".",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "Café naïve résumé façade Ångström",
+   "with_special": {
+    "ids": [
+     101,
+     21036,
+     9468,
+     28203,
+     2707,
+     187,
+     10051,
+     1818,
+     2744,
+     18578,
+     230,
+     2118,
+     2050,
+     26370,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "Café",
+     "na",
+     "##ï",
+     "##ve",
+     "r",
+     "##és",
+     "##um",
+     "##é",
+     "façade",
+     "Å",
+     "##ng",
+     "##st",
+     "##röm",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      10
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      14
+     ],
+     [
+      14,
+      16
+     ],
+     [
+      16,
+      17
+     ],
+     [
+      18,
+      24
+     ],
+     [
+      25,
+      26
+     ],
+     [
+      26,
+      28
+     ],
+     [
+      28,
+      30
+     ],
+     [
+      30,
+      33
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     3,
+     4,
+     4,
+     4,
+     4,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     21036,
+     9468,
+     28203,
+     2707,
+     187,
+     10051,
+     1818,
+     2744,
+     18578,
+     230,
+     2118,
+     2050,
+     26370
+    ],
+    "tokens": [
+     "Café",
+     "na",
+     "##ï",
+     "##ve",
+     "r",
+     "##és",
+     "##um",
+     "##é",
+     "façade",
+     "Å",
+     "##ng",
+     "##st",
+     "##röm"
+    ],
+    "offsets": [
+     [
+      0,
+      4
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      10
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      14
+     ],
+     [
+      14,
+      16
+     ],
+     [
+      16,
+      17
+     ],
+     [
+      18,
+      24
+     ],
+     [
+      25,
+      26
+     ],
+     [
+      26,
+      28
+     ],
+     [
+      28,
+      30
+     ],
+     [
+      30,
+      33
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     3,
+     4,
+     4,
+     4,
+     4
+    ]
+   },
+   "decode_keep_special": "[CLS] Café naïve résumé façade Ångström [SEP]",
+   "decode_skip_special": "Café naïve résumé façade Ångström",
+   "stream_keep_special": [
+    "[CLS]",
+    " Café",
+    " na",
+    "ï",
+    "ve",
+    " r",
+    "és",
+    "um",
+    "é",
+    " façade",
+    " Å",
+    "ng",
+    "st",
+    "röm",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "Café",
+    " na",
+    "ï",
+    "ve",
+    " r",
+    "és",
+    "um",
+    "é",
+    " façade",
+    " Å",
+    "ng",
+    "st",
+    "röm",
+    null
+   ],
+   "stream_prefill_half": [
+    "um",
+    "é",
+    " façade",
+    " Å",
+    "ng",
+    "st",
+    "röm",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "ÀÉÎÕÜ àéîõü",
+   "with_special": {
+    "ids": [
+     101,
+     100,
+     246,
+     2744,
+     28202,
+     28207,
+     17176,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "[UNK]",
+     "à",
+     "##é",
+     "##î",
+     "##õ",
+     "##ü",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     100,
+     246,
+     2744,
+     28202,
+     28207,
+     17176
+    ],
+    "tokens": [
+     "[UNK]",
+     "à",
+     "##é",
+     "##î",
+     "##õ",
+     "##ü"
+    ],
+    "offsets": [
+     [
+      0,
+      5
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   "decode_keep_special": "[CLS] [UNK] àéîõü [SEP]",
+   "decode_skip_special": "àéîõü",
+   "stream_keep_special": [
+    "[CLS]",
+    " [UNK]",
+    " à",
+    "é",
+    "î",
+    "õ",
+    "ü",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    "à",
+    "é",
+    "î",
+    "õ",
+    "ü",
+    null
+   ],
+   "stream_prefill_half": [
+    "î",
+    "õ",
+    "ü",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "é combining accent",
+   "with_special": {
+    "ids": [
+     101,
+     174,
+     28310,
+     12459,
+     9603,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "e",
+     "##́",
+     "combining",
+     "accent",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      3,
+      12
+     ],
+     [
+      13,
+      19
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     1,
+     2,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     174,
+     28310,
+     12459,
+     9603
+    ],
+    "tokens": [
+     "e",
+     "##́",
+     "combining",
+     "accent"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      3,
+      12
+     ],
+     [
+      13,
+      19
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     1,
+     2
+    ]
+   },
+   "decode_keep_special": "[CLS] é combining accent [SEP]",
+   "decode_skip_special": "é combining accent",
+   "stream_keep_special": [
+    "[CLS]",
+    " e",
+    "́",
+    " combining",
+    " accent",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "e",
+    "́",
+    " combining",
+    " accent",
+    null
+   ],
+   "stream_prefill_half": [
+    " combining",
+    " accent",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "你好，世界！这是一个测试。",
+   "with_special": {
+    "ids": [
+     101,
+     100,
+     100,
+     1099,
+     100,
+     100,
+     1096,
+     100,
+     100,
+     976,
+     100,
+     100,
+     100,
+     886,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "[UNK]",
+     "[UNK]",
+     "，",
+     "[UNK]",
+     "[UNK]",
+     "！",
+     "[UNK]",
+     "[UNK]",
+     "一",
+     "[UNK]",
+     "[UNK]",
+     "[UNK]",
+     "。",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     100,
+     100,
+     1099,
+     100,
+     100,
+     1096,
+     100,
+     100,
+     976,
+     100,
+     100,
+     100,
+     886
+    ],
+    "tokens": [
+     "[UNK]",
+     "[UNK]",
+     "，",
+     "[UNK]",
+     "[UNK]",
+     "！",
+     "[UNK]",
+     "[UNK]",
+     "一",
+     "[UNK]",
+     "[UNK]",
+     "[UNK]",
+     "。"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ]
+   },
+   "decode_keep_special": "[CLS] [UNK] [UNK] ， [UNK] [UNK] ！ [UNK] [UNK] 一 [UNK] [UNK] [UNK] 。 [SEP]",
+   "decode_skip_special": "， ！ 一 。",
+   "stream_keep_special": [
+    "[CLS]",
+    " [UNK]",
+    " [UNK]",
+    " ，",
+    " [UNK]",
+    " [UNK]",
+    " ！",
+    " [UNK]",
+    " [UNK]",
+    " 一",
+    " [UNK]",
+    " [UNK]",
+    " [UNK]",
+    " 。",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    null,
+    "，",
+    null,
+    null,
+    " ！",
+    null,
+    null,
+    " 一",
+    null,
+    null,
+    null,
+    " 。",
+    null
+   ],
+   "stream_prefill_half": [
+    " [UNK]",
+    " [UNK]",
+    " 一",
+    " [UNK]",
+    " [UNK]",
+    " [UNK]",
+    " 。",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "日本語のテキストとカタカナ",
+   "with_special": {
+    "ids": [
+     101,
+     1033,
+     1039,
+     100,
+     915,
+     28844,
+     28832,
+     28839,
+     28846,
+     28805,
+     28830,
+     28841,
+     28830,
+     28848,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "日",
+     "本",
+     "[UNK]",
+     "の",
+     "##テ",
+     "##キ",
+     "##ス",
+     "##ト",
+     "##と",
+     "##カ",
+     "##タ",
+     "##カ",
+     "##ナ",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     1033,
+     1039,
+     100,
+     915,
+     28844,
+     28832,
+     28839,
+     28846,
+     28805,
+     28830,
+     28841,
+     28830,
+     28848
+    ],
+    "tokens": [
+     "日",
+     "本",
+     "[UNK]",
+     "の",
+     "##テ",
+     "##キ",
+     "##ス",
+     "##ト",
+     "##と",
+     "##カ",
+     "##タ",
+     "##カ",
+     "##ナ"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3
+    ]
+   },
+   "decode_keep_special": "[CLS] 日 本 [UNK] のテキストとカタカナ [SEP]",
+   "decode_skip_special": "日 本 のテキストとカタカナ",
+   "stream_keep_special": [
+    "[CLS]",
+    " 日",
+    " 本",
+    " [UNK]",
+    " の",
+    "テ",
+    "キ",
+    "ス",
+    "ト",
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "日",
+    " 本",
+    null,
+    " の",
+    "テ",
+    "キ",
+    "ス",
+    "ト",
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ",
+    null
+   ],
+   "stream_prefill_half": [
+    "ス",
+    "ト",
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "한국어 텍스트입니다",
+   "with_special": {
+    "ids": [
+     101,
+     100,
+     100,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "[UNK]",
+     "[UNK]",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      10
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     100,
+     100
+    ],
+    "tokens": [
+     "[UNK]",
+     "[UNK]"
+    ],
+    "offsets": [
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      10
+     ]
+    ],
+    "type_ids": [
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1
+    ]
+   },
+   "decode_keep_special": "[CLS] [UNK] [UNK] [SEP]",
+   "decode_skip_special": "",
+   "stream_keep_special": [
+    "[CLS]",
+    " [UNK]",
+    " [UNK]",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "stream_prefill_half": [
+    " [UNK]",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "Россия и Українa",
+   "with_special": {
+    "ids": [
+     101,
+     463,
+     16948,
+     28403,
+     28403,
+     17424,
+     14800,
+     483,
+     466,
+     28399,
+     20442,
+     10286,
+     28419,
+     17127,
+     1161,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "Р",
+     "##о",
+     "##с",
+     "##с",
+     "##и",
+     "##я",
+     "и",
+     "У",
+     "##к",
+     "##р",
+     "##а",
+     "##ї",
+     "##н",
+     "##a",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      14,
+      15
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     463,
+     16948,
+     28403,
+     28403,
+     17424,
+     14800,
+     483,
+     466,
+     28399,
+     20442,
+     10286,
+     28419,
+     17127,
+     1161
+    ],
+    "tokens": [
+     "Р",
+     "##о",
+     "##с",
+     "##с",
+     "##и",
+     "##я",
+     "и",
+     "У",
+     "##к",
+     "##р",
+     "##а",
+     "##ї",
+     "##н",
+     "##a"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      14,
+      15
+     ],
+     [
+      15,
+      16
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   "decode_keep_special": "[CLS] Россия и Українa [SEP]",
+   "decode_skip_special": "Россия и Українa",
+   "stream_keep_special": [
+    "[CLS]",
+    " Р",
+    "о",
+    "с",
+    "с",
+    "и",
+    "я",
+    " и",
+    " У",
+    "к",
+    "р",
+    "а",
+    "ї",
+    "н",
+    "a",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "Р",
+    "о",
+    "с",
+    "с",
+    "и",
+    "я",
+    " и",
+    " У",
+    "к",
+    "р",
+    "а",
+    "ї",
+    "н",
+    "a",
+    null
+   ],
+   "stream_prefill_half": [
+    " У",
+    "к",
+    "р",
+    "а",
+    "ї",
+    "н",
+    "a",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "مرحبا بالعالم",
+   "with_special": {
+    "ids": [
+     101,
+     589,
+     19775,
+     28480,
+     28476,
+     28475,
+     566,
+     28475,
+     28495,
+     28490,
+     28475,
+     28495,
+     26259,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "م",
+     "##ر",
+     "##ح",
+     "##ب",
+     "##ا",
+     "ب",
+     "##ا",
+     "##ل",
+     "##ع",
+     "##ا",
+     "##ل",
+     "##م",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     589,
+     19775,
+     28480,
+     28476,
+     28475,
+     566,
+     28475,
+     28495,
+     28490,
+     28475,
+     28495,
+     26259
+    ],
+    "tokens": [
+     "م",
+     "##ر",
+     "##ح",
+     "##ب",
+     "##ا",
+     "ب",
+     "##ا",
+     "##ل",
+     "##ع",
+     "##ا",
+     "##ل",
+     "##م"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   "decode_keep_special": "[CLS] مرحبا بالعالم [SEP]",
+   "decode_skip_special": "مرحبا بالعالم",
+   "stream_keep_special": [
+    "[CLS]",
+    " م",
+    "ر",
+    "ح",
+    "ب",
+    "ا",
+    " ب",
+    "ا",
+    "ل",
+    "ع",
+    "ا",
+    "ل",
+    "م",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "م",
+    "ر",
+    "ح",
+    "ب",
+    "ا",
+    " ب",
+    "ا",
+    "ل",
+    "ع",
+    "ا",
+    "ل",
+    "م",
+    null
+   ],
+   "stream_prefill_half": [
+    "ا",
+    "ل",
+    "ع",
+    "ا",
+    "ل",
+    "م",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "Emoji: 😀👍🏽🇺🇸 and ❤️",
+   "with_special": {
+    "ids": [
+     101,
+     18653,
+     1186,
+     3454,
+     131,
+     100,
+     1105,
+     100,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "Em",
+     "##o",
+     "##ji",
+     ":",
+     "[UNK]",
+     "and",
+     "[UNK]",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      7,
+      12
+     ],
+     [
+      13,
+      16
+     ],
+     [
+      17,
+      19
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     1,
+     2,
+     3,
+     4,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     18653,
+     1186,
+     3454,
+     131,
+     100,
+     1105,
+     100
+    ],
+    "tokens": [
+     "Em",
+     "##o",
+     "##ji",
+     ":",
+     "[UNK]",
+     "and",
+     "[UNK]"
+    ],
+    "offsets": [
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      7,
+      12
+     ],
+     [
+      13,
+      16
+     ],
+     [
+      17,
+      19
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     1,
+     2,
+     3,
+     4
+    ]
+   },
+   "decode_keep_special": "[CLS] Emoji : [UNK] and [UNK] [SEP]",
+   "decode_skip_special": "Emoji : and",
+   "stream_keep_special": [
+    "[CLS]",
+    " Em",
+    "o",
+    "ji",
+    " :",
+    " [UNK]",
+    " and",
+    " [UNK]",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "Em",
+    "o",
+    "ji",
+    " :",
+    null,
+    " and",
+    null,
+    null
+   ],
+   "stream_prefill_half": [
+    " :",
+    " [UNK]",
+    " and",
+    " [UNK]",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "Numbers 12345 and 3.14159 and 1,000,000",
+   "with_special": {
+    "ids": [
+     101,
+     19661,
+     13414,
+     21336,
+     1105,
+     124,
+     119,
+     16308,
+     1571,
+     1580,
+     1105,
+     122,
+     117,
+     1288,
+     117,
+     1288,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "Numbers",
+     "123",
+     "##45",
+     "and",
+     "3",
+     ".",
+     "141",
+     "##5",
+     "##9",
+     "and",
+     "1",
+     ",",
+     "000",
+     ",",
+     "000",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      7
+     ],
+     [
+      8,
+      11
+     ],
+     [
+      11,
+      13
+     ],
+     [
+      14,
+      17
+     ],
+     [
+      18,
+      19
+     ],
+     [
+      19,
+      20
+     ],
+     [
+      20,
+      23
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      24,
+      25
+     ],
+     [
+      26,
+      29
+     ],
+     [
+      30,
+      31
+     ],
+     [
+      31,
+      32
+     ],
+     [
+      32,
+      35
+     ],
+     [
+      35,
+      36
+     ],
+     [
+      36,
+      39
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     1,
+     2,
+     3,
+     4,
+     5,
+     5,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     19661,
+     13414,
+     21336,
+     1105,
+     124,
+     119,
+     16308,
+     1571,
+     1580,
+     1105,
+     122,
+     117,
+     1288,
+     117,
+     1288
+    ],
+    "tokens": [
+     "Numbers",
+     "123",
+     "##45",
+     "and",
+     "3",
+     ".",
+     "141",
+     "##5",
+     "##9",
+     "and",
+     "1",
+     ",",
+     "000",
+     ",",
+     "000"
+    ],
+    "offsets": [
+     [
+      0,
+      7
+     ],
+     [
+      8,
+      11
+     ],
+     [
+      11,
+      13
+     ],
+     [
+      14,
+      17
+     ],
+     [
+      18,
+      19
+     ],
+     [
+      19,
+      20
+     ],
+     [
+      20,
+      23
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      24,
+      25
+     ],
+     [
+      26,
+      29
+     ],
+     [
+      30,
+      31
+     ],
+     [
+      31,
+      32
+     ],
+     [
+      32,
+      35
+     ],
+     [
+      35,
+      36
+     ],
+     [
+      36,
+      39
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     1,
+     2,
+     3,
+     4,
+     5,
+     5,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ]
+   },
+   "decode_keep_special": "[CLS] Numbers 12345 and 3. 14159 and 1, 000, 000 [SEP]",
+   "decode_skip_special": "Numbers 12345 and 3. 14159 and 1, 000, 000",
+   "stream_keep_special": [
+    "[CLS]",
+    " Numbers",
+    " 123",
+    "45",
+    " and",
+    " 3",
+    ".",
+    " 141",
+    "5",
+    "9",
+    " and",
+    " 1",
+    ",",
+    " 000",
+    ",",
+    " 000",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "Numbers",
+    " 123",
+    "45",
+    " and",
+    " 3",
+    ".",
+    " 141",
+    "5",
+    "9",
+    " and",
+    " 1",
+    ",",
+    " 000",
+    ",",
+    " 000",
+    null
+   ],
+   "stream_prefill_half": [
+    "5",
+    "9",
+    " and",
+    " 1",
+    ",",
+    " 000",
+    ",",
+    " 000",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "Punctuation!!! ??? ... --- (parens) [brackets] {braces}",
+   "with_special": {
+    "ids": [
+     101,
+     153,
+     3488,
+     5822,
+     10255,
+     106,
+     106,
+     106,
+     136,
+     136,
+     136,
+     119,
+     119,
+     119,
+     118,
+     118,
+     118,
+     113,
+     14247,
+     5026,
+     114,
+     164,
+     22019,
+     166,
+     196,
+     22913,
+     1116,
+     198,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "P",
+     "##un",
+     "##ct",
+     "##uation",
+     "!",
+     "!",
+     "!",
+     "?",
+     "?",
+     "?",
+     ".",
+     ".",
+     ".",
+     "-",
+     "-",
+     "-",
+     "(",
+     "par",
+     "##ens",
+     ")",
+     "[",
+     "brackets",
+     "]",
+     "{",
+     "brace",
+     "##s",
+     "}",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      5,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      16,
+      17
+     ],
+     [
+      17,
+      18
+     ],
+     [
+      19,
+      20
+     ],
+     [
+      20,
+      21
+     ],
+     [
+      21,
+      22
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      24,
+      25
+     ],
+     [
+      25,
+      26
+     ],
+     [
+      27,
+      28
+     ],
+     [
+      28,
+      31
+     ],
+     [
+      31,
+      34
+     ],
+     [
+      34,
+      35
+     ],
+     [
+      36,
+      37
+     ],
+     [
+      37,
+      45
+     ],
+     [
+      45,
+      46
+     ],
+     [
+      47,
+      48
+     ],
+     [
+      48,
+      53
+     ],
+     [
+      53,
+      54
+     ],
+     [
+      54,
+      55
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     20,
+     21,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     153,
+     3488,
+     5822,
+     10255,
+     106,
+     106,
+     106,
+     136,
+     136,
+     136,
+     119,
+     119,
+     119,
+     118,
+     118,
+     118,
+     113,
+     14247,
+     5026,
+     114,
+     164,
+     22019,
+     166,
+     196,
+     22913,
+     1116,
+     198
+    ],
+    "tokens": [
+     "P",
+     "##un",
+     "##ct",
+     "##uation",
+     "!",
+     "!",
+     "!",
+     "?",
+     "?",
+     "?",
+     ".",
+     ".",
+     ".",
+     "-",
+     "-",
+     "-",
+     "(",
+     "par",
+     "##ens",
+     ")",
+     "[",
+     "brackets",
+     "]",
+     "{",
+     "brace",
+     "##s",
+     "}"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      3
+     ],
+     [
+      3,
+      5
+     ],
+     [
+      5,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      16,
+      17
+     ],
+     [
+      17,
+      18
+     ],
+     [
+      19,
+      20
+     ],
+     [
+      20,
+      21
+     ],
+     [
+      21,
+      22
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      24,
+      25
+     ],
+     [
+      25,
+      26
+     ],
+     [
+      27,
+      28
+     ],
+     [
+      28,
+      31
+     ],
+     [
+      31,
+      34
+     ],
+     [
+      34,
+      35
+     ],
+     [
+      36,
+      37
+     ],
+     [
+      37,
+      45
+     ],
+     [
+      45,
+      46
+     ],
+     [
+      47,
+      48
+     ],
+     [
+      48,
+      53
+     ],
+     [
+      53,
+      54
+     ],
+     [
+      54,
+      55
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     20,
+     21
+    ]
+   },
+   "decode_keep_special": "[CLS] Punctuation!!!???... - - - ( parens ) [ brackets ] { braces } [SEP]",
+   "decode_skip_special": "Punctuation!!!???... - - - ( parens ) [ brackets ] { braces }",
+   "stream_keep_special": [
+    "[CLS]",
+    " P",
+    "un",
+    "ct",
+    "uation",
+    "!",
+    "!",
+    "!",
+    "?",
+    "?",
+    "?",
+    ".",
+    ".",
+    ".",
+    " -",
+    " -",
+    " -",
+    " (",
+    " par",
+    "ens",
+    " )",
+    " [",
+    " brackets",
+    " ]",
+    " {",
+    " brace",
+    "s",
+    " }",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "P",
+    "un",
+    "ct",
+    "uation",
+    "!",
+    "!",
+    "!",
+    "?",
+    "?",
+    "?",
+    ".",
+    ".",
+    ".",
+    " -",
+    " -",
+    " -",
+    " (",
+    " par",
+    "ens",
+    " )",
+    " [",
+    " brackets",
+    " ]",
+    " {",
+    " brace",
+    "s",
+    " }",
+    null
+   ],
+   "stream_prefill_half": [
+    " -",
+    " -",
+    " -",
+    " (",
+    " par",
+    "ens",
+    " )",
+    " [",
+    " brackets",
+    " ]",
+    " {",
+    " brace",
+    "s",
+    " }",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "zero​width and nbsp",
+   "with_special": {
+    "ids": [
+     101,
+     6756,
+     10073,
+     12518,
+     1324,
+     1105,
+     183,
+     4832,
+     1643,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "zero",
+     "##wi",
+     "##dt",
+     "##h",
+     "and",
+     "n",
+     "##bs",
+     "##p",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      7,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      11,
+      14
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      16,
+      18
+     ],
+     [
+      18,
+      19
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     2,
+     2,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     6756,
+     10073,
+     12518,
+     1324,
+     1105,
+     183,
+     4832,
+     1643
+    ],
+    "tokens": [
+     "zero",
+     "##wi",
+     "##dt",
+     "##h",
+     "and",
+     "n",
+     "##bs",
+     "##p"
+    ],
+    "offsets": [
+     [
+      0,
+      4
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      7,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      11,
+      14
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      16,
+      18
+     ],
+     [
+      18,
+      19
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     2,
+     2
+    ]
+   },
+   "decode_keep_special": "[CLS] zerowidth and nbsp [SEP]",
+   "decode_skip_special": "zerowidth and nbsp",
+   "stream_keep_special": [
+    "[CLS]",
+    " zero",
+    "wi",
+    "dt",
+    "h",
+    " and",
+    " n",
+    "bs",
+    "p",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "zero",
+    "wi",
+    "dt",
+    "h",
+    " and",
+    " n",
+    "bs",
+    "p",
+    null
+   ],
+   "stream_prefill_half": [
+    " and",
+    " n",
+    "bs",
+    "p",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "control\u0000char\u0007bell",
+   "with_special": {
+    "ids": [
+     101,
+     1654,
+     7147,
+     26281,
+     3991,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "control",
+     "##cha",
+     "##rb",
+     "##ell",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      7
+     ],
+     [
+      8,
+      11
+     ],
+     [
+      11,
+      14
+     ],
+     [
+      14,
+      17
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     0,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     1654,
+     7147,
+     26281,
+     3991
+    ],
+    "tokens": [
+     "control",
+     "##cha",
+     "##rb",
+     "##ell"
+    ],
+    "offsets": [
+     [
+      0,
+      7
+     ],
+     [
+      8,
+      11
+     ],
+     [
+      11,
+      14
+     ],
+     [
+      14,
+      17
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "decode_keep_special": "[CLS] controlcharbell [SEP]",
+   "decode_skip_special": "controlcharbell",
+   "stream_keep_special": [
+    "[CLS]",
+    " control",
+    "cha",
+    "rb",
+    "ell",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "control",
+    "cha",
+    "rb",
+    "ell",
+    null
+   ],
+   "stream_prefill_half": [
+    "rb",
+    "ell",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "ALL CAPS SENTENCE HERE",
+   "with_special": {
+    "ids": [
+     101,
+     18589,
+     2162,
+     8784,
+     10197,
+     12342,
+     15681,
+     11680,
+     10954,
+     145,
+     9637,
+     2036,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "AL",
+     "##L",
+     "CA",
+     "##PS",
+     "SE",
+     "##NT",
+     "##EN",
+     "##CE",
+     "H",
+     "##ER",
+     "##E",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      6,
+      8
+     ],
+     [
+      9,
+      11
+     ],
+     [
+      11,
+      13
+     ],
+     [
+      13,
+      15
+     ],
+     [
+      15,
+      17
+     ],
+     [
+      18,
+      19
+     ],
+     [
+      19,
+      21
+     ],
+     [
+      21,
+      22
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     18589,
+     2162,
+     8784,
+     10197,
+     12342,
+     15681,
+     11680,
+     10954,
+     145,
+     9637,
+     2036
+    ],
+    "tokens": [
+     "AL",
+     "##L",
+     "CA",
+     "##PS",
+     "SE",
+     "##NT",
+     "##EN",
+     "##CE",
+     "H",
+     "##ER",
+     "##E"
+    ],
+    "offsets": [
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      6,
+      8
+     ],
+     [
+      9,
+      11
+     ],
+     [
+      11,
+      13
+     ],
+     [
+      13,
+      15
+     ],
+     [
+      15,
+      17
+     ],
+     [
+      18,
+      19
+     ],
+     [
+      19,
+      21
+     ],
+     [
+      21,
+      22
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3
+    ]
+   },
+   "decode_keep_special": "[CLS] ALL CAPS SENTENCE HERE [SEP]",
+   "decode_skip_special": "ALL CAPS SENTENCE HERE",
+   "stream_keep_special": [
+    "[CLS]",
+    " AL",
+    "L",
+    " CA",
+    "PS",
+    " SE",
+    "NT",
+    "EN",
+    "CE",
+    " H",
+    "ER",
+    "E",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "AL",
+    "L",
+    " CA",
+    "PS",
+    " SE",
+    "NT",
+    "EN",
+    "CE",
+    " H",
+    "ER",
+    "E",
+    null
+   ],
+   "stream_prefill_half": [
+    "NT",
+    "EN",
+    "CE",
+    " H",
+    "ER",
+    "E",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "camelCaseIdentifier snake_case_identifier kebab-case",
+   "with_special": {
+    "ids": [
+     101,
+     1338,
+     1233,
+     1658,
+     6530,
+     2240,
+     11951,
+     17792,
+     8925,
+     168,
+     1692,
+     168,
+     25021,
+     3452,
+     17792,
+     180,
+     15581,
+     6639,
+     118,
+     1692,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "came",
+     "##l",
+     "##C",
+     "##ase",
+     "##I",
+     "##dent",
+     "##ifier",
+     "snake",
+     "_",
+     "case",
+     "_",
+     "id",
+     "##ent",
+     "##ifier",
+     "k",
+     "##eb",
+     "##ab",
+     "-",
+     "case",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      14
+     ],
+     [
+      14,
+      19
+     ],
+     [
+      20,
+      25
+     ],
+     [
+      25,
+      26
+     ],
+     [
+      26,
+      30
+     ],
+     [
+      30,
+      31
+     ],
+     [
+      31,
+      33
+     ],
+     [
+      33,
+      36
+     ],
+     [
+      36,
+      41
+     ],
+     [
+      42,
+      43
+     ],
+     [
+      43,
+      45
+     ],
+     [
+      45,
+      47
+     ],
+     [
+      47,
+      48
+     ],
+     [
+      48,
+      52
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     5,
+     5,
+     6,
+     6,
+     6,
+     7,
+     8,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     1338,
+     1233,
+     1658,
+     6530,
+     2240,
+     11951,
+     17792,
+     8925,
+     168,
+     1692,
+     168,
+     25021,
+     3452,
+     17792,
+     180,
+     15581,
+     6639,
+     118,
+     1692
+    ],
+    "tokens": [
+     "came",
+     "##l",
+     "##C",
+     "##ase",
+     "##I",
+     "##dent",
+     "##ifier",
+     "snake",
+     "_",
+     "case",
+     "_",
+     "id",
+     "##ent",
+     "##ifier",
+     "k",
+     "##eb",
+     "##ab",
+     "-",
+     "case"
+    ],
+    "offsets": [
+     [
+      0,
+      4
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      14
+     ],
+     [
+      14,
+      19
+     ],
+     [
+      20,
+      25
+     ],
+     [
+      25,
+      26
+     ],
+     [
+      26,
+      30
+     ],
+     [
+      30,
+      31
+     ],
+     [
+      31,
+      33
+     ],
+     [
+      33,
+      36
+     ],
+     [
+      36,
+      41
+     ],
+     [
+      42,
+      43
+     ],
+     [
+      43,
+      45
+     ],
+     [
+      45,
+      47
+     ],
+     [
+      47,
+      48
+     ],
+     [
+      48,
+      52
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     5,
+     5,
+     6,
+     6,
+     6,
+     7,
+     8
+    ]
+   },
+   "decode_keep_special": "[CLS] camelCaseIdentifier snake _ case _ identifier kebab - case [SEP]",
+   "decode_skip_special": "camelCaseIdentifier snake _ case _ identifier kebab - case",
+   "stream_keep_special": [
+    "[CLS]",
+    " came",
+    "l",
+    "C",
+    "ase",
+    "I",
+    "dent",
+    "ifier",
+    " snake",
+    " _",
+    " case",
+    " _",
+    " id",
+    "ent",
+    "ifier",
+    " k",
+    "eb",
+    "ab",
+    " -",
+    " case",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "came",
+    "l",
+    "C",
+    "ase",
+    "I",
+    "dent",
+    "ifier",
+    " snake",
+    " _",
+    " case",
+    " _",
+    " id",
+    "ent",
+    "ifier",
+    " k",
+    "eb",
+    "ab",
+    " -",
+    " case",
+    null
+   ],
+   "stream_prefill_half": [
+    " case",
+    " _",
+    " id",
+    "ent",
+    "ifier",
+    " k",
+    "eb",
+    "ab",
+    " -",
+    " case",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "https://example.com/path?query=1&x=y",
+   "with_special": {
+    "ids": [
+     101,
+     18630,
+     131,
+     120,
+     120,
+     1859,
+     119,
+     3254,
+     120,
+     3507,
+     136,
+     15027,
+     1616,
+     134,
+     122,
+     111,
+     193,
+     134,
+     194,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "https",
+     ":",
+     "/",
+     "/",
+     "example",
+     ".",
+     "com",
+     "/",
+     "path",
+     "?",
+     "que",
+     "##ry",
+     "=",
+     "1",
+     "&",
+     "x",
+     "=",
+     "y",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      15
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      16,
+      19
+     ],
+     [
+      19,
+      20
+     ],
+     [
+      20,
+      24
+     ],
+     [
+      24,
+      25
+     ],
+     [
+      25,
+      28
+     ],
+     [
+      28,
+      30
+     ],
+     [
+      30,
+      31
+     ],
+     [
+      31,
+      32
+     ],
+     [
+      32,
+      33
+     ],
+     [
+      33,
+      34
+     ],
+     [
+      34,
+      35
+     ],
+     [
+      35,
+      36
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     18630,
+     131,
+     120,
+     120,
+     1859,
+     119,
+     3254,
+     120,
+     3507,
+     136,
+     15027,
+     1616,
+     134,
+     122,
+     111,
+     193,
+     134,
+     194
+    ],
+    "tokens": [
+     "https",
+     ":",
+     "/",
+     "/",
+     "example",
+     ".",
+     "com",
+     "/",
+     "path",
+     "?",
+     "que",
+     "##ry",
+     "=",
+     "1",
+     "&",
+     "x",
+     "=",
+     "y"
+    ],
+    "offsets": [
+     [
+      0,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      15
+     ],
+     [
+      15,
+      16
+     ],
+     [
+      16,
+      19
+     ],
+     [
+      19,
+      20
+     ],
+     [
+      20,
+      24
+     ],
+     [
+      24,
+      25
+     ],
+     [
+      25,
+      28
+     ],
+     [
+      28,
+      30
+     ],
+     [
+      30,
+      31
+     ],
+     [
+      31,
+      32
+     ],
+     [
+      32,
+      33
+     ],
+     [
+      33,
+      34
+     ],
+     [
+      34,
+      35
+     ],
+     [
+      35,
+      36
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16
+    ]
+   },
+   "decode_keep_special": "[CLS] https : / / example. com / path? query = 1 & x = y [SEP]",
+   "decode_skip_special": "https : / / example. com / path? query = 1 & x = y",
+   "stream_keep_special": [
+    "[CLS]",
+    " https",
+    " :",
+    " /",
+    " /",
+    " example",
+    ".",
+    " com",
+    " /",
+    " path",
+    "?",
+    " que",
+    "ry",
+    " =",
+    " 1",
+    " &",
+    " x",
+    " =",
+    " y",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "https",
+    " :",
+    " /",
+    " /",
+    " example",
+    ".",
+    " com",
+    " /",
+    " path",
+    "?",
+    " que",
+    "ry",
+    " =",
+    " 1",
+    " &",
+    " x",
+    " =",
+    " y",
+    null
+   ],
+   "stream_prefill_half": [
+    "?",
+    " que",
+    "ry",
+    " =",
+    " 1",
+    " &",
+    " x",
+    " =",
+    " y",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "def foo(x):\n    return x ** 2  # comment",
+   "with_special": {
+    "ids": [
+     101,
+     19353,
+     175,
+     5658,
+     113,
+     193,
+     114,
+     131,
+     1862,
+     193,
+     115,
+     115,
+     123,
+     108,
+     7368,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "def",
+     "f",
+     "##oo",
+     "(",
+     "x",
+     ")",
+     ":",
+     "return",
+     "x",
+     "*",
+     "*",
+     "2",
+     "#",
+     "comment",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      16,
+      22
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      25,
+      26
+     ],
+     [
+      26,
+      27
+     ],
+     [
+      28,
+      29
+     ],
+     [
+      31,
+      32
+     ],
+     [
+      33,
+      40
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     19353,
+     175,
+     5658,
+     113,
+     193,
+     114,
+     131,
+     1862,
+     193,
+     115,
+     115,
+     123,
+     108,
+     7368
+    ],
+    "tokens": [
+     "def",
+     "f",
+     "##oo",
+     "(",
+     "x",
+     ")",
+     ":",
+     "return",
+     "x",
+     "*",
+     "*",
+     "2",
+     "#",
+     "comment"
+    ],
+    "offsets": [
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      5,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      16,
+      22
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      25,
+      26
+     ],
+     [
+      26,
+      27
+     ],
+     [
+      28,
+      29
+     ],
+     [
+      31,
+      32
+     ],
+     [
+      33,
+      40
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ]
+   },
+   "decode_keep_special": "[CLS] def foo ( x ) : return x * * 2 # comment [SEP]",
+   "decode_skip_special": "def foo ( x ) : return x * * 2 # comment",
+   "stream_keep_special": [
+    "[CLS]",
+    " def",
+    " f",
+    "oo",
+    " (",
+    " x",
+    " )",
+    " :",
+    " return",
+    " x",
+    " *",
+    " *",
+    " 2",
+    " #",
+    " comment",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "def",
+    " f",
+    "oo",
+    " (",
+    " x",
+    " )",
+    " :",
+    " return",
+    " x",
+    " *",
+    " *",
+    " 2",
+    " #",
+    " comment",
+    null
+   ],
+   "stream_prefill_half": [
+    " return",
+    " x",
+    " *",
+    " *",
+    " 2",
+    " #",
+    " comment",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "with_special": {
+    "ids": [
+     101,
+     100,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "[UNK]",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      120
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     100
+    ],
+    "tokens": [
+     "[UNK]"
+    ],
+    "offsets": [
+     [
+      0,
+      120
+     ]
+    ],
+    "type_ids": [
+     0
+    ],
+    "special_tokens_mask": [
+     0
+    ],
+    "attention_mask": [
+     1
+    ],
+    "word_ids": [
+     0
+    ]
+   },
+   "decode_keep_special": "[CLS] [UNK] [SEP]",
+   "decode_skip_special": "",
+   "stream_keep_special": [
+    "[CLS]",
+    " [UNK]",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    null
+   ],
+   "stream_prefill_half": [
+    " [UNK]",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "supercalifragilisticexpialidocious antidisestablishmentarianism",
+   "with_special": {
+    "ids": [
+     101,
+     7688,
+     7867,
+     8914,
+     20484,
+     22279,
+     2941,
+     11708,
+     15748,
+     17299,
+     13335,
+     4179,
+     2848,
+     10396,
+     16144,
+     1830,
+     10550,
+     1880,
+     7968,
+     1863,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "super",
+     "##cal",
+     "##if",
+     "##rag",
+     "##ilis",
+     "##tic",
+     "##ex",
+     "##pia",
+     "##lid",
+     "##oc",
+     "##ious",
+     "anti",
+     "##dis",
+     "##esta",
+     "##b",
+     "##lish",
+     "##ment",
+     "##arian",
+     "##ism",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      5,
+      8
+     ],
+     [
+      8,
+      10
+     ],
+     [
+      10,
+      13
+     ],
+     [
+      13,
+      17
+     ],
+     [
+      17,
+      20
+     ],
+     [
+      20,
+      22
+     ],
+     [
+      22,
+      25
+     ],
+     [
+      25,
+      28
+     ],
+     [
+      28,
+      30
+     ],
+     [
+      30,
+      34
+     ],
+     [
+      35,
+      39
+     ],
+     [
+      39,
+      42
+     ],
+     [
+      42,
+      46
+     ],
+     [
+      46,
+      47
+     ],
+     [
+      47,
+      51
+     ],
+     [
+      51,
+      55
+     ],
+     [
+      55,
+      60
+     ],
+     [
+      60,
+      63
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     7688,
+     7867,
+     8914,
+     20484,
+     22279,
+     2941,
+     11708,
+     15748,
+     17299,
+     13335,
+     4179,
+     2848,
+     10396,
+     16144,
+     1830,
+     10550,
+     1880,
+     7968,
+     1863
+    ],
+    "tokens": [
+     "super",
+     "##cal",
+     "##if",
+     "##rag",
+     "##ilis",
+     "##tic",
+     "##ex",
+     "##pia",
+     "##lid",
+     "##oc",
+     "##ious",
+     "anti",
+     "##dis",
+     "##esta",
+     "##b",
+     "##lish",
+     "##ment",
+     "##arian",
+     "##ism"
+    ],
+    "offsets": [
+     [
+      0,
+      5
+     ],
+     [
+      5,
+      8
+     ],
+     [
+      8,
+      10
+     ],
+     [
+      10,
+      13
+     ],
+     [
+      13,
+      17
+     ],
+     [
+      17,
+      20
+     ],
+     [
+      20,
+      22
+     ],
+     [
+      22,
+      25
+     ],
+     [
+      25,
+      28
+     ],
+     [
+      28,
+      30
+     ],
+     [
+      30,
+      34
+     ],
+     [
+      35,
+      39
+     ],
+     [
+      39,
+      42
+     ],
+     [
+      42,
+      46
+     ],
+     [
+      46,
+      47
+     ],
+     [
+      47,
+      51
+     ],
+     [
+      51,
+      55
+     ],
+     [
+      55,
+      60
+     ],
+     [
+      60,
+      63
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   },
+   "decode_keep_special": "[CLS] supercalifragilisticexpialidocious antidisestablishmentarianism [SEP]",
+   "decode_skip_special": "supercalifragilisticexpialidocious antidisestablishmentarianism",
+   "stream_keep_special": [
+    "[CLS]",
+    " super",
+    "cal",
+    "if",
+    "rag",
+    "ilis",
+    "tic",
+    "ex",
+    "pia",
+    "lid",
+    "oc",
+    "ious",
+    " anti",
+    "dis",
+    "esta",
+    "b",
+    "lish",
+    "ment",
+    "arian",
+    "ism",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "super",
+    "cal",
+    "if",
+    "rag",
+    "ilis",
+    "tic",
+    "ex",
+    "pia",
+    "lid",
+    "oc",
+    "ious",
+    " anti",
+    "dis",
+    "esta",
+    "b",
+    "lish",
+    "ment",
+    "arian",
+    "ism",
+    null
+   ],
+   "stream_prefill_half": [
+    "oc",
+    "ious",
+    " anti",
+    "dis",
+    "esta",
+    "b",
+    "lish",
+    "ment",
+    "arian",
+    "ism",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "unaffable",
+   "with_special": {
+    "ids": [
+     101,
+     8362,
+     9823,
+     8057,
+     2165,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "un",
+     "##af",
+     "##fa",
+     "##ble",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      6,
+      9
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     0,
+     0,
+     0,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     8362,
+     9823,
+     8057,
+     2165
+    ],
+    "tokens": [
+     "un",
+     "##af",
+     "##fa",
+     "##ble"
+    ],
+    "offsets": [
+     [
+      0,
+      2
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      4,
+      6
+     ],
+     [
+      6,
+      9
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "decode_keep_special": "[CLS] unaffable [SEP]",
+   "decode_skip_special": "unaffable",
+   "stream_keep_special": [
+    "[CLS]",
+    " un",
+    "af",
+    "fa",
+    "ble",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "un",
+    "af",
+    "fa",
+    "ble",
+    null
+   ],
+   "stream_prefill_half": [
+    "fa",
+    "ble",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "<s>special</s> [CLS] tokens [SEP] <|endoftext|> <unk> <pad> [MASK] <mask>",
+   "with_special": {
+    "ids": [
+     101,
+     133,
+     188,
+     135,
+     1957,
+     133,
+     120,
+     188,
+     135,
+     101,
+     22559,
+     1116,
+     102,
+     133,
+     197,
+     1322,
+     18874,
+     11708,
+     1204,
+     197,
+     135,
+     133,
+     8362,
+     1377,
+     135,
+     133,
+     12921,
+     135,
+     103,
+     133,
+     7739,
+     135,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "<",
+     "s",
+     ">",
+     "special",
+     "<",
+     "/",
+     "s",
+     ">",
+     "[CLS]",
+     "token",
+     "##s",
+     "[SEP]",
+     "<",
+     "|",
+     "end",
+     "##oft",
+     "##ex",
+     "##t",
+     "|",
+     ">",
+     "<",
+     "un",
+     "##k",
+     ">",
+     "<",
+     "pad",
+     ">",
+     "[MASK]",
+     "<",
+     "mask",
+     ">",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      15,
+      20
+     ],
+     [
+      21,
+      26
+     ],
+     [
+      26,
+      27
+     ],
+     [
+      28,
+      33
+     ],
+     [
+      34,
+      35
+     ],
+     [
+      35,
+      36
+     ],
+     [
+      36,
+      39
+     ],
+     [
+      39,
+      42
+     ],
+     [
+      42,
+      44
+     ],
+     [
+      44,
+      45
+     ],
+     [
+      45,
+      46
+     ],
+     [
+      46,
+      47
+     ],
+     [
+      48,
+      49
+     ],
+     [
+      49,
+      51
+     ],
+     [
+      51,
+      52
+     ],
+     [
+      52,
+      53
+     ],
+     [
+      54,
+      55
+     ],
+     [
+      55,
+      58
+     ],
+     [
+      58,
+      59
+     ],
+     [
+      60,
+      66
+     ],
+     [
+      67,
+      68
+     ],
+     [
+      68,
+      72
+     ],
+     [
+      72,
+      73
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     9,
+     10,
+     11,
+     12,
+     13,
+     13,
+     13,
+     13,
+     14,
+     15,
+     16,
+     17,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     133,
+     188,
+     135,
+     1957,
+     133,
+     120,
+     188,
+     135,
+     101,
+     22559,
+     1116,
+     102,
+     133,
+     197,
+     1322,
+     18874,
+     11708,
+     1204,
+     197,
+     135,
+     133,
+     8362,
+     1377,
+     135,
+     133,
+     12921,
+     135,
+     103,
+     133,
+     7739,
+     135
+    ],
+    "tokens": [
+     "<",
+     "s",
+     ">",
+     "special",
+     "<",
+     "/",
+     "s",
+     ">",
+     "[CLS]",
+     "token",
+     "##s",
+     "[SEP]",
+     "<",
+     "|",
+     "end",
+     "##oft",
+     "##ex",
+     "##t",
+     "|",
+     ">",
+     "<",
+     "un",
+     "##k",
+     ">",
+     "<",
+     "pad",
+     ">",
+     "[MASK]",
+     "<",
+     "mask",
+     ">"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      3,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      13,
+      14
+     ],
+     [
+      15,
+      20
+     ],
+     [
+      21,
+      26
+     ],
+     [
+      26,
+      27
+     ],
+     [
+      28,
+      33
+     ],
+     [
+      34,
+      35
+     ],
+     [
+      35,
+      36
+     ],
+     [
+      36,
+      39
+     ],
+     [
+      39,
+      42
+     ],
+     [
+      42,
+      44
+     ],
+     [
+      44,
+      45
+     ],
+     [
+      45,
+      46
+     ],
+     [
+      46,
+      47
+     ],
+     [
+      48,
+      49
+     ],
+     [
+      49,
+      51
+     ],
+     [
+      51,
+      52
+     ],
+     [
+      52,
+      53
+     ],
+     [
+      54,
+      55
+     ],
+     [
+      55,
+      58
+     ],
+     [
+      58,
+      59
+     ],
+     [
+      60,
+      66
+     ],
+     [
+      67,
+      68
+     ],
+     [
+      68,
+      72
+     ],
+     [
+      72,
+      73
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     9,
+     10,
+     11,
+     12,
+     13,
+     13,
+     13,
+     13,
+     14,
+     15,
+     16,
+     17,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25
+    ]
+   },
+   "decode_keep_special": "[CLS] < s > special < / s > [CLS] tokens [SEP] < | endoftext | > < unk > < pad > [MASK] < mask > [SEP]",
+   "decode_skip_special": "< s > special < / s > tokens < | endoftext | > < unk > < pad > < mask >",
+   "stream_keep_special": [
+    "[CLS]",
+    " <",
+    " s",
+    " >",
+    " special",
+    " <",
+    " /",
+    " s",
+    " >",
+    " [CLS]",
+    " token",
+    "s",
+    " [SEP]",
+    " <",
+    " |",
+    " end",
+    "oft",
+    "ex",
+    "t",
+    " |",
+    " >",
+    " <",
+    " un",
+    "k",
+    " >",
+    " <",
+    " pad",
+    " >",
+    " [MASK]",
+    " <",
+    " mask",
+    " >",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "<",
+    " s",
+    " >",
+    " special",
+    " <",
+    " /",
+    " s",
+    " >",
+    null,
+    " token",
+    "s",
+    null,
+    " <",
+    " |",
+    " end",
+    "oft",
+    "ex",
+    "t",
+    " |",
+    " >",
+    " <",
+    " un",
+    "k",
+    " >",
+    " <",
+    " pad",
+    " >",
+    null,
+    " <",
+    " mask",
+    " >",
+    null
+   ],
+   "stream_prefill_half": [
+    "oft",
+    "ex",
+    "t",
+    " |",
+    " >",
+    " <",
+    " un",
+    "k",
+    " >",
+    " <",
+    " pad",
+    " >",
+    " [MASK]",
+    " <",
+    " mask",
+    " >",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "Ġ Ċ ▁ ## </w>",
+   "with_special": {
+    "ids": [
+     101,
+     100,
+     100,
+     100,
+     108,
+     108,
+     133,
+     120,
+     192,
+     135,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "[UNK]",
+     "[UNK]",
+     "[UNK]",
+     "#",
+     "#",
+     "<",
+     "/",
+     "w",
+     ">",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     100,
+     100,
+     100,
+     108,
+     108,
+     133,
+     120,
+     192,
+     135
+    ],
+    "tokens": [
+     "[UNK]",
+     "[UNK]",
+     "[UNK]",
+     "#",
+     "#",
+     "<",
+     "/",
+     "w",
+     ">"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      2,
+      3
+     ],
+     [
+      4,
+      5
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      10,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      12,
+      13
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8
+    ]
+   },
+   "decode_keep_special": "[CLS] [UNK] [UNK] [UNK] # # < / w > [SEP]",
+   "decode_skip_special": "# # < / w >",
+   "stream_keep_special": [
+    "[CLS]",
+    " [UNK]",
+    " [UNK]",
+    " [UNK]",
+    " #",
+    " #",
+    " <",
+    " /",
+    " w",
+    " >",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    null,
+    null,
+    "#",
+    " #",
+    " <",
+    " /",
+    " w",
+    " >",
+    null
+   ],
+   "stream_prefill_half": [
+    " #",
+    " <",
+    " /",
+    " w",
+    " >",
+    " [SEP]"
+   ]
+  },
+  {
+   "input": "†Р Ġbyte-lookalikes",
+   "with_special": {
+    "ids": [
+     101,
+     792,
+     463,
+     100,
+     118,
+     1440,
+     10584,
+     9029,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "†",
+     "Р",
+     "[UNK]",
+     "-",
+     "look",
+     "##ali",
+     "##kes",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      3,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      13
+     ],
+     [
+      13,
+      16
+     ],
+     [
+      16,
+      19
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     4,
+     4,
+     null
+    ]
+   },
+   "without_special": {
+    "ids": [
+     792,
+     463,
+     100,
+     118,
+     1440,
+     10584,
+     9029
+    ],
+    "tokens": [
+     "†",
+     "Р",
+     "[UNK]",
+     "-",
+     "look",
+     "##ali",
+     "##kes"
+    ],
+    "offsets": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      3,
+      8
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      9,
+      13
+     ],
+     [
+      13,
+      16
+     ],
+     [
+      16,
+      19
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     4,
+     4
+    ]
+   },
+   "decode_keep_special": "[CLS] † Р [UNK] - lookalikes [SEP]",
+   "decode_skip_special": "† Р - lookalikes",
+   "stream_keep_special": [
+    "[CLS]",
+    " †",
+    " Р",
+    " [UNK]",
+    " -",
+    " look",
+    "ali",
+    "kes",
+    " [SEP]"
+   ],
+   "stream_skip_special": [
+    null,
+    "†",
+    " Р",
+    null,
+    " -",
+    " look",
+    "ali",
+    "kes",
+    null
+   ],
+   "stream_prefill_half": [
+    " -",
+    " look",
+    "ali",
+    "kes",
+    " [SEP]"
+   ]
+  }
+ ],
+ "pairs": [
+  {
+   "a": "Hello, World!",
+   "b": "How are you?",
+   "encoding": {
+    "ids": [
+     101,
+     8667,
+     117,
+     1291,
+     106,
+     102,
+     1731,
+     1132,
+     1128,
+     136,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "Hello",
+     ",",
+     "World",
+     "!",
+     "[SEP]",
+     "How",
+     "are",
+     "you",
+     "?",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      7,
+      12
+     ],
+     [
+      12,
+      13
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      7
+     ],
+     [
+      8,
+      11
+     ],
+     [
+      11,
+      12
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     null,
+     0,
+     1,
+     2,
+     3,
+     null
+    ]
+   }
+  },
+  {
+   "a": "The quick brown fox",
+   "b": "jumps over the lazy dog.",
+   "encoding": {
+    "ids": [
+     101,
+     1109,
+     3613,
+     3058,
+     17594,
+     102,
+     15457,
+     1166,
+     1103,
+     16688,
+     3676,
+     119,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "The",
+     "quick",
+     "brown",
+     "fox",
+     "[SEP]",
+     "jumps",
+     "over",
+     "the",
+     "lazy",
+     "dog",
+     ".",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      3
+     ],
+     [
+      4,
+      9
+     ],
+     [
+      10,
+      15
+     ],
+     [
+      16,
+      19
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      6,
+      10
+     ],
+     [
+      11,
+      14
+     ],
+     [
+      15,
+      19
+     ],
+     [
+      20,
+      23
+     ],
+     [
+      23,
+      24
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     null
+    ]
+   }
+  },
+  {
+   "a": "Café",
+   "b": "你好",
+   "encoding": {
+    "ids": [
+     101,
+     21036,
+     102,
+     100,
+     100,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "Café",
+     "[SEP]",
+     "[UNK]",
+     "[UNK]",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     1,
+     1,
+     1
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     1,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     null,
+     0,
+     1,
+     null
+    ]
+   }
+  }
+ ],
+ "batch": {
+  "inputs": [
+   "short",
+   "a somewhat longer sentence for padding",
+   "Café 你好 😀"
+  ],
+  "encodings": [
+   {
+    "ids": [
+     101,
+     1603,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "short",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      5
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     null
+    ]
+   },
+   {
+    "ids": [
+     101,
+     170,
+     4742,
+     2039,
+     5650,
+     1111,
+     12921,
+     3408,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "a",
+     "somewhat",
+     "longer",
+     "sentence",
+     "for",
+     "pad",
+     "##ding",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      1
+     ],
+     [
+      2,
+      10
+     ],
+     [
+      11,
+      17
+     ],
+     [
+      18,
+      26
+     ],
+     [
+      27,
+      30
+     ],
+     [
+      31,
+      34
+     ],
+     [
+      34,
+      38
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     5,
+     null
+    ]
+   },
+   {
+    "ids": [
+     101,
+     21036,
+     100,
+     100,
+     100,
+     102
+    ],
+    "tokens": [
+     "[CLS]",
+     "Café",
+     "[UNK]",
+     "[UNK]",
+     "[UNK]",
+     "[SEP]"
+    ],
+    "offsets": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      4
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      7
+     ],
+     [
+      8,
+      9
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "type_ids": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "special_tokens_mask": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     1
+    ],
+    "attention_mask": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "word_ids": [
+     null,
+     0,
+     1,
+     2,
+     3,
+     null
+    ]
+   }
+  ]
+ },
+ "hf_serialized": {
+  "version": "1.0",
+  "truncation": null,
+  "padding": null,
+  "added_tokens": [
+   {
+    "id": 0,
+    "content": "[PAD]",
+    "single_word": false,
+    "lstrip": false,
+    "rstrip": false,
+    "normalized": false,
+    "special": true
+   },
+   {
+    "id": 100,
+    "content": "[UNK]",
+    "single_word": false,
+    "lstrip": false,
+    "rstrip": false,
+    "normalized": false,
+    "special": true
+   },
+   {
+    "id": 101,
+    "content": "[CLS]",
+    "single_word": false,
+    "lstrip": false,
+    "rstrip": false,
+    "normalized": false,
+    "special": true
+   },
+   {
+    "id": 102,
+    "content": "[SEP]",
+    "single_word": false,
+    "lstrip": false,
+    "rstrip": false,
+    "normalized": false,
+    "special": true
+   },
+   {
+    "id": 103,
+    "content": "[MASK]",
+    "single_word": false,
+    "lstrip": false,
+    "rstrip": false,
+    "normalized": false,
+    "special": true
+   }
+  ],
+  "normalizer": {
+   "type": "BertNormalizer",
+   "clean_text": true,
+   "handle_chinese_chars": true,
+   "strip_accents": null,
+   "lowercase": false
+  },
+  "pre_tokenizer": {
+   "type": "BertPreTokenizer"
+  },
+  "post_processor": {
+   "type": "TemplateProcessing",
+   "single": [
+    {
+     "SpecialToken": {
+      "id": "[CLS]",
+      "type_id": 0
+     }
+    },
+    {
+     "Sequence": {
+      "id": "A",
+      "type_id": 0
+     }
+    },
+    {
+     "SpecialToken": {
+      "id": "[SEP]",
+      "type_id": 0
+     }
+    }
+   ],
+   "pair": [
+    {
+     "SpecialToken": {
+      "id": "[CLS]",
+      "type_id": 0
+     }
+    },
+    {
+     "Sequence": {
+      "id": "A",
+      "type_id": 0
+     }
+    },
+    {
+     "SpecialToken": {
+      "id": "[SEP]",
+      "type_id": 0
+     }
+    },
+    {
+     "Sequence": {
+      "id": "B",
+      "type_id": 1
+     }
+    },
+    {
+     "SpecialToken": {
+      "id": "[SEP]",
+      "type_id": 1
+     }
+    }
+   ],
+   "special_tokens": {
+    "[CLS]": {
+     "id": "[CLS]",
+     "ids": [
+      101
+     ],
+     "tokens": [
+      "[CLS]"
+     ]
+    },
+    "[SEP]": {
+     "id": "[SEP]",
+     "ids": [
+      102
+     ],
+     "tokens": [
+      "[SEP]"
+     ]
+    }
+   }
+  },
+  "decoder": {
+   "type": "WordPiece",
+   "prefix": "##",
+   "cleanup": true
+  },
+  "model_fingerprint": {
+   "type": "WordPiece",
+   "unk_token": "[UNK]",
+   "continuing_subword_prefix": "##",
+   "max_input_chars_per_word": 100,
+   "vocab_len": 28996,
+   "vocab_head": [
+    [
+     "[PAD]",
+     0
+    ],
+    [
+     "[unused1]",
+     1
+    ],
+    [
+     "[unused2]",
+     2
+    ],
+    [
+     "[unused3]",
+     3
+    ],
+    [
+     "[unused4]",
+     4
+    ]
+   ],
+   "vocab_tail": [
+    [
+     "##）",
+     28991
+    ],
+    [
+     "##，",
+     28992
+    ],
+    [
+     "##－",
+     28993
+    ],
+    [
+     "##／",
+     28994
+    ],
+    [
+     "##：",
+     28995
+    ]
+   ]
+  }
+ }
+}

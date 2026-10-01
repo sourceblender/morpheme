@@ -1,0 +1,73 @@
+[package]
+name = "morpheme"
+version = "0.1.0"
+description = "Fast, pure-Rust subword tokenization (BPE, WordPiece, Unigram) compatible with Hugging Face tokenizers."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "../../README.md"
+keywords = ["tokenizer", "bpe", "wordpiece", "sentencepiece", "nlp"]
+categories = ["text-processing", "science"]
+# Keep test data, tests and benchmarks out of the published crate; they
+# need the downloaded Hugging Face fixtures anyway.
+exclude = [
+    "tests/",
+    "benches/",
+    "examples/",
+    "src/pre_tokenizers/testdata/",
+    "src/pre_tokenizers/tests.rs",
+    "src/models/bpe/fixture_data.rs",
+    "src/models/bpe/fixture_tests.rs",
+    "src/trainers/bpe/parity_data.rs",
+]
+
+[lib]
+# Benchmarks live in benches/ (Criterion); keep libtest's bench harness
+# from receiving Criterion's command-line flags.
+bench = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+rustc-hash = { workspace = true }
+unicode-normalization-alignments = { workspace = true }
+unicode_categories = { workspace = true }
+unicode-segmentation = { workspace = true }
+fancy-regex = { workspace = true }
+aho-corasick = { workspace = true }
+rayon = { workspace = true }
+ureq = { workspace = true, optional = true }
+indicatif = { workspace = true, optional = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["progressbar"]
+# Trainer progress bars on stderr (`show_progress`), like Hugging Face.
+progressbar = ["dep:indicatif"]
+# `Tokenizer::from_pretrained`: download tokenizers from the Hugging Face Hub.
+hub = ["dep:ureq"]
+
+[dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+tempfile = { workspace = true }
+# preserve_order lets tests check that JSON field order matches HF.
+serde_json = { workspace = true, features = ["preserve_order"] }
+
+[[bench]]
+name = "encode"
+harness = false
+
+[[bench]]
+name = "train"
+harness = false
+
+[[bench]]
+name = "normalize"
+harness = false
