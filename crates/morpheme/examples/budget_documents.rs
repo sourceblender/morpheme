@@ -24,7 +24,10 @@ fn load(source: &str, revision: Option<&str>) -> Result<(Tokenizer, Option<Strin
             return Err("revision applies only to Hub sources".into());
         }
         let bytes = std::fs::read(source)?;
-        let hash = format!("{:x}", sha2::Sha256::digest(&bytes));
+        let hash: String = sha2::Sha256::digest(&bytes)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
         return Ok((
             Tokenizer::from_json(std::str::from_utf8(&bytes)?)?,
             Some(hash),
