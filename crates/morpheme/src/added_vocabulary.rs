@@ -334,6 +334,13 @@ impl AddedVocabulary {
     /// decoding would then disagree about it. An added token at its own
     /// model id (BERT's `[CLS]`, for instance) is fine. On error, the
     /// vocabulary and its matchers remain unchanged.
+    ///
+    /// Entries with empty content are skipped, as in
+    /// [`add_tokens`](Self::add_tokens) and Hugging Face: an empty pattern
+    /// would match everywhere, so such a token can never be matched and is
+    /// never registered. Because nothing is registered for them, they are
+    /// also exempt from the duplicate-id and model checks above, and are
+    /// dropped when the tokenizer is saved again.
     pub fn add_tokens_with_ids(
         &mut self,
         tokens: &[AddedTokenWithId],
