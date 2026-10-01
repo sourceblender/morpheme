@@ -1,0 +1,23 @@
+name: Performance baseline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: ./scripts/fetch-hf-fixtures.sh
+      - run: python3 scripts/benchmark_baseline.py --output baseline.json
+      # Shared runners produce evidence, not an enforced performance threshold.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: performance-baseline
+          path: baseline.json

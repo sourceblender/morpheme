@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Repeatable isolated performance probes, diverse/repeated corpora, peak RSS,
+  compatible-baseline regression checks, and a manual artifact workflow.
 - An executable Rust document-preparation consumer with token budgets,
   tokenizer provenance, bounded records, and atomic dataset publication.
 
