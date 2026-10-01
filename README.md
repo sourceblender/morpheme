@@ -23,7 +23,7 @@ WebAssembly (WASM) module for the browser.
 - **Compatible** — reads and writes `tokenizer.json`; files trained with
   morpheme load in Python `tokenizers` and encode identically, and vice
   versa.
-- **Verified** — every change is checked against 11 real, pinned
+- **Verified** — CI checks every code change against 11 real, pinned
   tokenizers (BERT, GPT-2, RoBERTa, GPT-NeoX, Qwen2.5, Llama, T5,
   ALBERT, XLM-R, …) across tricky Unicode inputs.
 - **Pure Rust** — no FFI; the default build has no C/C++ dependencies

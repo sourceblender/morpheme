@@ -116,10 +116,13 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 ```
 
-CI runs more than that, with `RUSTFLAGS=-D warnings` (see [CI](#ci)). To
-reproduce it locally before a larger change, run the jobs that apply:
+CI runs more than that, and every job sets `RUSTFLAGS=-D warnings`, so a
+compiler warning fails CI even outside clippy (see [CI](#ci)). To
+reproduce it locally before a larger change, export the same flag and
+run the jobs that apply:
 
 ```sh
+export RUSTFLAGS="-D warnings"
 ./scripts/fetch-hf-fixtures.sh
 
 # lint and test (all features, and the library without defaults)

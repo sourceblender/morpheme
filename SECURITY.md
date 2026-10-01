@@ -10,8 +10,9 @@
 `morpheme` is pre-1.0 (v0.x). Security fixes go into the latest release
 line only: the `morpheme` and `morpheme-cli` crates, the prebuilt CLI
 binaries, and the `morpheme` Python package, which are released together
-under the same version. Older lines get fixes only at the maintainers'
-discretion.
+under the same version. The WASM bindings are not released as a package;
+fixes for them land on `main`, so rebuild from the latest release tag or
+`main`. Older lines get fixes only at the maintainers' discretion.
 
 ## Reporting a vulnerability
 
