@@ -12,8 +12,9 @@
 
 `morpheme` loads, runs, trains and saves tokenizers in the Hugging Face
 `tokenizer.json` format — BPE, WordPiece, WordLevel and Unigram — and
-produces **the same ids, tokens, offsets and decoded text** as the
-reference implementation.
+matches the reference implementation on the supported configurations and
+pinned real-model tests. Deliberate edge-case corrections and unsupported
+forms are documented in [the compatibility guide](./docs/interop.md).
 
 - **Compatible** — reads and writes `tokenizer.json`; files trained with
   morpheme load in Python `tokenizers` and encode identically, and vice
@@ -27,7 +28,7 @@ reference implementation.
 
 ## Status
 
-**v0.1.0** — first release. The library API may still change before 1.0.
+**v0.1.1** — first release. The library API may still change before 1.0.
 
 ```sh
 cargo add morpheme                    # the library
@@ -46,7 +47,7 @@ On Windows: `powershell -ExecutionPolicy Bypass -c "irm https://github.com/sourc
 
 ## Library
 
-Load any `tokenizer.json` and encode:
+Load a supported `tokenizer.json` and encode:
 
 ```rust
 use morpheme::Tokenizer;

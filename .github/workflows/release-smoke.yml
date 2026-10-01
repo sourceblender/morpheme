@@ -1,0 +1,77 @@
+name: Release smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published version without the v prefix
+        required: true
+        default: "0.1.1"
+
+permissions:
+  contents: read
+
+jobs:
+  binaries:
+    name: release binary (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python scripts/release_smoke.py --version "$RELEASE_VERSION" --target "$RELEASE_TARGET"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_TARGET: ${{ matrix.target }}
+
+  registry:
+    name: fresh crates.io installs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install CLI from crates.io
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: cargo install morpheme-cli --version "=$RELEASE_VERSION" --locked --root "$RUNNER_TEMP/installed"
+      - name: Smoke installed CLI
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: python scripts/release_smoke.py --version "$RELEASE_VERSION" --cli "$RUNNER_TEMP/installed/bin/morpheme"
+      - name: Run a fresh library consumer
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          cargo new --name release-consumer "$RUNNER_TEMP/consumer"
+          cd "$RUNNER_TEMP/consumer"
+          cargo add "morpheme@=$RELEASE_VERSION"
+          cat > src/main.rs <<'RS'
+          use morpheme::{Tokenizer, models::Bpe, pre_tokenizers::ByteLevel, trainers::BpeTrainer};
+          fn main() -> morpheme::Result<()> {
+              let mut tokenizer = Tokenizer::new(Bpe::default())
+                  .with_pre_tokenizer(ByteLevel::new(false, true, true))
+                  .with_decoder(ByteLevel::default());
+              let trainer = BpeTrainer::builder().vocab_size(300)
+                  .show_progress(false).initial_alphabet(ByteLevel::alphabet()).build()?;
+              tokenizer.train(trainer, ["hello café 😀"].into_iter())?;
+              let encoding = tokenizer.encode("hello café 😀", false)?;
+              assert_eq!(tokenizer.decode(encoding.ids(), false)?, "hello café 😀");
+              Ok(())
+          }
+          RS
+          cargo run --release

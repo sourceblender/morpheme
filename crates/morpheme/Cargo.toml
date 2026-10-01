@@ -1,6 +1,6 @@
 [package]
 name = "morpheme"
-version = "0.1.0"
+version = "0.1.1"
 description = "Fast, pure-Rust subword tokenization (BPE, WordPiece, Unigram) compatible with Hugging Face tokenizers."
 edition.workspace = true
 rust-version.workspace = true

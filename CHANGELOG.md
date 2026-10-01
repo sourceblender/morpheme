@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-01
+
 ### Fixed
 
 - Rebind existing added/special tokens after training and allocate new ids
@@ -219,5 +221,6 @@ format, and is now verified against the reference implementation.
     before the first character (`prepend("")`, an empty-pattern
     `replace`) indexed out of bounds and panicked.
 
-[Unreleased]: https://github.com/sourceblender/morpheme/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sourceblender/morpheme/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/sourceblender/morpheme/releases/tag/v0.1.1
 [0.1.0]: https://github.com/sourceblender/morpheme/releases/tag/v0.1.0
