@@ -85,10 +85,15 @@ impl Progress {
         let _ = message.into();
     }
 
-    /// Mark as done, leaving the final state on its own line.
+    /// Mark as done, leaving the final state on its own line. Calling it
+    /// again is a no-op; a bar still running when dropped (for example on
+    /// an error path) is finished automatically.
     pub(crate) fn finish(&self) {
         #[cfg(feature = "progressbar")]
         if let Some(bar) = &self.bar {
+            if bar.is_finished() {
+                return;
+            }
             bar.finish();
             // indicatif leaves the cursor at the end of the finished bar;
             // move to a fresh line so the next bar (or other output)
@@ -97,6 +102,15 @@ impl Progress {
                 eprintln!();
             }
         }
+    }
+}
+
+#[cfg(feature = "progressbar")]
+impl Drop for Progress {
+    fn drop(&mut self) {
+        // `?` on an error path skips the explicit `finish()`; finish here
+        // so the error message or the next bar starts on a fresh line.
+        self.finish();
     }
 }
 
@@ -114,6 +128,27 @@ mod tests {
                 p.set_message("still testing");
                 p.finish();
             }
+        }
+    }
+
+    #[test]
+    fn finish_is_idempotent_and_drop_finishes() {
+        let p = Progress::new(true, "test", Some(10));
+        p.inc(1);
+        p.finish();
+        p.finish();
+        #[cfg(feature = "progressbar")]
+        assert!(p.bar.as_ref().is_some_and(|b| b.is_finished()));
+
+        // Dropping an unfinished bar (an error path) finishes it.
+        #[cfg(feature = "progressbar")]
+        {
+            drop(p);
+            let p = Progress::new(true, "unfinished", None);
+            let bar = p.bar.clone().expect("enabled bar");
+            assert!(!bar.is_finished());
+            drop(p);
+            assert!(bar.is_finished());
         }
     }
 }
