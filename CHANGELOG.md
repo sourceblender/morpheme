@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Python bindings (`bindings/python`), published to PyPI as `morpheme`:
+  PyO3 + maturin abi3 wheels for CPython 3.9+ on Linux (x86_64, aarch64),
+  macOS (arm64) and Windows (x64), plus an sdist for other platforms.
+  `Tokenizer.from_file` / `from_str` / `from_pretrained`, `encode` /
+  `encode_batch` (char offsets; batches release the GIL), `decode` /
+  `decode_batch`, `count`, vocabulary lookups, `to_str` / `save`, and
+  `MorphemeError` (#50).
 - `parallel` feature (default on) gating `rayon`; with it off,
   `encode_batch`, `decode_batch`, batch padding and the trainers run
   sequentially. The library now compiles for `wasm32-unknown-unknown`
@@ -126,7 +133,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compatible-baseline regression checks, and a manual artifact workflow.
 - An executable Rust document-preparation consumer with token budgets,
   tokenizer provenance, bounded records, and atomic dataset publication.
-
 - CLI token counting with explicit special-token and padding/truncation
   behavior, bounded JSONL batch encoding/decoding, and JSON inspection.
 
@@ -231,7 +237,7 @@ format, and is now verified against the reference implementation.
   default `progressbar` feature (`indicatif`); hidden when stderr is not
   a terminal. CLI `train --quiet`.
 - Coverage reporting in CI (`cargo-llvm-cov`, lcov artifact).
-- Release automation with [`dist`](https://opensource.axo.dev/cargo-dist/):
+- Release automation with [`dist`](https://axodotdev.github.io/cargo-dist/):
   a `vX.Y.Z` tag builds the CLI for macOS (arm64, x86-64), Linux (gnu
   arm64/x86-64, musl x86-64) and Windows, attaches archives, SHA-256
   checksums and shell/PowerShell installers to a GitHub Release, and
@@ -352,8 +358,8 @@ format, and is now verified against the reference implementation.
     `replace`) indexed out of bounds and panicked.
 
 [Unreleased]: https://github.com/sourceblender/morpheme/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/sourceblender/morpheme/releases/tag/v0.4.0
-[0.3.0]: https://github.com/sourceblender/morpheme/releases/tag/v0.3.0
-[0.2.0]: https://github.com/sourceblender/morpheme/releases/tag/v0.2.0
-[0.1.1]: https://github.com/sourceblender/morpheme/releases/tag/v0.1.1
+[0.4.0]: https://github.com/sourceblender/morpheme/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/sourceblender/morpheme/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/sourceblender/morpheme/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/sourceblender/morpheme/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sourceblender/morpheme/releases/tag/v0.1.0
