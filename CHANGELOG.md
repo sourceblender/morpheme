@@ -20,6 +20,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release: no prebuilt Intel macOS (`x86_64-apple-darwin`) CLI archive;
   Intel Macs install with `cargo install morpheme-cli`.
+- **Breaking:** `Tokenizer::set_model` returns `Result<()>`. It now
+  rebinds added-token ids against the new model (the model's id when it
+  has the text, else above the new vocabulary) and post-processor and
+  padding ids by token text, like `train`; on an unresolvable configured
+  token it returns `Error::Config` and leaves the tokenizer unchanged
+  (#84).
+- **Breaking:** `AddedVocabulary::add_tokens_with_ids` takes the model
+  (`&dyn Model`) so it can check ids against the vocabulary, and leaves
+  the vocabulary unchanged on error (#85).
+
+### Fixed
+
+- `set_model` no longer leaves added-token, post-processor and padding
+  ids bound to the previous vocabulary, where an id could encode as one
+  token and decode as another (#84).
+- Loading a `tokenizer.json` whose added token uses a model id for
+  different text (special `x` at the id of `a`) now fails with an error
+  naming both tokens and the id instead of loading a tokenizer whose
+  encode and decode disagree. An added token at its own model id (BERT's
+  `[CLS]`) still loads (#85).
 
 ### Fixed
 

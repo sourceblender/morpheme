@@ -329,10 +329,22 @@ impl AddedVocabulary {
     /// Add tokens with explicit ids (as loaded from `tokenizer.json`).
     ///
     /// Fails if an id appears more than once in `tokens` (whatever the
-    /// contents), since only one content can map to an id.
+    /// contents), since only one content can map to an id, or if an id is
+    /// already `model`'s id for a different token, since encoding and
+    /// decoding would then disagree about it. An added token at its own
+    /// model id (BERT's `[CLS]`, for instance) is fine. On error, the
+    /// vocabulary and its matchers remain unchanged.
+    ///
+    /// Entries with empty content are skipped, as in
+    /// [`add_tokens`](Self::add_tokens) and Hugging Face: an empty pattern
+    /// would match everywhere, so such a token can never be matched and is
+    /// never registered. Because nothing is registered for them, they are
+    /// also exempt from the duplicate-id and model checks above, and are
+    /// dropped when the tokenizer is saved again.
     pub fn add_tokens_with_ids(
         &mut self,
         tokens: &[AddedTokenWithId],
+        model: &dyn Model,
         normalizer: Option<&dyn Normalizer>,
     ) -> Result<()> {
         let mut seen: HashMap<u32, &str> = HashMap::new();
@@ -346,9 +358,34 @@ impl AddedVocabulary {
                     t.id, t.token.content
                 )));
             }
-            self.insert(t.id, t.token.clone());
         }
-        self.refresh(normalizer)
+        // Every model token at the id must have the same text, not just the
+        // one `id_to_token` reports, since a vocabulary may map several
+        // tokens to one id.
+        if !seen.is_empty() {
+            let conflict = model
+                .vocab()
+                .into_iter()
+                .filter_map(|(model_token, id)| {
+                    let content = *seen.get(&id)?;
+                    (model_token != content).then_some((id, model_token, content))
+                })
+                .min();
+            if let Some((id, model_token, content)) = conflict {
+                return Err(Error::Config(format!(
+                    "added token {content:?} has id {id}, which the model already uses for {model_token:?}"
+                )));
+            }
+        }
+        let mut updated = self.clone();
+        for t in tokens {
+            if !t.token.content.is_empty() {
+                updated.insert(t.id, t.token.clone());
+            }
+        }
+        updated.refresh(normalizer)?;
+        *self = updated;
+        Ok(())
     }
 
     fn insert(&mut self, id: u32, token: AddedToken) {
