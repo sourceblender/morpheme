@@ -4,7 +4,7 @@
 //! morpheme loads, runs, trains and saves tokenizers in the Hugging Face
 //! `tokenizer.json` format (BPE, WordPiece, WordLevel and Unigram) and
 //! produces the same ids, tokens, offsets and decoded text as the
-//! reference implementation.
+//! reference implementation, apart from documented edge-case corrections.
 //!
 //! # Quick start
 //!
@@ -81,13 +81,19 @@
 //! | Feature | Default | Enables |
 //! | --- | --- | --- |
 //! | `progressbar` | yes | Trainer progress bars on stderr (`show_progress`) |
-//! | `hub` | no | [`Tokenizer::from_pretrained`]: download from the Hugging Face Hub into the cache shared with Python |
+//! | `parallel` | yes | `rayon` for `encode_batch`, `decode_batch`, batch padding and the trainers; without it they run sequentially |
+//! | `hub` | no | [`Tokenizer::from_pretrained`]: download from the Hugging Face Hub into the cache shared with Python (native targets only) |
+//!
+//! The crate builds for `wasm32-unknown-unknown` with any feature set;
+//! there, `hub` is a no-op and `Tokenizer::save` is compiled out (use
+//! [`Tokenizer::to_json`]).
 //!
 //! # Compatibility
 //!
 //! Behavior is verified against 11 real tokenizers (BERT, GPT-2, RoBERTa,
 //! Llama, T5, XLM-R, …) recorded from `tokenizers` 0.23. Known, deliberate
-//! differences are listed in the repository's `docs/interop.md`.
+//! differences are listed in the
+//! [compatibility guide](https://github.com/sourceblender/morpheme/blob/main/docs/interop.md).
 
 #![deny(missing_docs)]
 #![warn(missing_debug_implementations, unreachable_pub)]

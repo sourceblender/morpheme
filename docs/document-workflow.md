@@ -58,7 +58,7 @@ hub = ["morpheme/hub"]
 morpheme = "=0.4.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 tempfile = "3"
 ```
 

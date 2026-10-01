@@ -105,8 +105,9 @@ cargo bench -p morpheme -- --baseline main
 
 Inputs are generated deterministically, so runs are comparable across
 machines and commits. HTML reports land in `target/criterion/`. CI
-compiles the suite on every PR (`benches compile` job) but does not run
-it: shared CI runners are too noisy for regression thresholds.
+type-checks the suite on every PR (clippy `--all-targets` in the `lint`
+job) but does not run it: shared CI runners are too noisy for regression
+thresholds.
 
 ## Reproducing the comparisons
 
@@ -212,7 +213,11 @@ one-off `config.sh` registration command instead of embedding a token.
 runner is online.
 
 The `Benchmark tracking` workflow (`.github/workflows/benchmark-tracking.yml`)
-runs daily at 03:17 UTC, on every `v*` tag, and on `workflow_dispatch`. Each run:
+runs daily at 03:17 UTC, on every `v*` tag, and on `workflow_dispatch`.
+A `changes` job on a hosted runner first skips scheduled and tag runs
+whose commit is already the host's `results/<host>/latest.json` (a quiet
+night, or a release tag on a commit the nightly run measured); a manual
+run always measures. Each measured run:
 
 1. builds the probe on all cores, then measures with
    `taskset -c 2-5 python3 scripts/benchmark_baseline.py --no-build --repeats 5 --host-label bench-9800x3d`

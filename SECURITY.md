@@ -4,11 +4,15 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| latest  | :white_check_mark: |
-| < latest | :x:                |
+| 0.4.x   | :white_check_mark: |
+| < 0.4   | :x:                |
 
-`morpheme` is pre-release (v0.x). Security fixes will be backported only at the
-discretion of the maintainers, and only for the most recent release line.
+`morpheme` is pre-1.0 (v0.x). Security fixes go into the latest release
+line only: the `morpheme` and `morpheme-cli` crates, the prebuilt CLI
+binaries, and the `morpheme` Python package, which are released together
+under the same version. The WASM bindings are not released as a package;
+fixes for them land on `main`, so rebuild from the latest release tag or
+`main`. Older lines get fixes only at the maintainers' discretion.
 
 ## Reporting a vulnerability
 
@@ -18,7 +22,8 @@ Report privately by emailing **security@sourceblender.dev**. Please include:
 
 - A description of the issue and its impact.
 - A minimal reproduction (failing test, snippet, or steps).
-- Affected version / commit SHA.
+- Affected version / commit SHA, and which artifact (Rust crate, CLI
+  binary, Python wheel, or WASM build).
 
 You should receive an acknowledgement within **3 business days**. We aim to
 disclose coordinated fixes within **90 days** of the report.
@@ -27,10 +32,13 @@ disclose coordinated fixes within **90 days** of the report.
 
 In scope:
 
-- Memory unsafety in the `morpheme` library or `morpheme-cli` binary.
+- Memory unsafety in the `morpheme` library, the `morpheme-cli` binary,
+  or the Python and WASM bindings.
 - Panic-causing malformed tokenizer JSON that crosses a trust boundary.
-  (Loading and encoding are fuzzed weekly in CI; see the fuzzing section
-  of [`docs/contributing.md`](./docs/contributing.md).)
+  (Loading, encoding and decoding are fuzzed weekly in CI; see the
+  fuzzing section of [`docs/contributing.md`](./docs/contributing.md#fuzzing).)
+- Hub client issues: credential leakage (`HF_TOKEN`), cache integrity
+  or path handling in the `hub` feature.
 - Dependency vulnerabilities that we can address without breaking compatibility.
 
 Out of scope:

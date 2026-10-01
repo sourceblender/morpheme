@@ -9,9 +9,11 @@
 morpheme/
 ├── crates/morpheme/        # library — public API lives here
 ├── apps/morpheme-cli/      # CLI binary
+├── bindings/python/        # PyO3 bindings, the `morpheme` package on PyPI
+├── bindings/wasm/          # wasm-bindgen bindings + browser example
 ├── docs/                   # markdown documentation (this folder)
 ├── examples/               # sample corpus + trained tokenizers
-├── scripts/                # HF fixtures, golden generation, interop check
+├── scripts/                # fixtures, golden generation, interop, benchmarks, release smoke
 ├── fuzz/                   # cargo-fuzz targets (separate nightly workspace)
 └── .github/                # CI + issue / PR templates
 ```
@@ -23,6 +25,15 @@ Requirements:
 - Rust **stable** (the CI also runs `1.85`, the MSRV).
 - `rustfmt` and `clippy` (installed by default with rustup).
 - `cargo`, `git`.
+
+For the bindings and interop checks:
+
+- Python 3.9+ (CI uses 3.12) for the Python bindings, the interop check
+  and the script tests.
+- The `wasm32-unknown-unknown` target (`rustup target add
+  wasm32-unknown-unknown`), Node.js, and
+  [`wasm-pack`](https://drager.github.io/wasm-pack/) or
+  `wasm-bindgen-cli` 0.2.129 for the WASM bindings.
 
 Recommended:
 
@@ -61,34 +72,89 @@ means morpheme disagrees with the reference implementation.
 `just interop` checks the reverse direction (Python loading
 morpheme-trained files).
 
-## CI and docs-only changes
+## CI
+
+`.github/workflows/ci.yml` runs these jobs on every pull request and
+push to `main`:
+
+| Job | What it runs |
+| --- | --- |
+| `lint (rustfmt, clippy, rustdoc)` | `cargo fmt --check`; clippy with `--all-targets --all-features` (this also type-checks the benches, examples and bindings) and for the library with `--no-default-features`; `cargo doc` with `-D warnings` |
+| `test (stable, <os>)` | `cargo test --workspace --all-features` on Linux, macOS and Windows; the Linux leg runs under `cargo-llvm-cov` and uploads `lcov.info` (llvm-cov skips doctests; the other legs run them) |
+| `test (no default features) + wasm` | the library's tests without default features; `--all-features` checked for wasm32; `morpheme-wasm` built for wasm32 (the library without default features) and its JavaScript ABI smoke-tested in Node |
+| `test (MSRV 1.85)` | build and test the workspace on Rust 1.85 |
+| `hub downloads (network)` | the `#[ignore]`d Hub tests against the live Hub |
+| `python (interop, bindings)` | `scripts/check_python_interop.py`, the benchmark-script tests, the document workflow, then `maturin develop` and the bindings' pytest suite |
+| `cargo-deny` | licenses, bans, sources and RustSec advisories (`deny.toml`) |
+
+### Docs-only changes
 
 Every CI run starts with a small `detect changes` job that lists the
 changed files with `git diff` (complete, unlike `paths-ignore`, which
-only looks at the first 300 files). If every changed file is
-documentation (`*.md`, `docs/`, `LICENSE`, issue templates,
-`CODEOWNERS`, `dependabot.yml`), all other jobs are skipped. Anything
-else, including a change that mixes docs and code, runs the full suite,
-as do manual runs (`workflow_dispatch`) and any change the job cannot
-classify.
+only looks at the first 300 files). If every changed file is outside
+what CI builds and tests (`*.md`, `docs/`, `LICENSE`, issue templates,
+`CODEOWNERS`, `dependabot.yml`, `actionlint.yaml`, the `Makefile` and
+`justfile`, `fuzz/`, `bindings/wasm/www/`, and the workflow files other
+than `ci.yml`), all other jobs are skipped. Anything else, including a
+change that mixes the two, runs the full suite, as do manual runs
+(`workflow_dispatch`) and any change the job cannot classify.
 
-The `ci-success` job always runs and passes only if every job passed or
-was skipped as docs-only. To make CI required on `main`, require that
+The `ci-success` job always runs. It passes only if every job passed,
+or if the change was docs-only and the jobs were skipped; a job skipped
+on a code change fails it. To make CI required on `main`, require that
 single check in the branch ruleset: it reports on docs-only changes
 too, so they are never left pending.
 
 ## Local gate
 
-Before opening a PR, run:
+`just gate` (or `make gate`) fetches the fixtures and runs the core of
+CI's `lint` and `test` jobs:
 
 ```sh
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
 ```
 
-These are the same checks the CI runs. There is a `just gate` (and
-`make gate`) target that runs all three.
+CI runs more than that, and every job sets `RUSTFLAGS=-D warnings`, so a
+compiler warning fails CI even outside clippy (see [CI](#ci)). To
+reproduce it locally before a larger change, export the same flag and
+run the jobs that apply:
+
+```sh
+export RUSTFLAGS="-D warnings"
+./scripts/fetch-hf-fixtures.sh
+
+# lint and test (all features, and the library without defaults)
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo clippy -p morpheme --all-targets --no-default-features --locked -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --locked
+cargo test --workspace --all-features --locked
+cargo test -p morpheme --no-default-features --locked
+cargo +1.85 test --workspace --locked          # MSRV
+
+# WebAssembly: the library and the bindings must build for wasm32
+cargo check -p morpheme --all-features --locked --target wasm32-unknown-unknown
+(cd bindings/wasm && wasm-pack build --target web --release)
+node bindings/wasm/tests/smoke.mjs
+
+# Python: interop with `tokenizers`, script tests, then the bindings
+python3 -m venv .venv
+.venv/bin/pip install tokenizers==0.23.2 maturin pytest
+.venv/bin/python scripts/check_python_interop.py
+.venv/bin/python scripts/test_benchmark_baseline.py
+.venv/bin/python scripts/check_document_workflow.py
+(cd bindings/python && ../../.venv/bin/maturin develop --locked)
+.venv/bin/pytest bindings/python/tests
+
+# Hub downloads (network) and dependency policy
+cargo test -p morpheme --features hub --test hub --locked -- --ignored
+cargo deny check                               # needs cargo-deny
+```
+
+CI builds the WASM smoke-test package with `wasm-bindgen-cli` (the
+version pinned in `Cargo.lock`) instead of `wasm-pack`; both produce the
+same `web` target in `bindings/wasm/pkg`.
 
 ## Module-by-module workflow
 
@@ -159,9 +225,13 @@ for 5 minutes and uploads any crash as an artifact.
 
 - `cargo bench -p morpheme` runs the Criterion suite (`encode`, `train`,
   `normalize`); use `--save-baseline` / `--baseline` to compare a change
-  against `main`. CI only compiles it.
+  against `main`. CI only type-checks it (clippy `--all-targets` in the
+  `lint` job).
 - `cargo run --release --example bench_encode -- <tokenizer.json> <text>`
   measures encode and decode throughput on any file.
+- `python3 scripts/benchmark_baseline.py` records and compares isolated
+  local baselines; the `Benchmark tracking` workflow runs it daily on a
+  dedicated host ([details](./benchmarks.md#dedicated-host-tracking)).
 - Methodology and results: [`docs/benchmarks.md`](./benchmarks.md).
 
 ## Style
@@ -184,8 +254,13 @@ for 5 minutes and uploads any crash as an artifact.
 
 - Triggered by a maintainer tagging `vX.Y.Z`.
 - `CHANGELOG.md` is updated at release time.
-- `Cargo.toml` versions are bumped by the maintainer.
-- crates.io publish is gated on a passing release workflow.
+- The maintainer bumps the version in all four crates' `Cargo.toml`
+  (library, CLI, both bindings) and in `bindings/python/pyproject.toml`.
+- The tag runs three workflows: `Release` (`dist`) builds the CLI
+  archives and installers for the GitHub Release and then publishes the
+  crates to crates.io; `Python wheels` builds the wheels and sdist and
+  uploads them to PyPI; `Benchmark tracking` records a result for the
+  tag on the dedicated host.
 - After publication, dispatch `release-smoke.yml` with the published
   version. It verifies archive checksums and exercises fresh binaries on
   macOS, Linux and Windows, plus fresh crates.io library and CLI installs.

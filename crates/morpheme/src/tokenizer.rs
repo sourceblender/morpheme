@@ -948,8 +948,9 @@ impl Tokenizer {
         Ok(encodings)
     }
 
-    /// Encode several inputs in parallel. With `BatchLongest` padding,
-    /// all encodings are padded to the longest one. Byte offsets.
+    /// Encode several inputs, in parallel with the `parallel` feature (on
+    /// by default) and sequentially without it. With `BatchLongest`
+    /// padding, all encodings are padded to the longest one. Byte offsets.
     ///
     /// # Example
     ///
@@ -1094,7 +1095,8 @@ impl Tokenizer {
         }
     }
 
-    /// Decode several id sequences in parallel.
+    /// Decode several id sequences, in parallel with the `parallel`
+    /// feature (on by default) and sequentially without it.
     pub fn decode_batch(
         &self,
         sequences: &[&[u32]],

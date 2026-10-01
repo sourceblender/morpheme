@@ -66,7 +66,8 @@ file); only an unknown `"type"` value is an error.
 Python `tokenizers` returns **char** offsets. Rust code usually wants
 **byte** offsets (to slice a `&str`). `Tokenizer::encode` returns byte
 offsets; `Tokenizer::encode_char_offsets` returns char offsets that match
-Python exactly. The CLI has `--char-offsets`.
+Python exactly. The CLI has `--char-offsets`, and the `morpheme` Python
+package always returns char offsets.
 
 ## How it is verified
 
@@ -115,7 +116,10 @@ the standard library. The JSON `"type"` names are unchanged (`"BPE"`,
 ## Known deviations
 
 Deliberate differences that accept more input, fail safely, or prevent
-data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.md)):
+data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.md)).
+Inputs that avoid these edge cases produce identical results.
+
+### Errors instead of panics
 
 - **Errors instead of panics.** Malformed input (merges referencing
   missing tokens, bad regexes, invalid `unk_id`, malformed Precompiled
@@ -126,79 +130,6 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
 - **`Strip` decoder clamps.** `start` / `stop` larger than the token are
   clamped to its length and the result is returned; HF panics on an
   index underflow. Within bounds the output is identical.
-- **Lenient defaults.** Some fields HF requires fall back to their
-  defaults when missing (BertNormalizer flags, ByteLevel
-  `add_prefix_space`/`trim_offsets`, Digits `individual_digits`,
-  RobertaProcessing flags, TemplateProcessing `special_tokens`). Valid
-  files behave identically.
-- **Deterministic trainers.** Where HF's trainers depend on hash-map
-  iteration order (BPE symbol ids with a prefix/suffix, `limit_alphabet`
-  ties, Unigram), morpheme uses a fixed order, so results are
-  reproducible but can differ from a particular HF run in those cases.
-- **Unigram subword-regularization sampling** (`alpha`, `nbest_size`) is
-  a runtime setting (`Unigram::set_sampling` / `with_seed`), as in HF
-  and SentencePiece; it is never read from or written to
-  `tokenizer.json`, so a sampling model serializes exactly like a
-  Viterbi one and loads back deterministic. See
-  [`docs/modules/unigram.md`](modules/unigram.md).
-- **Hub downloads** (`from_pretrained`, feature `hub`) fetch only
-  `tokenizer.json`, not the other files of a repository, and use the
-  same cache layout as `huggingface_hub`.
-  Downloads and cached content are verified against content-hash ETags;
-  mirrors using opaque ETags are rejected. Copied snapshots must retain
-  the matching blob, as in the standard HF cache. Corrupt entries are
-  repaired online and rejected offline.
-
-- **Consistent type ids on overflow.** When truncation produces
-  overflowing encodings, they get the same type ids as the main
-  encoding: all `0` for `RobertaProcessing` (HF leaves `1` on the second
-  sequence's overflow when `add_special_tokens` is false, which RoBERTa
-  models cannot accept), and the template's type id for
-  `TemplateProcessing` pieces such as `$B:3` (HF keeps the original id
-  on overflow). Without overflow, outputs are identical to HF.
-- **No id gaps from `WordLevelTrainer`.** A special token that is
-  listed twice or also occurs in the corpus gets a single id; HF assigns
-  it again, leaving unused ids.
-- **No duplicate pieces from `UnigramTrainer`.** A special token or
-  `unk_token` that also occurs as a corpus piece (or a special token
-  listed twice) gets a single id, the special one. HF emits the piece a
-  second time, and the duplicate shadows the special id on lookup.
-- **`UnigramTrainer` enforces `vocab_size`.** The special tokens and the
-  `unk_token` count toward `vocab_size`, the trained model never exceeds
-  it, and a `vocab_size` too small for them plus the required chars is an
-  `Error::Training`. HF only checks the required chars against
-  `vocab_size` and can return more pieces than requested.
-- **`WordPieceTrainer::default()` uses the `##` prefix**, the same as
-  `WordPieceTrainer::builder().build()`. HF's derived `Default` has no
-  continuation prefix, so it trains a vocabulary without `##` tokens.
-- **Safe added-token ids.** New added tokens receive ids above the
-  highest occupied model or added-token id, including sparse vocabularies.
-  Exhausting the `u32` id range returns an error. HF starts allocation
-  at the vocabulary count, which can collide with an existing sparse id.
-- **Retraining rebinds added tokens.** Existing added tokens retain their
-  flags and are assigned ids against the newly trained model. Trainer
-  special tokens use the new model's ids instead of retaining stale ids
-  that can shadow ordinary tokens. Post-processor and padding ids are also
-  rebound by token text. If a required configured token is absent from the
-  new vocabulary, training fails without changing the tokenizer; include
-  it in the trainer's special tokens or register it as an added token first.
-- **BPE fallback keeps input order.** An unknown-token run is emitted
-  before a following successful byte fallback. HF can emit the fallback
-  first, reordering tokens and assigning their offsets to the wrong chars.
-- **Truncation rejects impossible special-token budgets.** Encoding with
-  special tokens errors when the maximum cannot hold the required specials,
-  or leaves no room for nonempty input. Empty input may use a budget exactly
-  equal to the specials. Encoding without specials still uses the original
-  maximum.
-- **Sequence ownership is preserved.** Pair overflow retains sequence
-  ranges even without a post-processor. Sequence lookups use the actual
-  ids (including nonzero ids), and a missing sequence yields no match.
-- **Added-token matches never overlap.** When an `rstrip` added token
-  swallows whitespace that the next added token also starts with (for
-  example `<x>` with `rstrip` and ` <y>` on `"<x> <y>"`), the second match
-  starts where the first ends, so every byte belongs to exactly one
-  token and offsets are `[(0,4),(4,7)]`. HF reports overlapping offsets
-  (`[(0,4),(3,7)]`), and panics when the second token also has `lstrip`.
 - **Zero-width `Split` patterns are safe.** A `Split` regex that matches
   the empty string (`$`, `^`, `\b`, lookarounds) after a normalizer that
   changes the byte length (`NFD`, `Lowercase`, `Prepend`, …) produces the
@@ -210,51 +141,31 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
   error naming both; HF keeps the last one but leaves the first content
   mapped to the id. Reusing an id through the API (for example after
   `set_model`) unmaps the previous content.
-- **Template strings tolerate repeated spaces, but not emptiness.**
-  `Template::try_from("[CLS]  $A")` (two spaces) parses here; HF's
-  `try_from` splits on single spaces and fails. An empty template (`""`
-  or an empty piece list) is an error in both the parser and the
+- **Template strings tolerate repeated whitespace, but not emptiness.**
+  `TemplateProcessing` templates are split on any whitespace run, so
+  `"[CLS]  $A\t[SEP]"` parses here; HF's `try_from` splits on single
+  spaces and fails on the empty pieces. An empty template (`""` or an
+  empty piece list) is an error in both the parser and the
   `TemplateProcessing` builder, where HF's builder would accept an empty
-  `single` and produce empty encodings. Files are unaffected:
-  `tokenizer.json` stores templates as piece lists.
-- **`DecodeStream::prefill` never re-emits the prompt.** When the
-  prefilled ids end inside a character (byte fallback), the step that
-  completes the character emits just that character; the text before it
-  is treated as already shown. HF emits the entire prompt again with that
-  first chunk. Later chunks are identical. `tests/hf_golden.rs` strips
-  the re-emitted prompt from HF's recorded first chunk for this case.
-  Both libraries recognise an incomplete character by the trailing
-  U+FFFD it decodes to. morpheme tells a real U+FFFD apart when it is
-  made of several byte-fallback tokens (`<0xEF><0xBF><0xBD>`); a single
-  id whose text is just U+FFFD remains ambiguous and is emitted again
-  with the next chunk (HF re-emits the whole prompt in both cases).
+  `single` and produce empty encodings. Well-formed templates behave
+  identically, and files are unaffected: `tokenizer.json` stores
+  templates as piece lists.
+- **Truncation rejects impossible special-token budgets.** Encoding with
+  special tokens errors when the maximum cannot hold the required specials,
+  or leaves no room for nonempty input. Empty input may use a budget exactly
+  equal to the specials. Encoding without specials still uses the original
+  maximum.
 
-### Corrections to upstream offsets
+### Loading
 
-Alignment bugs shared with HF that are fixed here (ADR 0002); the
-affected inputs get different offsets from `tokenizers` 0.23.2 on
-purpose. Text output is identical.
+- **Lenient defaults.** Some fields HF requires fall back to their
+  defaults when missing (BertNormalizer flags, ByteLevel
+  `add_prefix_space`/`trim_offsets`, Digits `individual_digits`,
+  RobertaProcessing flags, TemplateProcessing `special_tokens`). Valid
+  files behave identically.
 
-- **Precompiled deletion at position 0.** When a SentencePiece charsmap
-  (T5, ALBERT, XLM-R, …) deletes the very first char of the input (for
-  example U+0007 in T5), HF drops the removal from its alignment
-  bookkeeping, so every surviving char maps back to the char *before*
-  it — token offsets for such inputs are off by one char. morpheme
-  counts the removal, so `"\u{7}ab"` normalizes to `"ab"` with `a` and
-  `b` aligned to themselves. Deletions anywhere else were already
-  correct in both.
+### Encoding, truncation and offsets
 
-### Other divergences
-
-- **Re-adding an added token updates its flags.** `add_tokens` /
-  `add_special_tokens` with the content of an existing added token but
-  different flags (`lstrip`, `normalized`, `special`, …) replaces the
-  stored token and counts it as added. HF compares added tokens by
-  content only, so it returns 0 and keeps the old flags.
-- **Template whitespace tolerance.** `TemplateProcessing` templates are
-  split on any whitespace run (`"[CLS]  $A\t[SEP]"` is accepted); HF
-  splits on single spaces and rejects the empty pieces. Well-formed
-  templates behave identically.
 - **Overflow windows are complete.** With truncation enabled, morpheme
   tokenizes the whole input and computes `overflowing` from the full
   token list, which equals HF's documented `Encoding.truncate(max_len,
@@ -270,8 +181,108 @@ purpose. Text output is identical.
   `[[1,6,7,2]]` in HF. Pinned by `only_first_truncation_through_tokenizer`
   and `left_truncation_through_tokenizer_with_specials_pairs_and_stride`
   in `crates/morpheme/tests/core.rs`.
+- **Consistent type ids on overflow.** When truncation produces
+  overflowing encodings, they get the same type ids as the main
+  encoding: all `0` for `RobertaProcessing` (HF leaves `1` on the second
+  sequence's overflow when `add_special_tokens` is false, which RoBERTa
+  models cannot accept), and the template's type id for
+  `TemplateProcessing` pieces such as `$B:3` (HF keeps the original id
+  on overflow). Without overflow, outputs are identical to HF.
+- **Sequence ownership is preserved.** Pair overflow retains sequence
+  ranges even without a post-processor. Sequence lookups use the actual
+  ids (including nonzero ids), and a missing sequence yields no match.
+- **BPE fallback keeps input order.** An unknown-token run is emitted
+  before a following successful byte fallback. HF can emit the fallback
+  first, reordering tokens and assigning their offsets to the wrong chars.
+- **Precompiled deletion at position 0.** An alignment bug shared with
+  HF, corrected here on purpose (text output is identical): when a
+  SentencePiece charsmap (T5, ALBERT, XLM-R, …) deletes the very first
+  char of the input (for example U+0007 in T5), HF drops the removal
+  from its alignment bookkeeping, so every surviving char maps back to
+  the char *before* it — token offsets for such inputs are off by one
+  char. morpheme counts the removal, so `"\u{7}ab"` normalizes to `"ab"`
+  with `a` and `b` aligned to themselves. Deletions anywhere else were
+  already correct in both.
 
-### Parity quirks kept on purpose
+### Added tokens
+
+- **Added-token matches never overlap.** When an `rstrip` added token
+  swallows whitespace that the next added token also starts with (for
+  example `<x>` with `rstrip` and ` <y>` on `"<x> <y>"`), the second match
+  starts where the first ends, so every byte belongs to exactly one
+  token and offsets are `[(0,4),(4,7)]`. HF reports overlapping offsets
+  (`[(0,4),(3,7)]`), and panics when the second token also has `lstrip`.
+- **Safe added-token ids.** New added tokens receive ids above the
+  highest occupied model or added-token id, including sparse vocabularies.
+  Exhausting the `u32` id range returns an error. HF starts allocation
+  at the vocabulary count, which can collide with an existing sparse id.
+- **Re-adding an added token updates its flags.** `add_tokens` /
+  `add_special_tokens` with the content of an existing added token but
+  different flags (`lstrip`, `normalized`, `special`, …) replaces the
+  stored token and counts it as added. HF compares added tokens by
+  content only, so it returns 0 and keeps the old flags.
+- **Retraining rebinds added tokens.** Existing added tokens retain their
+  flags and are assigned ids against the newly trained model. Trainer
+  special tokens use the new model's ids instead of retaining stale ids
+  that can shadow ordinary tokens. Post-processor and padding ids are also
+  rebound by token text. If a required configured token is absent from the
+  new vocabulary, training fails without changing the tokenizer; include
+  it in the trainer's special tokens or register it as an added token first.
+
+### Trainers
+
+- **Deterministic trainers.** Where HF's trainers depend on hash-map
+  iteration order (BPE symbol ids with a prefix/suffix, `limit_alphabet`
+  ties, Unigram), morpheme uses a fixed order, so results are
+  reproducible but can differ from a particular HF run in those cases.
+- **No id gaps from `WordLevelTrainer`.** A special token that is
+  listed twice or also occurs in the corpus gets a single id; HF assigns
+  it again, leaving unused ids.
+- **No duplicate pieces from `UnigramTrainer`.** A special token or
+  `unk_token` that also occurs as a corpus piece (or a special token
+  listed twice) gets a single id, the special one. HF emits the piece a
+  second time, and the duplicate shadows the special id on lookup.
+- **`UnigramTrainer` enforces `vocab_size`.** The special tokens and the
+  `unk_token` count toward `vocab_size`, the trained model never exceeds
+  it, and a `vocab_size` too small for them plus the required chars is an
+  `Error::Training`. HF only checks the required chars against
+  `vocab_size` and can return more pieces than requested.
+- **`WordPieceTrainer::default()` uses the `##` prefix**, the same as
+  `WordPieceTrainer::builder().build()`. HF's derived `Default` has no
+  continuation prefix, so it trains a vocabulary without `##` tokens.
+
+### Decoding
+
+- **`DecodeStream::prefill` never re-emits the prompt.** When the
+  prefilled ids end inside a character (byte fallback), the step that
+  completes the character emits just that character; the text before it
+  is treated as already shown. HF emits the entire prompt again with that
+  first chunk. Later chunks are identical. `tests/hf_golden.rs` strips
+  the re-emitted prompt from HF's recorded first chunk for this case.
+  Both libraries recognise an incomplete character by the trailing
+  U+FFFD it decodes to. morpheme tells a real U+FFFD apart when it is
+  made of several byte-fallback tokens (`<0xEF><0xBF><0xBD>`); a single
+  id whose text is just U+FFFD remains ambiguous and is emitted again
+  with the next chunk (HF re-emits the whole prompt in both cases).
+
+### Runtime settings and Hub downloads
+
+- **Unigram subword-regularization sampling** (`alpha`, `nbest_size`) is
+  a runtime setting (`Unigram::set_sampling` / `set_seed`, reached on a
+  loaded tokenizer through `Tokenizer::model_mut`), as in HF and
+  SentencePiece; it is never read from or written to `tokenizer.json`,
+  so a sampling model serializes exactly like a Viterbi one and loads
+  back deterministic. See
+  [`docs/modules/unigram.md`](modules/unigram.md#subword-regularization-sampling).
+- **Hub downloads** (`from_pretrained`, feature `hub`) fetch only
+  `tokenizer.json`, not the other files of a repository, and use the
+  same cache layout as `huggingface_hub`. Downloads and cached content
+  are verified against content-hash ETags; mirrors using opaque ETags
+  are rejected. Copied snapshots must retain the matching blob, as in
+  the standard HF cache. Corrupt entries are repaired online and
+  rejected offline.
+
+## Parity quirks kept on purpose
 
 Behaviours that look odd but are kept because HF does them, so outputs
 stay identical:
