@@ -63,15 +63,19 @@ morpheme-trained files).
 
 ## CI and docs-only changes
 
-`.github/workflows/ci.yml` skips pull requests and pushes that change
-only documentation (`*.md`, `docs/`, `LICENSE`, issue templates,
-`CODEOWNERS`, `dependabot.yml`). Anything else, including a PR that
-mixes docs and code, runs the full suite. Run it by hand from the
-Actions tab (`workflow_dispatch`) if you want a docs PR checked anyway.
+Every CI run starts with a small `detect changes` job that lists the
+changed files with `git diff` (complete, unlike `paths-ignore`, which
+only looks at the first 300 files). If every changed file is
+documentation (`*.md`, `docs/`, `LICENSE`, issue templates,
+`CODEOWNERS`, `dependabot.yml`), all other jobs are skipped. Anything
+else, including a change that mixes docs and code, runs the full suite,
+as do manual runs (`workflow_dispatch`) and any change the job cannot
+classify.
 
-If CI checks are ever made *required* in the branch ruleset, a skipped
-workflow would leave them pending; add an always-running summary job
-that the ruleset requires instead.
+The `ci-success` job always runs and passes only if every job passed or
+was skipped as docs-only. To make CI required on `main`, require that
+single check in the branch ruleset: it reports on docs-only changes
+too, so they are never left pending.
 
 ## Local gate
 
