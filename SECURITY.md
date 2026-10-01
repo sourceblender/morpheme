@@ -4,7 +4,7 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.4.x   | :white_check_mark: |
+| 0.5.x   | :white_check_mark: |
 | < 0.4   | :x:                |
 
 `morpheme` is pre-1.0 (v0.x). Security fixes go into the latest release
