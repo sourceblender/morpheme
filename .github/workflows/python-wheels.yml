@@ -98,3 +98,5 @@ jobs:
           packages-dir: dist
           password: ${{ secrets.PYPI_API_TOKEN }}
           print-hash: true
+          # A re-pushed tag re-runs this job; files already on PyPI are fine.
+          skip-existing: true
