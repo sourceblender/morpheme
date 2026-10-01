@@ -259,6 +259,12 @@ fn valid_etag(etag: &str) -> bool {
     matches!(etag.len(), 40 | 64) && etag.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
+/// Lowercase hex, the form Hub ETags use (`digest` 0.11 output no longer
+/// implements `LowerHex`).
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 /// Git objects include the blob header; LFS hashes are raw SHA-256.
 fn file_hashes(path: &Path) -> std::io::Result<(String, String)> {
     let mut file = std::fs::File::open(path)?;
@@ -274,10 +280,7 @@ fn file_hashes(path: &Path) -> std::io::Result<(String, String)> {
         git.update(&buffer[..n]);
         sha256.update(&buffer[..n]);
     }
-    Ok((
-        format!("{:x}", git.finalize()),
-        format!("{:x}", sha256.finalize()),
-    ))
+    Ok((hex(&git.finalize()), hex(&sha256.finalize())))
 }
 
 fn verify_file(path: &Path, etag: &str) -> std::io::Result<bool> {
@@ -773,7 +776,7 @@ mod tests {
         let mut hash = sha1::Sha1::new();
         hash.update(format!("blob {}\0", body.len()).as_bytes());
         hash.update(body);
-        format!("{:x}", hash.finalize())
+        hex(&hash.finalize())
     }
 
     fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
@@ -999,7 +1002,7 @@ mod tests {
         let body = r#"{"version":"1.0"}"#;
         for etag in [
             git_hash(body.as_bytes()),
-            format!("{:x}", sha2::Sha256::digest(body.as_bytes())),
+            hex(&sha2::Sha256::digest(body.as_bytes())),
         ] {
             let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
             let (url, _) = serve(vec![
