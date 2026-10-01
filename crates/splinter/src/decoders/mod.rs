@@ -4,14 +4,14 @@
 //! transforming the token list ([`Decoder::decode_chain`]); the final
 //! text is the concatenation of the last list.
 
-pub mod bpe;
-pub mod byte_fallback;
-pub mod ctc;
-pub mod fuse;
-pub mod replace;
-pub mod sequence;
-pub mod strip;
-pub mod wordpiece;
+mod bpe;
+mod byte_fallback;
+mod ctc;
+mod fuse;
+mod replace;
+mod sequence;
+mod strip;
+mod wordpiece;
 
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +32,7 @@ pub use wordpiece::WordPiece;
 /// representation, tagged with `"type"`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
+#[non_exhaustive]
 pub enum DecoderWrapper {
     /// See [`BpeDecoder`].
     #[serde(rename = "BPEDecoder")]

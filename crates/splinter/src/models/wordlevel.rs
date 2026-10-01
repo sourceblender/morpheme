@@ -13,7 +13,7 @@ use crate::models::bpe::{OrderedVocab, reverse_vocab};
 use crate::traits::Model;
 
 /// `token -> id`.
-pub type Vocab = HashMap<String, u32>;
+pub(crate) type Vocab = HashMap<String, u32>;
 
 /// Builder for [`WordLevel`].
 #[derive(Debug, Clone)]
@@ -63,12 +63,26 @@ impl WordLevelBuilder {
 }
 
 /// WordLevel model.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::WordLevel;
+/// use splinter::Model;
+///
+/// let vocab: HashMap<String, u32> = [("<unk>", 0), ("hello", 1)].map(|(t, i)| (t.to_string(), i)).into();
+/// let wl = WordLevel::builder().vocab(vocab).unk_token("<unk>").build()?;
+/// assert_eq!(wl.tokenize("hello")?[0].id, 1);
+/// assert_eq!(wl.tokenize("goodbye")?[0].id, 0);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct WordLevel {
     vocab: Vocab,
     vocab_r: FxHashMap<u32, String>,
     /// Token for words missing from the vocabulary.
-    pub unk_token: String,
+    pub(crate) unk_token: String,
 }
 
 impl std::fmt::Debug for WordLevel {
@@ -92,6 +106,11 @@ impl WordLevel {
     /// Start building a model.
     pub fn builder() -> WordLevelBuilder {
         WordLevelBuilder::new()
+    }
+
+    /// The token emitted for words that are not in the vocabulary.
+    pub fn unk_token(&self) -> &str {
+        &self.unk_token
     }
 
     pub(crate) fn set_vocab(&mut self, vocab: Vocab) {
@@ -126,11 +145,11 @@ impl Model for WordLevel {
         self.vocab_r.get(&id).cloned()
     }
 
-    fn get_vocab(&self) -> HashMap<String, u32> {
+    fn vocab(&self) -> HashMap<String, u32> {
         self.vocab.clone()
     }
 
-    fn get_vocab_size(&self) -> usize {
+    fn vocab_size(&self) -> usize {
         self.vocab.len()
     }
 }

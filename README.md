@@ -91,8 +91,8 @@ let mut tokenizer = Tokenizer::new(Bpe::default())
 let trainer = BpeTrainer::builder()
     .vocab_size(5_000)
     .initial_alphabet(ByteLevel::alphabet())
-    .special_tokens(vec![AddedToken::from("<|endoftext|>", true)])
-    .build();
+    .special_tokens(vec![AddedToken::new("<|endoftext|>", true)])
+    .build()?;
 tokenizer.train_from_files(trainer, &["corpus.txt"])?;
 tokenizer.save("tokenizer.json", true)?;
 

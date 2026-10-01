@@ -7,7 +7,19 @@ use crate::traits::Decoder;
 
 /// Removes up to `start` leading and `stop` trailing occurrences of
 /// `content` from each token.
+///
+/// # Example
+///
+/// ```
+/// use splinter::decoders::Strip;
+/// use splinter::Decoder;
+///
+/// // Remove one `' '` from the start of each token.
+/// assert_eq!(Strip::new(' ', 1, 0).decode_chain(vec![" hi".to_string(), "  there".to_string()])?, ["hi", " there"]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Strip {
     /// The char to strip.
     pub content: char,

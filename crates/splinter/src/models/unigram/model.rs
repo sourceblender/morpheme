@@ -25,6 +25,32 @@ const CACHE_CAPACITY: usize = 10_000;
 /// A Unigram language model (SentencePiece): every piece has a score
 /// (log probability) and a sentence is split into the pieces maximizing
 /// the total score (Viterbi).
+///
+/// # Example
+///
+/// ```
+/// use splinter::models::Unigram;
+/// use splinter::Model;
+///
+/// let pieces = vec![
+///     ("<unk>".to_string(), 0.0),
+///     ("▁he".to_string(), -2.0),
+///     ("llo".to_string(), -2.0),
+///     ("▁".to_string(), -4.0),
+///     ("h".to_string(), -5.0),
+///     ("e".to_string(), -5.0),
+///     ("l".to_string(), -5.0),
+///     ("o".to_string(), -5.0),
+/// ];
+/// let unigram = Unigram::new(pieces, Some(0), false)?;
+///
+/// // Viterbi picks the most likely segmentation.
+/// let tokens: Vec<String> = unigram.tokenize("▁hello")?.into_iter().map(|t| t.value).collect();
+/// assert_eq!(tokens, ["▁he", "llo"]);
+/// // Unknown chars get the unk id instead of failing.
+/// assert_eq!(unigram.tokenize("▁z")?.last().unwrap().id, 0);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 pub struct Unigram {
     vocab: Vec<(String, f64)>,
     token_to_ids: FxHashMap<String, u32>,
@@ -84,7 +110,7 @@ impl std::fmt::Debug for Unigram {
 
 impl Default for Unigram {
     fn default() -> Self {
-        Self::from(vec![("<unk>".to_string(), 0.0)], Some(0), false)
+        Self::new(vec![("<unk>".to_string(), 0.0)], Some(0), false)
             .expect("the default vocabulary is valid")
     }
 }
@@ -94,7 +120,7 @@ impl Unigram {
     /// index. `unk_id` must point inside the vocabulary; with
     /// `byte_fallback`, unknown text is emitted as `<0xNN>` byte pieces
     /// when those exist in the vocabulary.
-    pub fn from(
+    pub fn new(
         vocab: Vec<(String, f64)>,
         unk_id: Option<usize>,
         byte_fallback: bool,
@@ -151,14 +177,9 @@ impl Unigram {
         self.unk_id
     }
 
-    /// The `(piece, score)` vocabulary, in id order.
-    pub fn vocab(&self) -> &[(String, f64)] {
+    /// The `(piece, score)` pairs, in id order.
+    pub fn pieces(&self) -> &[(String, f64)] {
         &self.vocab
-    }
-
-    /// Iterate over `(piece, score)` in id order.
-    pub fn iter(&self) -> impl Iterator<Item = &(String, f64)> {
-        self.vocab.iter()
     }
 
     /// Number of pieces.
@@ -323,7 +344,7 @@ impl Unigram {
 
     /// Viterbi over an explicit lattice.
     fn encode_unoptimized(&self, sentence: &str) -> Result<Vec<String>> {
-        let mut lattice = Lattice::from(sentence, self.bos_id, self.eos_id);
+        let mut lattice = Lattice::new(sentence, self.bos_id, self.eos_id);
         self.populate_nodes(&mut lattice);
         let path = lattice.viterbi();
         if path.is_empty() {
@@ -407,14 +428,14 @@ impl Model for Unigram {
         self.vocab.get(id as usize).map(|(t, _)| t.clone())
     }
 
-    fn get_vocab(&self) -> HashMap<String, u32> {
+    fn vocab(&self) -> HashMap<String, u32> {
         self.token_to_ids
             .iter()
             .map(|(k, v)| (k.clone(), *v))
             .collect()
     }
 
-    fn get_vocab_size(&self) -> usize {
+    fn vocab_size(&self) -> usize {
         self.vocab.len()
     }
 }
@@ -450,7 +471,7 @@ impl<'de> Deserialize<'de> for Unigram {
                 )));
             }
         }
-        Unigram::from(r.vocab, r.unk_id, r.byte_fallback).map_err(D::Error::custom)
+        Unigram::new(r.vocab, r.unk_id, r.byte_fallback).map_err(D::Error::custom)
     }
 }
 
@@ -464,20 +485,20 @@ mod tests {
 
     #[test]
     fn populate_nodes_unk() {
-        let model = Unigram::from(pieces(&[("<unk>", 0.0)]), Some(0), false).unwrap();
-        let mut lattice = Lattice::from("abc", model.bos_id, model.eos_id);
+        let model = Unigram::new(pieces(&[("<unk>", 0.0)]), Some(0), false).unwrap();
+        let mut lattice = Lattice::new("abc", model.bos_id, model.eos_id);
         model.populate_nodes(&mut lattice);
         for pos in 0..3 {
             assert_eq!(lattice.begin_nodes[pos].len(), 1);
-            let node = lattice.node(lattice.begin_nodes[pos][0]);
-            assert_eq!(node.id, 0);
-            assert_eq!(node.node_id, pos + 2);
+            let node_id = lattice.begin_nodes[pos][0];
+            assert_eq!(lattice.node(node_id).id, 0);
+            assert_eq!(node_id, pos + 2);
         }
     }
 
     #[test]
     fn populate_nodes_pieces() {
-        let model = Unigram::from(
+        let model = Unigram::new(
             pieces(&[
                 ("<unk>", 0.0),
                 ("a", 0.1),
@@ -489,7 +510,7 @@ mod tests {
             false,
         )
         .unwrap();
-        let mut lattice = Lattice::from("abc", model.bos_id, model.eos_id);
+        let mut lattice = Lattice::new("abc", model.bos_id, model.eos_id);
         model.populate_nodes(&mut lattice);
         let ids = |pos: usize| -> Vec<usize> {
             lattice.begin_nodes[pos]
@@ -504,7 +525,7 @@ mod tests {
 
     #[test]
     fn encode_simple() {
-        let model = Unigram::from(
+        let model = Unigram::new(
             pieces(&[
                 ("<unk>", 0.0),
                 ("a", 0.0),
@@ -529,7 +550,7 @@ mod tests {
 
     #[test]
     fn encode_optimized_and_unoptimized_agree() {
-        let mut model = Unigram::from(
+        let mut model = Unigram::new(
             pieces(&[
                 ("<unk>", 0.0),
                 ("ab", 0.0),
@@ -581,7 +602,7 @@ mod tests {
 
     #[test]
     fn byte_fallback() {
-        let model = Unigram::from(
+        let model = Unigram::new(
             pieces(&[("<unk>", 0.0), ("<0xC3>", -0.01), ("<0xA9>", -0.03)]),
             Some(0),
             true,
@@ -602,16 +623,16 @@ mod tests {
 
     #[test]
     fn no_unk_id_errors_only_when_needed() {
-        let model = Unigram::from(pieces(&[("a", -0.5)]), None, false).unwrap();
+        let model = Unigram::new(pieces(&[("a", -0.5)]), None, false).unwrap();
         assert_eq!(model.encode("aa").unwrap(), vec!["a", "a"]);
         assert!(model.encode("ab").is_err());
     }
 
     #[test]
     fn validation() {
-        assert!(Unigram::from(vec![], Some(0), false).is_err());
-        assert!(Unigram::from(pieces(&[("a", 0.0)]), Some(1), false).is_err());
-        assert!(Unigram::from(vec![], None, false).is_ok());
+        assert!(Unigram::new(vec![], Some(0), false).is_err());
+        assert!(Unigram::new(pieces(&[("a", 0.0)]), Some(1), false).is_err());
+        assert!(Unigram::new(vec![], None, false).is_ok());
     }
 
     #[test]
@@ -621,12 +642,12 @@ mod tests {
             (pieces(&[("a", -0.5), ("<unk>", 0.0)]), Some(1)),
             (pieces(&[("a", -0.5)]), None),
         ] {
-            let model = Unigram::from(v, unk, false).unwrap();
+            let model = Unigram::new(v, unk, false).unwrap();
             let json = serde_json::to_string(&model).unwrap();
             let back: Unigram = serde_json::from_str(&json).unwrap();
             assert_eq!(model, back);
         }
-        let model = Unigram::from(pieces(&[("<unk>", 0.0), ("a", -0.5)]), Some(0), false).unwrap();
+        let model = Unigram::new(pieces(&[("<unk>", 0.0), ("a", -0.5)]), Some(0), false).unwrap();
         assert_eq!(
             serde_json::to_string(&model).unwrap(),
             r#"{"type":"Unigram","unk_id":0,"vocab":[["<unk>",0.0],["a",-0.5]],"byte_fallback":false}"#
@@ -636,7 +657,7 @@ mod tests {
     #[test]
     fn deserialize_legacy_and_reject_wrong_type() {
         let m: Unigram = serde_json::from_str(r#"{"unk_id":0,"vocab":[["<unk>",0.0]]}"#).unwrap();
-        assert_eq!(m.get_vocab_size(), 1);
+        assert_eq!(m.vocab_size(), 1);
         assert!(serde_json::from_str::<Unigram>(r#"{"type":"BPE","vocab":[["a",0.0]]}"#).is_err());
         assert!(serde_json::from_str::<Unigram>(r#"{"unk_id":3,"vocab":[["a",0.0]]}"#).is_err());
     }

@@ -215,6 +215,23 @@ impl BpeBuilder {
 }
 
 /// Byte-Pair Encoding model.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::Bpe;
+/// use splinter::Model;
+///
+/// let vocab: HashMap<String, u32> =
+///     [("a", 0), ("b", 1), ("c", 2), ("ab", 3), ("abc", 4)].map(|(t, i)| (t.to_string(), i)).into();
+/// let merges = vec![("a".into(), "b".into()), ("ab".into(), "c".into())];
+/// let bpe = Bpe::builder().vocab_and_merges(vocab, merges).build()?;
+///
+/// let tokens: Vec<String> = bpe.tokenize("abcab")?.into_iter().map(|t| t.value).collect();
+/// assert_eq!(tokens, ["abc", "ab"]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 pub struct Bpe {
     pub(crate) vocab: Vocab,
     pub(crate) vocab_r: FxHashMap<u32, String>,
@@ -225,19 +242,19 @@ pub struct Bpe {
     pub(crate) merge_list: Merges,
     cache: Option<WordCache>,
     /// BPE-dropout probability (`None` = deterministic).
-    pub dropout: Option<f32>,
+    pub(crate) dropout: Option<f32>,
     /// Token for unknown chars.
-    pub unk_token: Option<String>,
+    pub(crate) unk_token: Option<String>,
     /// Prefix of non-initial subwords.
-    pub continuing_subword_prefix: Option<String>,
+    pub(crate) continuing_subword_prefix: Option<String>,
     /// Suffix of word-final subwords.
-    pub end_of_word_suffix: Option<String>,
+    pub(crate) end_of_word_suffix: Option<String>,
     /// Fuse consecutive unknown chars.
-    pub fuse_unk: bool,
+    pub(crate) fuse_unk: bool,
     /// `<0xNN>` byte fallback for unknown chars.
-    pub byte_fallback: bool,
+    pub(crate) byte_fallback: bool,
     /// Emit in-vocabulary words without merging.
-    pub ignore_merges: bool,
+    pub(crate) ignore_merges: bool,
 }
 
 impl std::fmt::Debug for Bpe {
@@ -307,23 +324,43 @@ impl Bpe {
     }
 
     /// The unknown token, if any.
-    pub fn get_unk_token(&self) -> Option<&str> {
+    pub fn unk_token(&self) -> Option<&str> {
         self.unk_token.as_deref()
     }
 
     /// The continuing-subword prefix, if any.
-    pub fn get_continuing_subword_prefix(&self) -> Option<&str> {
+    pub fn continuing_subword_prefix(&self) -> Option<&str> {
         self.continuing_subword_prefix.as_deref()
     }
 
     /// The end-of-word suffix, if any.
-    pub fn get_end_of_word_suffix(&self) -> Option<&str> {
+    pub fn end_of_word_suffix(&self) -> Option<&str> {
         self.end_of_word_suffix.as_deref()
     }
 
+    /// BPE-dropout probability (`None`: deterministic).
+    pub fn dropout(&self) -> Option<f32> {
+        self.dropout
+    }
+
+    /// Whether consecutive unknown chars are fused into one unknown token.
+    pub fn fuse_unk(&self) -> bool {
+        self.fuse_unk
+    }
+
+    /// Whether unknown chars fall back to `<0xNN>` byte tokens.
+    pub fn byte_fallback(&self) -> bool {
+        self.byte_fallback
+    }
+
+    /// Whether words already in the vocabulary skip merging.
+    pub fn ignore_merges(&self) -> bool {
+        self.ignore_merges
+    }
+
     /// Merges ordered by priority, as token strings.
-    pub fn merges(&self) -> Merges {
-        self.merge_list.clone()
+    pub fn merges(&self) -> &[(String, String)] {
+        &self.merge_list
     }
 
     /// Merges ordered by priority, rebuilt from the merge map.
@@ -488,11 +525,11 @@ impl Model for Bpe {
         self.vocab_r.get(&id).cloned()
     }
 
-    fn get_vocab(&self) -> HashMap<String, u32> {
+    fn vocab(&self) -> HashMap<String, u32> {
         self.vocab.clone()
     }
 
-    fn get_vocab_size(&self) -> usize {
+    fn vocab_size(&self) -> usize {
         self.vocab.len()
     }
 }

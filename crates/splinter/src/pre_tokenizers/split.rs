@@ -11,10 +11,35 @@ use crate::traits::PreTokenizer;
 /// Splits on `pattern` with the given delimiter `behavior`. With
 /// `invert`, the pattern describes the pieces to keep rather than the
 /// delimiters.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pattern::SplitPattern;
+/// use splinter::pre_tokenizers::Split;
+/// use splinter::SplitDelimiterBehavior;
+///
+/// let numbers = Split::new(SplitPattern::Regex(r"\d+".into()), SplitDelimiterBehavior::Isolated, false)?;
+/// assert_eq!(split(&numbers, "ab12cd"), ["ab", "12", "cd"]);
+///
+/// let words = Split::new(" ", SplitDelimiterBehavior::Removed, false)?;
+/// assert_eq!(split(&words, "a b"), ["a", "b"]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
 pub struct Split {
-    /// The pattern.
-    pub pattern: SplitPattern,
+    /// The pattern (read with [`Split::pattern`]; it is compiled once at
+    /// construction, so it cannot be changed afterwards).
+    pub(crate) pattern: SplitPattern,
     /// What to do with matches.
     pub behavior: SplitDelimiterBehavior,
     /// Invert matches and non-matches.
@@ -60,6 +85,11 @@ impl Split {
             invert,
             regex,
         })
+    }
+
+    /// The pattern being split on.
+    pub fn pattern(&self) -> &SplitPattern {
+        &self.pattern
     }
 }
 

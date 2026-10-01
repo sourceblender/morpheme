@@ -86,14 +86,38 @@ impl WordPieceTrainerBuilder {
     }
 
     /// Build the trainer.
-    pub fn build(self) -> WordPieceTrainer {
-        WordPieceTrainer {
-            bpe: self.bpe.build(),
-        }
+    ///
+    /// # Errors
+    /// Fails if `vocab_size` or `limit_alphabet` is zero.
+    pub fn build(self) -> Result<WordPieceTrainer> {
+        Ok(WordPieceTrainer {
+            bpe: self.bpe.build()?,
+        })
     }
 }
 
 /// Trains a [`WordPiece`] model.
+///
+/// # Example
+///
+/// ```
+/// use splinter::models::WordPiece;
+/// use splinter::pre_tokenizers::BertPreTokenizer;
+/// use splinter::trainers::WordPieceTrainer;
+/// use splinter::{AddedToken, Tokenizer};
+///
+/// let mut tokenizer = Tokenizer::new(WordPiece::default()).with_pre_tokenizer(BertPreTokenizer);
+/// let trainer = WordPieceTrainer::builder()
+///     .vocab_size(60)
+///     .special_tokens(vec![AddedToken::new("[UNK]", true)])
+///     .show_progress(false)
+///     .build()?;
+/// tokenizer.train(trainer, ["playing played player", "plays"].into_iter())?;
+///
+/// let tokens = tokenizer.encode("replay", false)?.tokens().to_vec();
+/// assert!(tokens.iter().skip(1).all(|t| t.starts_with("##")), "{tokens:?}");
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct WordPieceTrainer {
     bpe: BpeTrainer,
@@ -103,16 +127,6 @@ impl WordPieceTrainer {
     /// Start building a trainer.
     pub fn builder() -> WordPieceTrainerBuilder {
         WordPieceTrainerBuilder::new()
-    }
-
-    /// The underlying BPE trainer configuration.
-    pub fn bpe_trainer(&self) -> &BpeTrainer {
-        &self.bpe
-    }
-
-    /// Mutable access to the underlying BPE trainer configuration.
-    pub fn bpe_trainer_mut(&mut self) -> &mut BpeTrainer {
-        &mut self.bpe
     }
 }
 
@@ -127,7 +141,7 @@ impl Trainer for WordPieceTrainer {
         let mut bpe = Bpe::default();
         let special = self.bpe.train(&mut bpe)?;
         let trained = WordPiece::from_bpe(&bpe);
-        model.set_vocab(crate::traits::Model::get_vocab(&trained));
+        model.set_vocab(crate::traits::Model::vocab(&trained));
         model.continuing_subword_prefix = trained.continuing_subword_prefix;
         Ok(special)
     }
@@ -153,8 +167,9 @@ mod tests {
         let mut t = WordPieceTrainer::builder()
             .vocab_size(60)
             .show_progress(false)
-            .special_tokens(vec![AddedToken::from("[UNK]", true)])
-            .build();
+            .special_tokens(vec![AddedToken::new("[UNK]", true)])
+            .build()
+            .unwrap();
         t.feed(
             ["unaffable affable unable able", "hello world hello"].into_iter(),
             whitespace_words,
@@ -186,13 +201,14 @@ mod tests {
         let mut t = WordPieceTrainer::builder()
             .vocab_size(25)
             .show_progress(false)
-            .special_tokens(vec![AddedToken::from("[UNK]", true)])
-            .build();
+            .special_tokens(vec![AddedToken::new("[UNK]", true)])
+            .build()
+            .unwrap();
         t.feed(["hello hello help"].into_iter(), whitespace_words)
             .unwrap();
         let mut m = WordPiece::default();
         t.train(&mut m).unwrap();
-        let mut got: Vec<String> = m.get_vocab().into_keys().collect();
+        let mut got: Vec<String> = m.vocab().into_keys().collect();
         got.sort();
         let mut want: Vec<String> = HF_WORDPIECE_VOCAB.iter().map(|s| s.to_string()).collect();
         want.sort();

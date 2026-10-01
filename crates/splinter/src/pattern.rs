@@ -155,7 +155,7 @@ impl From<String> for SplitPattern {
 
 /// Wrapper used to invert a pattern: matches become non-matches and
 /// vice versa. Used by `Split` with `invert: true`.
-pub struct Invert<P: Pattern>(pub P);
+pub(crate) struct Invert<P: Pattern>(pub P);
 
 impl<P: Pattern> Pattern for Invert<P> {
     fn find_matches(&self, inside: &str) -> Result<Vec<(Offsets, bool)>> {

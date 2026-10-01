@@ -11,7 +11,19 @@ fn default_suffix() -> String {
 
 /// Replaces the end-of-word `suffix` with a space (nothing on the last
 /// token).
+///
+/// # Example
+///
+/// ```
+/// use splinter::decoders::BpeDecoder;
+/// use splinter::Decoder;
+///
+/// let d = BpeDecoder::new("</w>");
+/// assert_eq!(d.decode(vec!["hel".to_string(), "lo</w>".to_string(), "world</w>".to_string()])?, "hello world");
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BpeDecoder {
     /// The end-of-word suffix (default `</w>`).
     #[serde(default = "default_suffix")]

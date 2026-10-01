@@ -9,7 +9,29 @@ use crate::traits::PostProcessor;
 
 /// Adds `[CLS]`/`[SEP]` around one or two sequences. The second sequence
 /// and its `[SEP]` get type id 1.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::WordLevel;
+/// use splinter::pre_tokenizers::WhitespaceSplit;
+/// use splinter::processors::BertProcessing;
+/// use splinter::Tokenizer;
+///
+/// let vocab: HashMap<String, u32> =
+///     [("[UNK]", 0), ("hello", 7), ("world", 8)].map(|(t, i)| (t.to_string(), i)).into();
+/// let tokenizer = Tokenizer::new(WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?)
+///     .with_pre_tokenizer(WhitespaceSplit)
+///     .with_post_processor(BertProcessing::new(("[SEP]", 102), ("[CLS]", 101)));
+///
+/// let pair = tokenizer.encode(("hello", "world"), true)?;
+/// assert_eq!(pair.ids(), [101, 7, 102, 8, 102]);
+/// assert_eq!(pair.type_ids(), [0, 0, 0, 1, 1]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BertProcessing {
     /// Separator token and its id.
     pub sep: (String, u32),
@@ -28,8 +50,11 @@ impl Default for BertProcessing {
 
 impl BertProcessing {
     /// Build with explicit `(token, id)` pairs.
-    pub fn new(sep: (String, u32), cls: (String, u32)) -> Self {
-        Self { sep, cls }
+    pub fn new(sep: (impl Into<String>, u32), cls: (impl Into<String>, u32)) -> Self {
+        Self {
+            sep: (sep.0.into(), sep.1),
+            cls: (cls.0.into(), cls.1),
+        }
     }
 
     fn special(&self, (token, id): &(String, u32), type_id: u32) -> Encoding {

@@ -6,14 +6,14 @@
 //! implementation of the same name, both in behavior and in its
 //! `tokenizer.json` representation.
 
-pub mod bert;
-pub mod byte_level;
-pub mod precompiled;
-pub mod prepend;
-pub mod replace;
-pub mod strip;
-pub mod unicode;
-pub mod utils;
+mod bert;
+mod byte_level;
+mod precompiled;
+mod prepend;
+mod replace;
+mod strip;
+mod unicode;
+mod utils;
 
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +35,7 @@ pub use utils::{Lowercase, Sequence};
 /// variant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
+#[non_exhaustive]
 pub enum NormalizerWrapper {
     /// BERT's normalizer.
     BertNormalizer(BertNormalizer),

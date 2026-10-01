@@ -3,16 +3,16 @@
 //! disjoint; code points outside every range have script [`ANY`].
 
 /// Script id for code points not covered by the table.
-pub const ANY: u8 = 0;
+pub(crate) const ANY: u8 = 0;
 /// Script id of Han.
-pub const HAN: u8 = 42;
+pub(crate) const HAN: u8 = 42;
 /// Script id of Hiragana.
-pub const HIRAGANA: u8 = 47;
+pub(crate) const HIRAGANA: u8 = 47;
 /// Script id of Katakana.
-pub const KATAKANA: u8 = 55;
+pub(crate) const KATAKANA: u8 = 55;
 
 /// `(first, last, script id)` ranges.
-pub static RANGES: &[(u32, u32, u8)] = &[
+pub(crate) static RANGES: &[(u32, u32, u8)] = &[
     (0x0, 0x40, 24),
     (0x41, 0x5A, 62),
     (0x5B, 0x60, 24),
@@ -868,7 +868,7 @@ pub static RANGES: &[(u32, u32, u8)] = &[
 ];
 
 /// The script id of `c`.
-pub fn get_script(c: char) -> u8 {
+pub(crate) fn get_script(c: char) -> u8 {
     let cp = c as u32;
     match RANGES.binary_search_by(|&(lo, hi, _)| {
         if hi < cp {

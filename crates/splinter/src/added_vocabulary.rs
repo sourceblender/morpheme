@@ -15,6 +15,27 @@ use crate::traits::{Model, Normalizer};
 use crate::{Offsets, Token};
 
 /// A token added on top of the model's vocabulary.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::WordLevel;
+/// use splinter::pre_tokenizers::Whitespace;
+/// use splinter::{AddedToken, Tokenizer};
+///
+/// let vocab: HashMap<String, u32> = [("[UNK]", 0), ("fill", 1)].map(|(t, i)| (t.to_string(), i)).into();
+/// let mut tokenizer = Tokenizer::new(WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?)
+///     .with_pre_tokenizer(Whitespace);
+/// // Special tokens are matched before normalization and pre-tokenization,
+/// // so they are never split; `lstrip` also swallows the space before them.
+/// tokenizer.add_special_tokens(&[AddedToken::new("<mask>", true).lstrip(true)])?;
+///
+/// let encoding = tokenizer.encode("fill <mask>", false)?;
+/// assert_eq!(encoding.tokens(), ["fill", " <mask>"]);
+/// assert_eq!(tokenizer.decode(encoding.ids(), true)?, "fill"); // specials skipped
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AddedToken {
     /// The token text.
@@ -56,7 +77,7 @@ impl Default for AddedToken {
 impl AddedToken {
     /// A token with default flags. Special tokens match the raw input
     /// (`normalized: false`); others match normalized text.
-    pub fn from(content: impl Into<String>, special: bool) -> Self {
+    pub fn new(content: impl Into<String>, special: bool) -> Self {
         Self {
             content: content.into(),
             normalized: !special,
@@ -181,12 +202,12 @@ impl AddedVocabulary {
     }
 
     /// `content -> id` for every added token.
-    pub fn get_vocab(&self) -> &HashMap<String, u32> {
+    pub fn vocab(&self) -> &HashMap<String, u32> {
         &self.by_content
     }
 
     /// `id -> token` for every added token.
-    pub fn get_added_tokens_decoder(&self) -> &HashMap<u32, AddedToken> {
+    pub fn added_tokens_decoder(&self) -> &HashMap<u32, AddedToken> {
         &self.by_id
     }
 
@@ -234,7 +255,7 @@ impl AddedVocabulary {
     }
 
     /// See [`set_encode_special_tokens`](Self::set_encode_special_tokens).
-    pub fn get_encode_special_tokens(&self) -> bool {
+    pub fn encode_special_tokens(&self) -> bool {
         self.encode_special_tokens
     }
 
@@ -247,7 +268,7 @@ impl AddedVocabulary {
         model: &dyn Model,
         normalizer: Option<&dyn Normalizer>,
     ) -> Result<usize> {
-        let vocab_size = model.get_vocab_size() as u32;
+        let vocab_size = model.vocab_size() as u32;
         let mut next_id = match self.by_id.keys().max() {
             Some(&max) if max >= vocab_size || vocab_size == 0 => max + 1,
             _ => vocab_size,
@@ -449,10 +470,10 @@ mod tests {
                 .find(|(_, v)| **v == id)
                 .map(|(k, _)| k.clone())
         }
-        fn get_vocab(&self) -> HashMap<String, u32> {
+        fn vocab(&self) -> HashMap<String, u32> {
             self.0.clone()
         }
-        fn get_vocab_size(&self) -> usize {
+        fn vocab_size(&self) -> usize {
             self.0.len()
         }
     }
@@ -470,10 +491,7 @@ mod tests {
         let mut v = AddedVocabulary::new();
         let m = model();
         v.add_tokens(
-            &[
-                AddedToken::from("[CLS]", true),
-                AddedToken::from("a", false),
-            ],
+            &[AddedToken::new("[CLS]", true), AddedToken::new("a", false)],
             &m,
             None,
         )
@@ -488,7 +506,7 @@ mod tests {
         let mut v = AddedVocabulary::new();
         let m = model();
         v.add_tokens(
-            &[AddedToken::from("<mask>", true).lstrip(true).rstrip(true)],
+            &[AddedToken::new("<mask>", true).lstrip(true).rstrip(true)],
             &m,
             None,
         )
@@ -513,7 +531,7 @@ mod tests {
     fn single_word_respects_boundaries() {
         let mut v = AddedVocabulary::new();
         let m = model();
-        v.add_tokens(&[AddedToken::from("ab", false).single_word(true)], &m, None)
+        v.add_tokens(&[AddedToken::new("ab", false).single_word(true)], &m, None)
             .unwrap();
         let pts = v.extract_and_normalize(None, "xab ab").unwrap();
         let n_matched = pts.splits().iter().filter(|s| s.tokens.is_some()).count();

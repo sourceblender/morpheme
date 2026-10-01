@@ -98,13 +98,13 @@ pub(crate) struct HubConfig {
 
 impl HubConfig {
     /// Resolve settings from the process environment.
-    pub fn from_env() -> Self {
+    pub(crate) fn from_env() -> Self {
         Self::from_lookup(|key| std::env::var(key).ok().filter(|v| !v.is_empty()))
     }
 
     /// Resolve settings from `lookup` (an environment accessor), using
     /// the same precedence as `huggingface_hub`.
-    pub fn from_lookup(lookup: impl Fn(&str) -> Option<String>) -> Self {
+    pub(crate) fn from_lookup(lookup: impl Fn(&str) -> Option<String>) -> Self {
         let home = || {
             lookup("HOME")
                 .or_else(|| lookup("USERPROFILE"))
@@ -282,7 +282,10 @@ fn status_error(status: u16, error_code: Option<String>, repo_id: &str, revision
 
 /// Download (or reuse from cache) `tokenizer.json` for `repo_id` and
 /// return its local path.
-pub fn from_pretrained(repo_id: &str, params: Option<FromPretrainedParameters>) -> Result<PathBuf> {
+pub(crate) fn from_pretrained(
+    repo_id: &str,
+    params: Option<FromPretrainedParameters>,
+) -> Result<PathBuf> {
     let params = params.unwrap_or_default();
     let mut config = HubConfig::from_env();
     if let Some(dir) = &params.cache_dir {

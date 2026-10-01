@@ -60,7 +60,30 @@ fn default_true() -> bool {
 }
 
 /// Byte-level pre-tokenizer (also usable as decoder and post-processor).
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::ByteLevel;
+///
+/// // GPT-2 style: regex split, then bytes mapped to printable chars; a
+/// // leading space becomes part of the next word as `Ġ`.
+/// let gpt2 = ByteLevel::new(false, true, true);
+/// assert_eq!(split(&gpt2, "Hello world"), ["Hello", "Ġworld"]);
+///
+/// // RoBERTa style adds a space in front of the input.
+/// assert_eq!(split(&ByteLevel::default(), "Hello world"), ["ĠHello", "Ġworld"]);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ByteLevel {
     /// Prepend a space to the input if it doesn't start with one, so the
     /// first word is treated like any other.

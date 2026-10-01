@@ -268,7 +268,7 @@ fn parse_ids(raw: &[String]) -> Result<Vec<u32>> {
 fn decode(source: &Source, raw_ids: &[String], skip_special_tokens: bool) -> Result<()> {
     let tokenizer = load(source)?;
     let ids = parse_ids(raw_ids)?;
-    let vocab_size = tokenizer.get_vocab_size(true);
+    let vocab_size = tokenizer.vocab_size(true);
     if let Some(bad) = ids.iter().find(|id| tokenizer.id_to_token(**id).is_none()) {
         bail!("id {bad} is not in the vocabulary (size {vocab_size})");
     }
@@ -304,30 +304,27 @@ fn inspect(source: &Source) -> Result<()> {
         ModelWrapper::Bpe(m) => format!(
             "BPE ({} merges, unk={:?}, byte_fallback={})",
             m.merges().len(),
-            m.get_unk_token(),
-            serde_json::to_value(m)?["byte_fallback"]
+            m.unk_token(),
+            m.byte_fallback()
         ),
-        ModelWrapper::WordPiece(m) => {
-            let v = serde_json::to_value(m)?;
-            format!(
-                "WordPiece (unk={}, prefix={}, max chars={})",
-                v["unk_token"], v["continuing_subword_prefix"], v["max_input_chars_per_word"]
-            )
-        }
-        ModelWrapper::WordLevel(m) => {
-            format!("WordLevel (unk={})", serde_json::to_value(m)?["unk_token"])
-        }
-        ModelWrapper::Unigram(m) => {
-            let v = serde_json::to_value(m)?;
-            format!(
-                "Unigram (unk_id={}, byte_fallback={})",
-                v["unk_id"], v["byte_fallback"]
-            )
-        }
+        ModelWrapper::WordPiece(m) => format!(
+            "WordPiece (unk={:?}, prefix={:?}, max chars={})",
+            m.unk_token(),
+            m.continuing_subword_prefix(),
+            m.max_input_chars_per_word()
+        ),
+        ModelWrapper::WordLevel(m) => format!("WordLevel (unk={:?})", m.unk_token()),
+        ModelWrapper::Unigram(m) => format!(
+            "Unigram (unk_id={:?}, byte_fallback={})",
+            m.unk_id(),
+            m.byte_fallback()
+        ),
+        // `ModelWrapper` is non-exhaustive: describe future models by type.
+        other => describe(&serde_json::to_value(other)?),
     };
     println!("model:          {model}");
-    println!("vocab size:     {} (+{} added)", t.get_vocab_size(false), {
-        t.get_vocab_size(true) - t.get_vocab_size(false)
+    println!("vocab size:     {} (+{} added)", t.vocab_size(false), {
+        t.vocab_size(true) - t.vocab_size(false)
     });
     println!("normalizer:     {}", type_name(t.normalizer()));
     println!("pre-tokenizer:  {}", type_name(t.pre_tokenizer()));
@@ -407,7 +404,7 @@ fn train(
     };
     let added: Vec<AddedToken> = specials
         .iter()
-        .map(|s| AddedToken::from(s.as_str(), true))
+        .map(|s| AddedToken::new(s.as_str(), true))
         .collect();
     let unk = unk_token(preset, &specials);
 
@@ -466,7 +463,7 @@ fn train(
             .special_tokens(added.clone())
             .initial_alphabet(initial_alphabet)
             .show_progress(show_progress)
-            .build()
+            .build()?
             .into(),
         ModelKind::Wordpiece => WordPieceTrainer::builder()
             .vocab_size(vocab_size)
@@ -474,22 +471,25 @@ fn train(
             .special_tokens(added.clone())
             .initial_alphabet(initial_alphabet)
             .show_progress(show_progress)
-            .build()
+            .build()?
             .into(),
         ModelKind::Wordlevel => WordLevelTrainer::builder()
             .vocab_size(vocab_size)
             .min_frequency(min_frequency)
             .special_tokens(added.clone())
             .show_progress(show_progress)
-            .build()
-            .into(),
-        ModelKind::Unigram => UnigramTrainer::builder()
-            .vocab_size(vocab_size as u32)
-            .special_tokens(added.clone())
-            .unk_token(unk.clone())
-            .show_progress(show_progress)
             .build()?
             .into(),
+        ModelKind::Unigram => {
+            let mut b = UnigramTrainer::builder()
+                .vocab_size(vocab_size)
+                .special_tokens(added.clone())
+                .show_progress(show_progress);
+            if let Some(unk) = &unk {
+                b = b.unk_token(unk.clone());
+            }
+            b.build()?.into()
+        }
     };
 
     tokenizer
@@ -523,7 +523,7 @@ fn train(
             ModelKind::Unigram => "Unigram",
             ModelKind::Wordlevel => "WordLevel",
         },
-        tokenizer.get_vocab_size(true),
+        tokenizer.vocab_size(true),
         out.display()
     );
     Ok(())

@@ -109,7 +109,7 @@ for id in generated_ids {
 ## Added tokens
 
 `add_tokens(&[AddedToken])` / `add_special_tokens(&[AddedToken])`.
-An `AddedToken` (`AddedToken::from(content, special)`) is matched
+An `AddedToken` (`AddedToken::new(content, special)`) is matched
 verbatim and never split. Flags: `single_word` (only between non-word
 chars), `lstrip` / `rstrip` (swallow adjacent whitespace), `normalized`
 (match the normalized text instead of the raw input; defaults to
@@ -152,8 +152,8 @@ fn main() -> splinter::Result<()> {
     let model = WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?;
     let mut tok = Tokenizer::new(model)
         .with_pre_tokenizer(Whitespace)
-        .with_post_processor(BertProcessing::new(("[SEP]".into(), 3), ("[CLS]".into(), 2)));
-    tok.add_special_tokens(&["[PAD]", "[UNK]", "[CLS]", "[SEP]"].map(|t| AddedToken::from(t, true)))?;
+        .with_post_processor(BertProcessing::new(("[SEP]", 3), ("[CLS]", 2)));
+    tok.add_special_tokens(&["[PAD]", "[UNK]", "[CLS]", "[SEP]"].map(|t| AddedToken::new(t, true)))?;
 
     // Byte offsets (Rust) vs char offsets (what Python returns).
     let enc = tok.encode("héllo world", true)?;

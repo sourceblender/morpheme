@@ -8,6 +8,23 @@ use crate::pre_tokenized_string::PreTokenizedString;
 use crate::traits::PreTokenizer;
 
 /// Applies each pre-tokenizer in turn.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::{Digits, Sequence, WhitespaceSplit};
+///
+/// let pt = Sequence::new(vec![WhitespaceSplit.into(), Digits::new(true).into()]);
+/// assert_eq!(split(&pt, "abc12 x"), ["abc", "1", "2", "x"]);
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Sequence {
     pretokenizers: Vec<PreTokenizerWrapper>,

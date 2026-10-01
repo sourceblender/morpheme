@@ -9,9 +9,9 @@
 //! - [`ByteLevel`] — offset trimming for byte-level BPE (lives in
 //!   [`crate::pre_tokenizers::byte_level`]).
 
-pub mod bert;
-pub mod roberta;
-pub mod sequence;
+mod bert;
+mod roberta;
+mod sequence;
 pub mod template;
 
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,7 @@ pub use template::{
 /// `"post_processor"` field, tagged by `"type"`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
+#[non_exhaustive]
 pub enum PostProcessorWrapper {
     /// See [`BertProcessing`].
     BertProcessing(BertProcessing),

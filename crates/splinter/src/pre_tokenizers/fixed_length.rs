@@ -13,7 +13,24 @@ fn default_length() -> usize {
 
 /// Splits every piece into chunks of `length` chars (the last chunk may
 /// be shorter).
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::FixedLength;
+///
+/// assert_eq!(split(&FixedLength::new(3), "abcdefgh"), ["abc", "def", "gh"]);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct FixedLength {
     /// Chunk size in chars.
     #[serde(default = "default_length")]

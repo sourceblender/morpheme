@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::added_vocabulary::AddedToken;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::models::bpe::{Bpe, MergeMap, Word};
 use crate::progress::Progress;
 use crate::traits::Trainer;
@@ -136,46 +136,91 @@ impl BpeTrainerBuilder {
         self
     }
 
-    /// Maximum length (in chars) of learned tokens.
+    /// Maximum length (in chars) of learned tokens. Unlimited by default.
     #[must_use]
-    pub fn max_token_length(mut self, n: Option<usize>) -> Self {
-        self.trainer.max_token_length = n;
+    pub fn max_token_length(mut self, n: usize) -> Self {
+        self.trainer.max_token_length = Some(n);
         self
     }
 
     /// Build the trainer.
-    pub fn build(self) -> BpeTrainer {
-        self.trainer
+    ///
+    /// # Errors
+    /// Fails if `vocab_size`, `limit_alphabet` or `max_token_length` is
+    /// zero.
+    pub fn build(self) -> Result<BpeTrainer> {
+        let t = &self.trainer;
+        if t.vocab_size == 0 {
+            return Err(Error::Config("BpeTrainer: vocab_size must be > 0".into()));
+        }
+        if t.limit_alphabet == Some(0) {
+            return Err(Error::Config(
+                "BpeTrainer: limit_alphabet must be > 0".into(),
+            ));
+        }
+        if t.max_token_length == Some(0) {
+            return Err(Error::Config(
+                "BpeTrainer: max_token_length must be > 0".into(),
+            ));
+        }
+        Ok(self.trainer)
     }
 }
 
 /// Trains a [`Bpe`] model.
+///
+/// # Example
+///
+/// ```
+/// use splinter::models::Bpe;
+/// use splinter::pre_tokenizers::ByteLevel;
+/// use splinter::trainers::BpeTrainer;
+/// use splinter::{AddedToken, Tokenizer};
+///
+/// let mut tokenizer = Tokenizer::new(Bpe::default())
+///     .with_pre_tokenizer(ByteLevel::new(false, true, true))
+///     .with_decoder(ByteLevel::default());
+/// let trainer = BpeTrainer::builder()
+///     .vocab_size(300)
+///     .initial_alphabet(ByteLevel::alphabet()) // every byte is representable
+///     .special_tokens(vec![AddedToken::new("<|endoftext|>", true)])
+///     .show_progress(false)
+///     .build()?;
+/// tokenizer.train(trainer, ["the cat sat", "the cat ran"].into_iter())?;
+///
+/// let ids = tokenizer.encode("the dog 🐕", false)?.ids().to_vec();
+/// assert_eq!(tokenizer.decode(&ids, false)?, "the dog 🐕"); // lossless
+/// assert_eq!(tokenizer.token_to_id("<|endoftext|>"), Some(0));
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct BpeTrainer {
     /// Minimum pair frequency.
-    pub min_frequency: u64,
+    pub(crate) min_frequency: u64,
     /// Target vocabulary size.
-    pub vocab_size: usize,
+    pub(crate) vocab_size: usize,
     /// Whether to report progress.
-    pub show_progress: bool,
+    pub(crate) show_progress: bool,
     /// Special tokens, placed first in the vocabulary.
-    pub special_tokens: Vec<AddedToken>,
+    pub(crate) special_tokens: Vec<AddedToken>,
     /// Maximum alphabet size.
-    pub limit_alphabet: Option<usize>,
+    pub(crate) limit_alphabet: Option<usize>,
     /// Chars always included in the alphabet.
-    pub initial_alphabet: HashSet<char>,
+    pub(crate) initial_alphabet: HashSet<char>,
     /// Prefix of non-initial subwords.
-    pub continuing_subword_prefix: Option<String>,
+    pub(crate) continuing_subword_prefix: Option<String>,
     /// Suffix of word-final subwords.
-    pub end_of_word_suffix: Option<String>,
+    pub(crate) end_of_word_suffix: Option<String>,
     /// Maximum length (in chars) of learned tokens.
-    pub max_token_length: Option<usize>,
+    pub(crate) max_token_length: Option<usize>,
     words: HashMap<String, u64>,
 }
 
 impl Default for BpeTrainer {
     fn default() -> Self {
-        BpeTrainerBuilder::default().build()
+        BpeTrainerBuilder::default()
+            .build()
+            .expect("the default configuration is valid")
     }
 }
 
@@ -213,7 +258,7 @@ impl BpeTrainer {
     }
 
     /// Number of distinct words fed so far.
-    pub fn get_word_count(&self) -> usize {
+    pub fn word_count(&self) -> usize {
         self.words.len()
     }
 
@@ -315,7 +360,7 @@ impl BpeTrainer {
     }
 
     /// Train `model` from explicit word counts.
-    pub fn do_train(
+    pub(crate) fn do_train(
         &self,
         word_counts: &HashMap<String, u64>,
         model: &mut Bpe,
@@ -512,9 +557,9 @@ pub(crate) mod tests {
 
     /// Vocab as (token, id) sorted by id, and merges as strings.
     pub(crate) fn dump(model: &Bpe) -> Dump {
-        let mut v: Vec<(String, u32)> = model.get_vocab().into_iter().collect();
+        let mut v: Vec<(String, u32)> = model.vocab().into_iter().collect();
         v.sort_by_key(|(_, id)| *id);
-        (v, model.merges())
+        (v, model.merges().to_vec())
     }
 
     fn owned(v: &[(&str, u32)]) -> Vec<(String, u32)> {
@@ -537,8 +582,9 @@ pub(crate) mod tests {
         let mut t = BpeTrainer::builder()
             .vocab_size(30)
             .show_progress(false)
-            .special_tokens(vec![AddedToken::from("[UNK]", true)])
-            .build();
+            .special_tokens(vec![AddedToken::new("[UNK]", true)])
+            .build()
+            .unwrap();
         let m = train(
             &mut t,
             &["hello hello world", "low lower lowest", "aaaa aaa aa a"],
@@ -554,7 +600,8 @@ pub(crate) mod tests {
             .vocab_size(40)
             .min_frequency(2)
             .show_progress(false)
-            .build();
+            .build()
+            .unwrap();
         let m = train(
             &mut t,
             &["café café naïve 你好 你好世界", "über über alles 😀😀 😀"],
@@ -569,9 +616,10 @@ pub(crate) mod tests {
         let mut t = BpeTrainer::builder()
             .vocab_size(50)
             .end_of_word_suffix("</w>")
-            .max_token_length(Some(3))
+            .max_token_length(3)
             .show_progress(false)
-            .build();
+            .build()
+            .unwrap();
         let m = train(&mut t, &["the then there these thesis", "the the the"]);
         let (vocab, merges) = dump(&m);
         let set = |v: Vec<(String, u32)>| v.into_iter().map(|(s, _)| s).collect::<HashSet<_>>();
@@ -586,7 +634,8 @@ pub(crate) mod tests {
             .limit_alphabet(4)
             .initial_alphabet(['z'].into_iter().collect())
             .show_progress(false)
-            .build();
+            .build()
+            .unwrap();
         let m = train(&mut t, &["abababab cdcdc e", "abab ab"]);
         let (vocab, merges) = dump(&m);
         assert_eq!(vocab, owned(PARITY_LIMIT_VOCAB));
@@ -598,7 +647,8 @@ pub(crate) mod tests {
         let mut t = BpeTrainer::builder()
             .vocab_size(100)
             .show_progress(false)
-            .build();
+            .build()
+            .unwrap();
         let m = train(&mut t, &["the quick brown fox jumps over the lazy dog"]);
         let toks = m.tokenize("quick").unwrap();
         assert_eq!(toks.len(), 1, "{toks:?}");

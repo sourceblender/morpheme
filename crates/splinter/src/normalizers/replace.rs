@@ -23,6 +23,28 @@ impl TryFrom<ReplaceConfig> for Replace {
 
 /// Replace every match of `pattern` (a literal string or a regex) with
 /// `content`.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::Replace;
+/// use splinter::pattern::SplitPattern;
+///
+/// let spaces = Replace::new(" ", "▁")?;
+/// assert_eq!(normalize(&spaces, "a b c"), "a▁b▁c");
+///
+/// let digits = Replace::new(SplitPattern::Regex(r"\d+".into()), "#")?;
+/// assert_eq!(normalize(&digits, "room 101, floor 3"), "room #, floor #");
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(try_from = "ReplaceConfig")]
 pub struct Replace {

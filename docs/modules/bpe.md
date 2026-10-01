@@ -87,10 +87,11 @@ fn main() -> splinter::Result<()> {
 Builder methods: `vocab_and_merges`, `unk_token`,
 `continuing_subword_prefix`, `end_of_word_suffix`, `fuse_unk`,
 `byte_fallback`, `ignore_merges`, `dropout`, `cache_capacity`, `build()
--> Result<Bpe>`. `Bpe::new(vocab, merges)` uses the defaults. Getters:
-`get_unk_token`, `get_continuing_subword_prefix`,
-`get_end_of_word_suffix`, `merges()`, plus the `Model` trait
-(`token_to_id`, `id_to_token`, `get_vocab`, `get_vocab_size`).
+-> Result<Bpe>`. `Bpe::new(vocab, merges)` uses the defaults. Getters
+(no `get_` prefix, per the Rust API guidelines): `unk_token`,
+`continuing_subword_prefix`, `end_of_word_suffix`, `dropout`,
+`fuse_unk`, `byte_fallback`, `ignore_merges`, `merges()`, plus the
+`Model` trait (`token_to_id`, `id_to_token`, `vocab`, `vocab_size`).
 
 `build()` fails (it never panics) if a merge references a token that is
 not in the vocabulary, if a merged token is missing, or if `dropout` is

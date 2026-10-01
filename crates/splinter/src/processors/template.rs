@@ -283,6 +283,32 @@ impl From<BTreeMap<String, SpecialToken>> for Tokens {
 
 /// Post-processor driven by a [`Template`] for single inputs and another
 /// for pairs.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::WordLevel;
+/// use splinter::pre_tokenizers::WhitespaceSplit;
+/// use splinter::processors::TemplateProcessing;
+/// use splinter::Tokenizer;
+///
+/// let template = TemplateProcessing::builder()
+///     .try_single("[CLS] $A [SEP]")?
+///     .try_pair("[CLS] $A [SEP] $B:1 [SEP]:1")?
+///     .special_tokens(vec![("[CLS]", 101), ("[SEP]", 102)])
+///     .build()?;
+///
+/// let vocab: HashMap<String, u32> =
+///     [("[UNK]", 0), ("hi", 7), ("there", 8)].map(|(t, i)| (t.to_string(), i)).into();
+/// let tokenizer = Tokenizer::new(WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?)
+///     .with_pre_tokenizer(WhitespaceSplit)
+///     .with_post_processor(template);
+///
+/// assert_eq!(tokenizer.encode("hi", true)?.ids(), [101, 7, 102]);
+/// assert_eq!(tokenizer.encode(("hi", "there"), true)?.type_ids(), [0, 0, 0, 1, 1]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TemplateProcessing {
     single: Template,

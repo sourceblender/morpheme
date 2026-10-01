@@ -1,9 +1,9 @@
 //! Models: BPE, WordPiece, WordLevel and Unigram.
 
-pub mod bpe;
-pub mod unigram;
-pub mod wordlevel;
-pub mod wordpiece;
+pub(crate) mod bpe;
+pub(crate) mod unigram;
+pub(crate) mod wordlevel;
+pub(crate) mod wordpiece;
 
 use std::collections::HashMap;
 
@@ -13,7 +13,7 @@ use crate::Token;
 use crate::error::Result;
 use crate::traits::Model;
 
-pub use bpe::{Bpe, BpeBuilder};
+pub use bpe::{Bpe, BpeBuilder, Merges, Vocab};
 pub use unigram::Unigram;
 pub use wordlevel::{WordLevel, WordLevelBuilder};
 pub use wordpiece::{WordPiece, WordPieceBuilder};
@@ -22,6 +22,7 @@ pub use wordpiece::{WordPiece, WordPieceBuilder};
 /// what `tokenizer.json`'s `"model"` field (de)serializes to.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum ModelWrapper {
     /// Byte-Pair Encoding.
     Bpe(Bpe),
@@ -104,11 +105,11 @@ impl Model for ModelWrapper {
     fn id_to_token(&self, id: u32) -> Option<String> {
         dispatch!(self, m => m.id_to_token(id))
     }
-    fn get_vocab(&self) -> HashMap<String, u32> {
-        dispatch!(self, m => m.get_vocab())
+    fn vocab(&self) -> HashMap<String, u32> {
+        dispatch!(self, m => m.vocab())
     }
-    fn get_vocab_size(&self) -> usize {
-        dispatch!(self, m => m.get_vocab_size())
+    fn vocab_size(&self) -> usize {
+        dispatch!(self, m => m.vocab_size())
     }
 }
 

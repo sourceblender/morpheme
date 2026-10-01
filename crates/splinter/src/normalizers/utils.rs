@@ -8,6 +8,23 @@ use crate::normalizers::NormalizerWrapper;
 use crate::traits::Normalizer;
 
 /// Apply several normalizers in order.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::{Lowercase, Nfd, Sequence, StripAccents};
+///
+/// let n = Sequence::new(vec![Nfd.into(), StripAccents.into(), Lowercase.into()]);
+/// assert_eq!(normalize(&n, "Ångström"), "angstrom");
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Sequence {
     normalizers: Vec<NormalizerWrapper>,
@@ -51,6 +68,22 @@ impl Normalizer for Sequence {
 }
 
 /// Unicode-aware lowercase (one char may expand into several).
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::Lowercase;
+///
+/// assert_eq!(normalize(&Lowercase, "HeLLo ÀÉ"), "hello àé");
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Lowercase;
 
@@ -84,7 +117,7 @@ mod tests {
     #[test]
     fn llama_sequence_matches_hf() {
         let seq = Sequence::new(vec![
-            Prepend::new("▁".into()).into(),
+            Prepend::new("▁").into(),
             Replace::new(SplitPattern::String(" ".into()), "▁")
                 .unwrap()
                 .into(),

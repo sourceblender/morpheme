@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::added_vocabulary::AddedToken;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::models::WordLevel;
 use crate::trainers::bpe::count_words;
 use crate::traits::Trainer;
@@ -63,28 +63,58 @@ impl WordLevelTrainerBuilder {
     }
 
     /// Build the trainer.
-    pub fn build(self) -> WordLevelTrainer {
-        self.trainer
+    ///
+    /// # Errors
+    /// Fails if `vocab_size` is zero.
+    pub fn build(self) -> Result<WordLevelTrainer> {
+        if self.trainer.vocab_size == 0 {
+            return Err(Error::Config(
+                "WordLevelTrainer: vocab_size must be > 0".into(),
+            ));
+        }
+        Ok(self.trainer)
     }
 }
 
 /// Trains a [`WordLevel`] model.
+///
+/// # Example
+///
+/// ```
+/// use splinter::models::WordLevel;
+/// use splinter::pre_tokenizers::Whitespace;
+/// use splinter::trainers::WordLevelTrainer;
+/// use splinter::{AddedToken, Tokenizer};
+///
+/// let model = WordLevel::builder().unk_token("[UNK]").build()?;
+/// let mut tokenizer = Tokenizer::new(model).with_pre_tokenizer(Whitespace);
+/// let trainer = WordLevelTrainer::builder()
+///     .special_tokens(vec![AddedToken::new("[UNK]", true)])
+///     .show_progress(false)
+///     .build()?;
+/// tokenizer.train(trainer, ["the cat", "the dog"].into_iter())?;
+///
+/// assert_eq!(tokenizer.encode("the bird", false)?.tokens(), ["the", "[UNK]"]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct WordLevelTrainer {
     /// Minimum word frequency.
-    pub min_frequency: u64,
+    pub(crate) min_frequency: u64,
     /// Target vocabulary size.
-    pub vocab_size: usize,
+    pub(crate) vocab_size: usize,
     /// Whether to report progress.
-    pub show_progress: bool,
+    pub(crate) show_progress: bool,
     /// Special tokens, placed first in the vocabulary.
-    pub special_tokens: Vec<AddedToken>,
+    pub(crate) special_tokens: Vec<AddedToken>,
     words: HashMap<String, u64>,
 }
 
 impl Default for WordLevelTrainer {
     fn default() -> Self {
-        WordLevelTrainerBuilder::default().build()
+        WordLevelTrainerBuilder::default()
+            .build()
+            .expect("the default configuration is valid")
     }
 }
 
@@ -158,7 +188,7 @@ mod tests {
         .iter()
         .map(|(w, c)| (w.to_string(), *c))
         .collect();
-        let mut trainer = WordLevelTrainer::builder().vocab_size(5).build();
+        let mut trainer = WordLevelTrainer::builder().vocab_size(5).build().unwrap();
         let mut model = WordLevel::default();
         trainer.do_train(&counts, &mut model);
         let expected: HashMap<String, u32> = [
@@ -171,10 +201,10 @@ mod tests {
         .iter()
         .map(|(w, i)| (w.to_string(), *i))
         .collect();
-        assert_eq!(model.get_vocab(), expected);
+        assert_eq!(model.vocab(), expected);
 
         trainer.min_frequency = 15;
         trainer.do_train(&counts, &mut model);
-        assert_eq!(model.get_vocab_size(), 4);
+        assert_eq!(model.vocab_size(), 4);
     }
 }

@@ -78,6 +78,22 @@ pub enum SplitDelimiterBehavior {
 }
 
 /// A normalized string with byte-level alignments back to the original.
+///
+/// # Example
+///
+/// ```
+/// use splinter::normalizers::{Lowercase, Nfd, Sequence, StripAccents};
+/// use splinter::{NormalizedString, Normalizer, OffsetRange};
+///
+/// let mut text = NormalizedString::from("Élan");
+/// Sequence::new(vec![Nfd.into(), StripAccents.into(), Lowercase.into()]).normalize(&mut text)?;
+/// assert_eq!(text.get(), "elan");
+///
+/// // The normalized "e" (byte 0) came from "É" (bytes 0..2) in the original.
+/// assert_eq!(text.convert_offsets(OffsetRange::Normalized(0..1)), Some(0..2));
+/// assert_eq!(text.get_range_original(OffsetRange::Normalized(0..2)), Some("Él"));
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct NormalizedString {
     original: String,
@@ -118,7 +134,7 @@ impl NormalizedString {
     }
 
     /// The original text.
-    pub fn get_original(&self) -> &str {
+    pub fn original(&self) -> &str {
         &self.original
     }
 

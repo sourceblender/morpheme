@@ -76,6 +76,17 @@ impl DoubleArray {
 }
 
 /// SentencePiece precompiled normalization rules.
+///
+/// # Example
+///
+/// ```
+/// use splinter::normalizers::Precompiled;
+///
+/// // Precompiled charsmaps come from SentencePiece models (T5, ALBERT,
+/// // XLM-R, …) and are normally loaded from a `tokenizer.json`. Malformed
+/// // data is an error, never a panic.
+/// assert!(Precompiled::from_bytes(&[1, 2, 3]).is_err());
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Precompiled {
     precompiled_charsmap: Vec<u8>,
@@ -85,7 +96,7 @@ pub struct Precompiled {
 
 impl Precompiled {
     /// Parse a `precompiled_charsmap` blob.
-    pub fn from(precompiled_charsmap: &[u8]) -> Result<Self> {
+    pub fn from_bytes(precompiled_charsmap: &[u8]) -> Result<Self> {
         let bad = |m: &str| Error::Config(format!("invalid precompiled_charsmap: {m}"));
         let header: [u8; 4] = precompiled_charsmap
             .get(..4)
@@ -205,7 +216,7 @@ impl<'de> Deserialize<'de> for Precompiled {
         }
         let c = Config::deserialize(deserializer)?;
         let bytes = base64_decode(&c.precompiled_charsmap).map_err(D::Error::custom)?;
-        Precompiled::from(&bytes).map_err(D::Error::custom)
+        Precompiled::from_bytes(&bytes).map_err(D::Error::custom)
     }
 }
 
@@ -300,13 +311,13 @@ mod tests {
 
     #[test]
     fn malformed_blobs_error_or_noop_instead_of_panicking() {
-        assert!(Precompiled::from(&[]).is_err());
-        assert!(Precompiled::from(&[255, 255, 255, 255]).is_err());
+        assert!(Precompiled::from_bytes(&[]).is_err());
+        assert!(Precompiled::from_bytes(&[255, 255, 255, 255]).is_err());
         // A trie whose units point out of bounds must not panic.
         let mut blob = 8u32.to_le_bytes().to_vec();
         blob.extend(0xFFFF_FFFFu32.to_le_bytes());
         blob.extend(0xFFFF_FFFFu32.to_le_bytes());
-        let p = Precompiled::from(&blob).unwrap();
+        let p = Precompiled::from_bytes(&blob).unwrap();
         assert_eq!(p.normalize_str("abc"), "abc");
     }
 

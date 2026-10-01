@@ -25,14 +25,9 @@ fn tokenizer() -> Tokenizer {
         .build()
         .unwrap();
     let mut tok = Tokenizer::new(model).with_pre_tokenizer(Whitespace);
-    tok.add_special_tokens(
-        &["[PAD]", "[UNK]", "[CLS]", "[SEP]"].map(|s| AddedToken::from(s, true)),
-    )
-    .unwrap();
-    tok.with_post_processor(BertProcessing::new(
-        ("[SEP]".into(), 3),
-        ("[CLS]".into(), 2),
-    ))
+    tok.add_special_tokens(&["[PAD]", "[UNK]", "[CLS]", "[SEP]"].map(|s| AddedToken::new(s, true)))
+        .unwrap();
+    tok.with_post_processor(BertProcessing::new(("[SEP]", 3), ("[CLS]", 2)))
 }
 
 #[test]

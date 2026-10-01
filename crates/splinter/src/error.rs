@@ -4,6 +4,7 @@ use thiserror::Error;
 
 /// Errors produced by `splinter`.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum Error {
     /// A token was not present in the vocabulary and the model has no
     /// way to represent it (no `unk_token`, no byte fallback).

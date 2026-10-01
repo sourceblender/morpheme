@@ -30,6 +30,27 @@ pub enum PaddingDirection {
 /// The output of encoding one input (a sentence or a sentence pair).
 ///
 /// All the per-token vectors are parallel: index `i` describes token `i`.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::WordLevel;
+/// use splinter::pre_tokenizers::Whitespace;
+/// use splinter::Tokenizer;
+///
+/// let vocab: HashMap<String, u32> = [("[UNK]", 0), ("héllo", 1), ("!", 2)].map(|(t, i)| (t.to_string(), i)).into();
+/// let tokenizer = Tokenizer::new(WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?)
+///     .with_pre_tokenizer(Whitespace);
+///
+/// let encoding = tokenizer.encode("héllo!", true)?;
+/// assert_eq!(encoding.ids(), [1, 2]);
+/// assert_eq!(encoding.tokens(), ["héllo", "!"]);
+/// assert_eq!(encoding.offsets(), [(0, 6), (6, 7)]); // bytes ("é" is 2 bytes)
+/// assert_eq!(encoding.word_ids(), [Some(0), Some(1)]);
+/// assert_eq!(tokenizer.encode_char_offsets("héllo!", true)?.offsets(), [(0, 5), (5, 6)]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Encoding {
     ids: Vec<u32>,

@@ -59,7 +59,7 @@ fn main() -> splinter::Result<()> {
 
     // Llama-style: prepend ▁ and replace spaces.
     let llama = Sequence::new(vec![
-        Prepend::new("▁".into()).into(),
+        Prepend::new("▁").into(),
         Replace::new(" ", "▁")?.into(),
     ]);
     let mut n = NormalizedString::from("Hey friend");

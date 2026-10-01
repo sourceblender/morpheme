@@ -30,7 +30,7 @@ use splinter::models::Unigram;
 use splinter::Model;
 
 fn main() -> splinter::Result<()> {
-    let model = Unigram::from(
+    let model = Unigram::new(
         vec![
             ("<unk>".into(), 0.0),
             ("▁".into(), -2.0),
@@ -49,21 +49,21 @@ fn main() -> splinter::Result<()> {
     let toks = model.tokenize("▁hello▁xyz")?;
     let last = toks.last().unwrap();
     assert_eq!((last.id, last.value.as_str()), (0, "xyz"));
-    assert!(Unigram::from(vec![("a".into(), 0.0)], Some(3), false).is_err());
+    assert!(Unigram::new(vec![("a".into(), 0.0)], Some(3), false).is_err());
     Ok(())
 }
 ```
 
 ## API
 
-- `Unigram::from(vocab: Vec<(String, f64)>, unk_id: Option<usize>,
+- `Unigram::new(vocab: Vec<(String, f64)>, unk_id: Option<usize>,
   byte_fallback: bool) -> Result<Unigram>` — the id of a piece is its
   index. Fails on an empty vocabulary or an out-of-range `unk_id`.
 - `Unigram::default()` — `[("<unk>", 0.0)]` with `unk_id` 0 (HF default).
 - `encode(&str) -> Result<Vec<String>>`, `unk_id()`, `byte_fallback()`,
-  `vocab()`, `iter()`, `clear_cache()`, plus the `Model` trait.
-- `models::unigram::Lattice` is public (`viterbi`, `nbest`,
-  `populate_marginal`, …) for advanced use.
+  `pieces()` (the `(piece, score)` pairs), `clear_cache()`, plus the
+  `Model` trait.
+- The Viterbi lattice is internal; use `tokenize` / `encode`.
 
 Not implemented: subword-regularization sampling (`alpha` /
 `nbest_size` sampling). HF does not store these settings in

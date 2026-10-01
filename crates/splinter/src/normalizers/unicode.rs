@@ -7,6 +7,23 @@ use crate::normalized_string::NormalizedString;
 use crate::traits::Normalizer;
 
 /// Unicode canonical decomposition (NFD).
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::Nfd;
+///
+/// // "é" (1 char) decomposes into "e" + U+0301 (2 chars).
+/// assert_eq!(normalize(&Nfd, "é").chars().count(), 2);
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Nfd;
 
@@ -40,6 +57,23 @@ impl Normalizer for Nfc {
 }
 
 /// Unicode compatibility composition (NFKC).
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::Nfkc;
+///
+/// // Compatibility forms fold into their plain equivalents.
+/// assert_eq!(normalize(&Nfkc, "ﬁne ①"), "fine 1");
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Nfkc;
 

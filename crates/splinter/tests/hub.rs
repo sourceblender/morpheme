@@ -45,7 +45,7 @@ fn hub_download_matches_pinned_fixture() {
         .join("tokenizer.json");
     assert!(snapshot.is_file());
     let again = Tokenizer::from_pretrained("google-bert/bert-base-uncased", Some(params)).unwrap();
-    assert_eq!(again.get_vocab_size(true), downloaded.get_vocab_size(true));
+    assert_eq!(again.vocab_size(true), downloaded.vocab_size(true));
 }
 
 #[test]

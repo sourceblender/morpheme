@@ -40,8 +40,31 @@ pub(crate) fn is_chinese_char(c: char) -> bool {
 
 /// BERT's normalizer: optional control-char cleanup, spacing around CJK
 /// ideographs, accent stripping and lowercasing.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::BertNormalizer;
+///
+/// // Cleans control chars, pads CJK chars with spaces, strips accents and lowercases.
+/// let bert = BertNormalizer::default();
+/// assert_eq!(normalize(&bert, "Héllo\tWORLD 你好"), "hello world  你  好 ");
+///
+/// // Keep case and accents (like `bert-base-cased`).
+/// let cased = BertNormalizer::new(true, true, Some(false), false);
+/// assert_eq!(normalize(&cased, "Héllo"), "Héllo");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
+#[non_exhaustive]
 pub struct BertNormalizer {
     /// Remove control chars and map all whitespace to a plain space.
     pub clean_text: bool,

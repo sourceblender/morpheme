@@ -375,12 +375,12 @@ fn golden(name: &str) {
     let mut r = Report::default();
     r.check(
         "vocab size with added",
-        tok.get_vocab_size(true) as u64,
+        tok.vocab_size(true) as u64,
         golden["vocab_size_with_added"].as_u64().unwrap(),
     );
     r.check(
         "vocab size without added",
-        tok.get_vocab_size(false) as u64,
+        tok.vocab_size(false) as u64,
         golden["vocab_size_without_added"].as_u64().unwrap(),
     );
     run_cases(&mut r, "loaded", &tok, &golden);

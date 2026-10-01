@@ -22,7 +22,26 @@ pub enum PrependScheme {
 
 /// Replaces spaces with `replacement` (default `▁`), optionally prepends
 /// it, and optionally splits so each piece starts with it.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::{Metaspace, PrependScheme};
+///
+/// // SentencePiece style: spaces become `▁` and start each word.
+/// let m = Metaspace::new('▁', PrependScheme::Always, true);
+/// assert_eq!(split(&m, "Hello world"), ["▁Hello", "▁world"]);
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
 pub struct Metaspace {
     replacement: char,
     /// When to prepend `replacement`.

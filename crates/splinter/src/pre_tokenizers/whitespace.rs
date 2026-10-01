@@ -10,6 +10,23 @@ use crate::traits::PreTokenizer;
 
 /// Splits into runs of word chars and runs of other non-space chars:
 /// the regex `\w+|[^\w\s]+`. `"Hey man!"` → `["Hey", "man", "!"]`.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::Whitespace;
+///
+/// // Words and runs of punctuation (`\w+|[^\w\s]+`).
+/// assert_eq!(split(&Whitespace, "Hello, world!!"), ["Hello", ",", "world", "!!"]);
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Whitespace;
 

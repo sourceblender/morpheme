@@ -16,6 +16,23 @@ pub(crate) fn is_bert_punc(c: char) -> bool {
 /// Splits on whitespace (removed) and isolates every punctuation char.
 ///
 /// `"Hey friend!  How?!"` → `["Hey", "friend", "!", "How", "?", "!"]`.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::BertPreTokenizer;
+///
+/// // Splits on whitespace and isolates every punctuation char.
+/// assert_eq!(split(&BertPreTokenizer, "Hello, world!!"), ["Hello", ",", "world", "!", "!"]);
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BertPreTokenizer;
 

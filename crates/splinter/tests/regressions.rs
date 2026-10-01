@@ -29,7 +29,7 @@ fn bpe_trainer_output_is_loadable_and_usable() {
     // with "merge symbol ... missing from vocab".
     let mut tok =
         Tokenizer::new(Bpe::default()).with_pre_tokenizer(splinter::pre_tokenizers::Whitespace);
-    let trainer = BpeTrainer::builder().vocab_size(40).build();
+    let trainer = BpeTrainer::builder().vocab_size(40).build().unwrap();
     tok.train(trainer, ["aaaa aaaa aaa abab the the th"].into_iter())
         .unwrap();
     let reloaded = Tokenizer::from_json(&tok.to_json(false).unwrap()).unwrap();
@@ -108,10 +108,7 @@ fn roberta_pair_layout_and_type_ids() {
         .unwrap();
     let tok = Tokenizer::new(model)
         .with_pre_tokenizer(splinter::pre_tokenizers::WhitespaceSplit)
-        .with_post_processor(RobertaProcessing::new(
-            ("</s>".into(), 2),
-            ("<s>".into(), 0),
-        ));
+        .with_post_processor(RobertaProcessing::new(("</s>", 2), ("<s>", 0)));
     let enc = tok.encode(("a", "b"), true).unwrap();
     assert_eq!(enc.tokens(), &["<s>", "a", "</s>", "</s>", "b", "</s>"]);
     assert_eq!(enc.type_ids(), &[0, 0, 0, 0, 0, 0]);
@@ -120,7 +117,7 @@ fn roberta_pair_layout_and_type_ids() {
 #[test]
 fn unigram_emits_unk_instead_of_failing() {
     // Was: any unseen char failed the whole encode.
-    let model = Unigram::from(
+    let model = Unigram::new(
         vec![
             ("<unk>".into(), 0.0),
             ("▁a".into(), -1.0),
@@ -212,7 +209,7 @@ fn vocab_with_shared_ids_round_trips_losslessly() {
         let saved = tok.to_json(false).unwrap();
         let reloaded = Tokenizer::from_json(&saved).unwrap();
         assert_eq!(reloaded.to_json(false).unwrap(), saved, "{model}");
-        assert_eq!(reloaded.get_vocab(false), tok.get_vocab(false), "{model}");
+        assert_eq!(reloaded.vocab(false), tok.vocab(false), "{model}");
         for text in ["ab", "x y", "a b"] {
             assert_eq!(
                 tok.encode(text, false).unwrap(),

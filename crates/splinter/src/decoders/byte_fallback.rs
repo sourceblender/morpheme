@@ -5,6 +5,17 @@ use crate::traits::Decoder;
 
 /// Turns runs of `<0xNN>` tokens back into the UTF-8 text they encode.
 /// Invalid byte sequences become one `�` per byte.
+///
+/// # Example
+///
+/// ```
+/// use splinter::decoders::ByteFallback;
+/// use splinter::Decoder;
+///
+/// // `<0xNN>` byte tokens are reassembled into UTF-8.
+/// assert_eq!(ByteFallback::new().decode(vec!["caf".to_string(), "<0xC3>".to_string(), "<0xA9>".to_string()])?, "café");
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ByteFallback;
 

@@ -4,10 +4,10 @@
 //! [`crate::Tokenizer::train_from_files`]) so the corpus goes through the
 //! tokenizer's own normalizer and pre-tokenizer first.
 
-pub mod bpe;
-pub mod unigram;
-pub mod wordlevel;
-pub mod wordpiece;
+mod bpe;
+mod unigram;
+mod wordlevel;
+mod wordpiece;
 
 use crate::added_vocabulary::AddedToken;
 use crate::error::Result;
@@ -21,6 +21,7 @@ pub use wordpiece::{WordPieceTrainer, WordPieceTrainerBuilder};
 
 /// Any built-in trainer.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum TrainerWrapper {
     /// Trains a [`Bpe`] model.
     Bpe(BpeTrainer),

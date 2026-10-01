@@ -13,7 +13,7 @@ use crate::models::bpe::{Bpe, OrderedVocab, reverse_vocab};
 use crate::traits::Model;
 
 /// `token -> id`.
-pub type Vocab = HashMap<String, u32>;
+pub(crate) type Vocab = HashMap<String, u32>;
 
 /// Builder for [`WordPiece`].
 #[derive(Debug, Clone)]
@@ -84,16 +84,36 @@ impl WordPieceBuilder {
 }
 
 /// WordPiece model.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::WordPiece;
+/// use splinter::Model;
+///
+/// let vocab: HashMap<String, u32> = [("[UNK]", 0), ("un", 1), ("##aff", 2), ("##able", 3)]
+///     .map(|(t, i)| (t.to_string(), i))
+///     .into();
+/// let wp = WordPiece::builder().vocab(vocab).build()?;
+///
+/// let values = |word: &str| -> Vec<String> {
+///     wp.tokenize(word).unwrap().into_iter().map(|t| t.value).collect()
+/// };
+/// assert_eq!(values("unaffable"), ["un", "##aff", "##able"]);
+/// assert_eq!(values("unknown"), ["[UNK]"]); // any unmatched piece → whole word is unknown
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct WordPiece {
     vocab: Vocab,
     vocab_r: FxHashMap<u32, String>,
     /// Token emitted for words that cannot be tokenized.
-    pub unk_token: String,
+    pub(crate) unk_token: String,
     /// Prefix of non-initial subwords.
-    pub continuing_subword_prefix: String,
+    pub(crate) continuing_subword_prefix: String,
     /// Longer words become `unk_token`.
-    pub max_input_chars_per_word: usize,
+    pub(crate) max_input_chars_per_word: usize,
 }
 
 impl std::fmt::Debug for WordPiece {
@@ -121,17 +141,32 @@ impl WordPiece {
         WordPieceBuilder::new()
     }
 
+    /// The token emitted for words that cannot be tokenized.
+    pub fn unk_token(&self) -> &str {
+        &self.unk_token
+    }
+
+    /// The prefix marking non-initial subwords (default `##`).
+    pub fn continuing_subword_prefix(&self) -> &str {
+        &self.continuing_subword_prefix
+    }
+
+    /// Words longer than this many chars become the unknown token.
+    pub fn max_input_chars_per_word(&self) -> usize {
+        self.max_input_chars_per_word
+    }
+
     /// Build a WordPiece model from a trained BPE model's vocabulary
     /// (used by the WordPiece trainer).
     pub fn from_bpe(bpe: &Bpe) -> Self {
         let mut wp = WordPiece::builder()
-            .vocab(bpe.get_vocab())
+            .vocab(bpe.vocab())
             .build()
             .expect("WordPiece build is infallible");
-        if let Some(unk) = bpe.get_unk_token() {
+        if let Some(unk) = bpe.unk_token() {
             wp.unk_token = unk.to_owned();
         }
-        if let Some(prefix) = bpe.get_continuing_subword_prefix() {
+        if let Some(prefix) = bpe.continuing_subword_prefix() {
             wp.continuing_subword_prefix = prefix.to_owned();
         }
         wp
@@ -198,11 +233,11 @@ impl Model for WordPiece {
         self.vocab_r.get(&id).cloned()
     }
 
-    fn get_vocab(&self) -> HashMap<String, u32> {
+    fn vocab(&self) -> HashMap<String, u32> {
         self.vocab.clone()
     }
 
-    fn get_vocab_size(&self) -> usize {
+    fn vocab_size(&self) -> usize {
         self.vocab.len()
     }
 }
@@ -327,7 +362,7 @@ mod tests {
     #[test]
     fn long_word_is_unk() {
         let m = WordPiece::builder()
-            .vocab(model().get_vocab())
+            .vocab(model().vocab())
             .max_input_chars_per_word(3)
             .build()
             .unwrap();

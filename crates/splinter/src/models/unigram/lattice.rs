@@ -6,11 +6,9 @@ use std::collections::BinaryHeap;
 
 /// One candidate piece in the lattice.
 #[derive(Debug, Clone)]
-pub struct Node {
+pub(crate) struct Node {
     /// Vocabulary id (or the BOS/EOS sentinel ids).
     pub id: usize,
-    /// Index of this node in the lattice.
-    pub node_id: usize,
     /// Byte position where the piece starts.
     pub pos: usize,
     /// Byte length of the piece.
@@ -24,7 +22,7 @@ pub struct Node {
 /// A lattice over a sentence: every vocabulary piece that matches at
 /// every position, plus BOS/EOS sentinels.
 #[derive(Debug, Clone)]
-pub struct Lattice<'a> {
+pub(crate) struct Lattice<'a> {
     sentence: &'a str,
     nodes: Vec<Node>,
     /// For each byte position, the nodes starting there.
@@ -51,23 +49,19 @@ const EOS_NODE: usize = 1;
 
 impl<'a> Lattice<'a> {
     /// An empty lattice over `sentence` with the given sentinel ids.
-    pub fn from(sentence: &'a str, bos_id: usize, eos_id: usize) -> Self {
+    pub(crate) fn new(sentence: &'a str, bos_id: usize, eos_id: usize) -> Self {
         let len = sentence.len();
         let mut begin_nodes = vec![Vec::new(); len + 1];
         let mut end_nodes = vec![Vec::new(); len + 1];
-        let sentinel = |id, node_id, pos| Node {
+        let sentinel = |id, pos| Node {
             id,
-            node_id,
             pos,
             length: 0,
             score: 0.0,
             prev: None,
             backtrace_score: 0.0,
         };
-        let nodes = vec![
-            sentinel(bos_id, BOS_NODE, 0),
-            sentinel(eos_id, EOS_NODE, len),
-        ];
+        let nodes = vec![sentinel(bos_id, 0), sentinel(eos_id, len)];
         begin_nodes[len].push(EOS_NODE);
         end_nodes[0].push(BOS_NODE);
         Self {
@@ -79,11 +73,10 @@ impl<'a> Lattice<'a> {
     }
 
     /// Add a piece of `length` bytes starting at `pos`.
-    pub fn insert(&mut self, pos: usize, length: usize, score: f64, id: usize) {
+    pub(crate) fn insert(&mut self, pos: usize, length: usize, score: f64, id: usize) {
         let node_id = self.nodes.len();
         self.nodes.push(Node {
             id,
-            node_id,
             pos,
             length,
             score,
@@ -95,22 +88,18 @@ impl<'a> Lattice<'a> {
     }
 
     /// Byte length of the sentence.
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.sentence.len()
     }
 
-    /// True if the sentence is empty.
-    pub fn is_empty(&self) -> bool {
-        self.sentence.is_empty()
-    }
-
     /// The sentence.
-    pub fn sentence(&self) -> &'a str {
+    pub(crate) fn sentence(&self) -> &'a str {
         self.sentence
     }
 
     /// The suffix of the sentence starting at char `n`.
-    pub fn surface(&self, n: usize) -> &str {
+    #[cfg(test)]
+    pub(crate) fn surface(&self, n: usize) -> &str {
         match self.sentence.char_indices().nth(n) {
             Some((pos, _)) => &self.sentence[pos..],
             None => "",
@@ -118,28 +107,30 @@ impl<'a> Lattice<'a> {
     }
 
     /// Node by lattice index.
-    pub fn node(&self, node_id: usize) -> &Node {
+    pub(crate) fn node(&self, node_id: usize) -> &Node {
         &self.nodes[node_id]
     }
 
     /// The BOS sentinel.
-    pub fn bos_node(&self) -> &Node {
+    #[cfg(test)]
+    pub(crate) fn bos_node(&self) -> &Node {
         &self.nodes[BOS_NODE]
     }
 
     /// The EOS sentinel.
-    pub fn eos_node(&self) -> &Node {
+    #[cfg(test)]
+    pub(crate) fn eos_node(&self) -> &Node {
         &self.nodes[EOS_NODE]
     }
 
     /// The text covered by `node`.
-    pub fn piece(&self, node: &Node) -> &'a str {
+    pub(crate) fn piece(&self, node: &Node) -> &'a str {
         &self.sentence[node.pos..node.pos + node.length]
     }
 
     /// Best-scoring segmentation (node ids, BOS/EOS excluded). Empty if
     /// some position cannot be reached.
-    pub fn viterbi(&mut self) -> Vec<usize> {
+    pub(crate) fn viterbi(&mut self) -> Vec<usize> {
         let len = self.len();
         let mut pos = 0;
         while pos <= len {
@@ -187,7 +178,8 @@ impl<'a> Lattice<'a> {
     }
 
     /// The pieces of the best segmentation.
-    pub fn tokens(&mut self) -> Vec<String> {
+    #[cfg(test)]
+    pub(crate) fn tokens(&mut self) -> Vec<String> {
         self.viterbi()
             .into_iter()
             .map(|n| self.piece(&self.nodes[n]).to_owned())
@@ -196,7 +188,7 @@ impl<'a> Lattice<'a> {
 
     /// The `n` best segmentations, best first (A* search over the
     /// backtrace scores computed by Viterbi).
-    pub fn nbest(&mut self, n: usize) -> Vec<Vec<usize>> {
+    pub(crate) fn nbest(&mut self, n: usize) -> Vec<Vec<usize>> {
         match n {
             0 => return vec![],
             1 => return vec![self.viterbi()],
@@ -305,7 +297,8 @@ impl<'a> Lattice<'a> {
     }
 
     /// The pieces of the `n` best segmentations.
-    pub fn nbest_tokens(&mut self, n: usize) -> Vec<Vec<String>> {
+    #[cfg(test)]
+    pub(crate) fn nbest_tokens(&mut self, n: usize) -> Vec<Vec<String>> {
         self.nbest(n)
             .into_iter()
             .map(|path| {
@@ -321,7 +314,7 @@ impl<'a> Lattice<'a> {
     ///
     /// `expected` must be indexed by vocabulary id and large enough for
     /// every piece id in the lattice.
-    pub fn populate_marginal(&self, freq: f64, expected: &mut [f64]) -> f64 {
+    pub(crate) fn populate_marginal(&self, freq: f64, expected: &mut [f64]) -> f64 {
         let len = self.len();
         let n = self.nodes.len();
         let mut alpha = vec![0.0; n];
@@ -364,14 +357,14 @@ mod tests {
 
     #[test]
     fn set_sentence() {
-        let l = Lattice::from("", 1, 2);
+        let l = Lattice::new("", 1, 2);
         assert_eq!(l.len(), 0);
-        let l = Lattice::from("test", 1, 2);
+        let l = Lattice::new("test", 1, 2);
         assert_eq!(l.surface(1), "est");
         assert_eq!(l.surface(3), "t");
         assert_eq!(l.bos_node().id, 1);
         assert_eq!(l.eos_node().id, 2);
-        let l = Lattice::from("テストab", 1, 2);
+        let l = Lattice::new("テストab", 1, 2);
         assert_eq!(l.len(), 11);
         assert_eq!(l.surface(1), "ストab");
         assert_eq!(l.surface(4), "b");
@@ -379,7 +372,7 @@ mod tests {
 
     #[test]
     fn insert_nodes() {
-        let mut l = Lattice::from("ABあい", 1, 2);
+        let mut l = Lattice::new("ABあい", 1, 2);
         l.insert(0, 1, 0.0, 3);
         l.insert(1, 1, 0.0, 4);
         l.insert(2, 3, 0.0, 5);
@@ -399,7 +392,7 @@ mod tests {
 
     #[test]
     fn viterbi_incomplete_and_complete() {
-        let mut l = Lattice::from("ABC", 1, 2);
+        let mut l = Lattice::new("ABC", 1, 2);
         assert!(l.viterbi().is_empty());
         l.insert(0, 1, 0.0, 3);
         assert!(l.viterbi().is_empty());
@@ -410,7 +403,7 @@ mod tests {
 
     #[test]
     fn viterbi_prefers_high_scores() {
-        let mut l = Lattice::from("ABC", 1, 2);
+        let mut l = Lattice::new("ABC", 1, 2);
         l.insert(0, 1, 0.0, 3);
         l.insert(1, 1, 0.0, 4);
         l.insert(2, 1, 0.0, 5);
@@ -425,7 +418,7 @@ mod tests {
 
     #[test]
     fn nbest_orders_by_score() {
-        let mut l = Lattice::from("ABC", 1, 2);
+        let mut l = Lattice::new("ABC", 1, 2);
         l.insert(0, 1, 0.0, 3);
         l.insert(1, 1, 0.0, 4);
         l.insert(2, 1, 0.0, 5);
@@ -456,7 +449,7 @@ mod tests {
 
     #[test]
     fn marginals() {
-        let mut l = Lattice::from("ABC", 1, 2);
+        let mut l = Lattice::new("ABC", 1, 2);
         l.insert(0, 1, 1.0, 3);
         l.insert(1, 1, 1.2, 4);
         l.insert(2, 1, 2.5, 5);

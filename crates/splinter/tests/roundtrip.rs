@@ -18,7 +18,8 @@ fn byte_level() -> &'static Tokenizer {
         let trainer = BpeTrainer::builder()
             .vocab_size(500)
             .initial_alphabet(ByteLevel::alphabet())
-            .build();
+            .build()
+            .unwrap();
         tok.train(
             trainer,
             include_str!("../../../examples/corpus.txt").lines(),

@@ -47,7 +47,7 @@ fn main() -> splinter::Result<()> {
 
     // The Llama decoder chain: ▁ -> space, <0xNN> bytes -> text, join, drop one leading space.
     let llama = Sequence::new(vec![
-        Replace::new("▁".into(), " ")?.into(),
+        Replace::new("▁", " ")?.into(),
         ByteFallback::new().into(),
         Fuse::new().into(),
         Strip::new(' ', 1, 0).into(),

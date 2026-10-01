@@ -30,10 +30,12 @@ nothing is silently skipped. Feeding again replaces previously fed words.
 | `WordLevelTrainer` | `vocab_size` (30 000), `min_frequency` (0), `special_tokens` ([]), `show_progress` |
 | `UnigramTrainer` | `vocab_size` (8000), `n_sub_iterations` (2), `shrinking_factor` (0.75), `special_tokens` ([]), `initial_alphabet` ({}), `unk_token` (none), `max_piece_length` (16), `seed_size` (1 000 000), `show_progress` |
 
-All are built with `X::builder()...build()`; `UnigramTrainerBuilder::build()`
-returns a `Result` (it rejects `vocab_size` 0, `shrinking_factor`
-outside `(0, 1)`, `n_sub_iterations` 0, `max_piece_length` 0). Special
-tokens always get the first ids, in the order given.
+All are built with `X::builder()...build()`, which returns a `Result`:
+every trainer rejects `vocab_size` 0; BPE and WordPiece also reject
+`limit_alphabet` 0 and `max_token_length` 0; Unigram also rejects
+`shrinking_factor` outside `(0, 1)`, `n_sub_iterations` 0 and
+`max_piece_length` 0. Options are set only through the builders.
+Special tokens always get the first ids, in the order given.
 
 ## Progress
 
@@ -91,9 +93,9 @@ fn main() -> splinter::Result<()> {
         .vocab_size(300)
         .min_frequency(1)
         .initial_alphabet(ByteLevel::alphabet())
-        .special_tokens(vec![AddedToken::from("<|endoftext|>", true)])
+        .special_tokens(vec![AddedToken::new("<|endoftext|>", true)])
         .show_progress(false)
-        .build();
+        .build()?;
     gpt.train(trainer, CORPUS.iter())?;
     assert_eq!(gpt.token_to_id("<|endoftext|>"), Some(0));
     let enc = gpt.encode("hello wörld", false)?;
@@ -103,8 +105,8 @@ fn main() -> splinter::Result<()> {
     let mut bert = Tokenizer::new(WordPiece::default())
         .with_normalizer(BertNormalizer::default())
         .with_pre_tokenizer(BertPreTokenizer);
-    let specials = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"].map(|s| AddedToken::from(s, true));
-    bert.train(WordPieceTrainer::builder().vocab_size(200).special_tokens(specials.to_vec()).build(), CORPUS.iter())?;
+    let specials = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"].map(|s| AddedToken::new(s, true));
+    bert.train(WordPieceTrainer::builder().vocab_size(200).special_tokens(specials.to_vec()).build()?, CORPUS.iter())?;
     assert_eq!(bert.token_to_id("[UNK]"), Some(1));
 
     // SentencePiece style Unigram.
@@ -115,8 +117,8 @@ fn main() -> splinter::Result<()> {
         .with_decoder(ms);
     let trainer = UnigramTrainer::builder()
         .vocab_size(100)
-        .special_tokens(vec![AddedToken::from("<unk>", true)])
-        .unk_token(Some("<unk>".into()))
+        .special_tokens(vec![AddedToken::new("<unk>", true)])
+        .unk_token("<unk>")
         .show_progress(false)
         .build()?;
     sp.train(trainer, CORPUS.iter())?;

@@ -4,6 +4,16 @@ use crate::error::Result;
 use crate::traits::Decoder;
 
 /// Concatenates every token into a single one.
+///
+/// # Example
+///
+/// ```
+/// use splinter::decoders::Fuse;
+/// use splinter::Decoder;
+///
+/// assert_eq!(Fuse::new().decode_chain(vec!["hel".to_string(), "lo".to_string()])?, ["hello"]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Fuse;
 

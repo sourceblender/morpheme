@@ -86,6 +86,52 @@ format, and is now verified against the reference implementation.
 
 ### Changed
 
+- **Breaking — public API cleanup for 0.1** (Rust API guidelines):
+  - Constructors: `AddedToken::from` → `AddedToken::new`,
+    `Unigram::from` → `Unigram::new`, `Precompiled::from` →
+    `Precompiled::from_bytes` (the old names shadowed the `From` trait).
+  - Getters lose the `get_` prefix: `Model::get_vocab` / `get_vocab_size`
+    → `vocab` / `vocab_size` (also on `Tokenizer`, which keeps its
+    `with_added_tokens` argument), `Bpe::get_unk_token` /
+    `get_continuing_subword_prefix` / `get_end_of_word_suffix` →
+    `unk_token` / `continuing_subword_prefix` / `end_of_word_suffix`,
+    `AddedVocabulary::get_vocab` / `get_added_tokens_decoder` /
+    `get_encode_special_tokens` → `vocab` / `added_tokens_decoder` /
+    `encode_special_tokens`, `NormalizedString::get_original` →
+    `original`, `BpeTrainer::get_word_count` → `word_count`.
+    `Unigram::vocab()` → `pieces()` (and `iter()` is gone), so it no
+    longer clashes with `Model::vocab`. Lookups that take an argument
+    keep `get_` (`get_range`, `get_splits`), as in std.
+  - Every trainer builder's `build()` now returns `Result` and validates
+    its options (`vocab_size > 0`, …), like the model builders already
+    did. `max_token_length(usize)`; `UnigramTrainerBuilder::vocab_size` and
+    `n_sub_iterations` take `usize` and `unk_token` takes the token
+    directly.
+  - Models and trainers are configured through builders and read through
+    getters; their fields are private (`Bpe`, `WordPiece`, `WordLevel`,
+    all trainers). `Bpe::merges()` returns a slice. New getters:
+    `Bpe::{dropout, fuse_unk, byte_fallback, ignore_merges}`,
+    `WordPiece::{unk_token, continuing_subword_prefix,
+    max_input_chars_per_word}`, `WordLevel::unk_token`,
+    `Split::pattern`, `decoders::Replace::{pattern, content}` (their
+    patterns are compiled at construction, so the fields can no longer
+    be changed behind the compiled regex's back).
+  - Constructors accept `impl Into<String>` / `impl Into<SplitPattern>`
+    consistently (`Prepend::new`, `decoders::Replace::new`,
+    `BertProcessing::new(("[SEP]", 102), …)`, `RobertaProcessing::new`).
+  - `#[non_exhaustive]` on `Error`, the six wrapper enums,
+    `TruncationStrategy`, `PaddingStrategy`, `InputSequence`,
+    `EncodeInput`, and on configuration components with public fields
+    (construct them with `new`).
+  - Implementation modules are private; every type is reachable from its
+    module (`splinter::normalizers::BertNormalizer`, …).
+    `pre_tokenizers::byte_level` (byte tables, `process_offsets`) and
+    `processors::template` stay public. The Unigram lattice, pattern
+    `Invert`, the BPE trainer's `do_train` and the WordPiece trainer's
+    `bpe_trainer{,_mut}` are internal.
+- rustdoc: crate-level guide, feature table and a runnable example on
+  every component, model, trainer and the main `Tokenizer` methods;
+  docs.rs builds with all features and marks feature-gated items.
 - **Breaking:** the public API now mirrors Hugging Face `tokenizers`
   (`Tokenizer`, `Encoding` accessors, `models`, `normalizers`,
   `pre_tokenizers`, `processors`, `decoders`, `trainers` modules with

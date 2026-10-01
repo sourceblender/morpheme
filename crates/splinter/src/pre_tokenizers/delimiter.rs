@@ -8,7 +8,24 @@ use crate::pre_tokenized_string::PreTokenizedString;
 use crate::traits::PreTokenizer;
 
 /// Splits on `delimiter`, removing it.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::CharDelimiterSplit;
+///
+/// assert_eq!(split(&CharDelimiterSplit::new('-'), "state-of-the-art"), ["state", "of", "the", "art"]);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CharDelimiterSplit {
     /// The delimiter char.
     pub delimiter: char,

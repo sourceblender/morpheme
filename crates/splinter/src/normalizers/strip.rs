@@ -8,7 +8,25 @@ use crate::normalized_string::NormalizedString;
 use crate::traits::Normalizer;
 
 /// Remove leading and/or trailing whitespace.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::Strip;
+///
+/// assert_eq!(normalize(&Strip::new(true, true), "  hi  "), "hi");
+/// assert_eq!(normalize(&Strip::new(false, true), "  hi  "), "  hi");
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Strip {
     /// Strip leading whitespace.
     pub strip_left: bool,
@@ -46,6 +64,24 @@ impl Normalizer for Strip {
 
 /// Remove combining marks. Usually preceded by [`super::Nfd`] or
 /// [`super::Nfkd`] so accented letters are decomposed first.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::{Nfd, Sequence, StripAccents};
+///
+/// // Accents are separate combining marks only after NFD.
+/// let strip = Sequence::new(vec![Nfd.into(), StripAccents.into()]);
+/// assert_eq!(normalize(&strip, "café naïve"), "cafe naive");
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StripAccents;
 

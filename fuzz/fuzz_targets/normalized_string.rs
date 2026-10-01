@@ -72,7 +72,7 @@ fn check(n: &NormalizedString) {
     if n.len() > MAX_LEN * 4 {
         return;
     }
-    let original = n.get_original();
+    let original = n.original();
     let normalized = n.get();
     let (start, end) = n.offsets_original();
     assert!(start <= end, "offsets_original reversed");

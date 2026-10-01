@@ -33,6 +33,23 @@ pub(crate) fn bytes_to_chars() -> &'static [char; 256] {
 
 /// Map every byte of the text to its GPT-2 byte-level char (each input
 /// char becomes one char per UTF-8 byte).
+///
+/// # Example
+///
+/// ```
+/// use splinter::{NormalizedString, Normalizer};
+///
+/// fn normalize(n: &impl Normalizer, text: &str) -> String {
+///     let mut s = NormalizedString::from(text);
+///     n.normalize(&mut s).unwrap();
+///     s.get().to_owned()
+/// }
+///
+/// use splinter::normalizers::ByteLevel;
+///
+/// // Every byte maps to a printable char (GPT-2's byte-to-unicode table).
+/// assert_eq!(normalize(&ByteLevel::new(), "hé!"), "hÃ©!");
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ByteLevel;
 

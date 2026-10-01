@@ -17,7 +17,19 @@ fn default_true() -> bool {
 /// are glued to the previous token, others are separated by a space.
 /// With `cleanup`, removes spaces before punctuation and in common
 /// English contractions.
+///
+/// # Example
+///
+/// ```
+/// use splinter::decoders::WordPiece;
+/// use splinter::Decoder;
+///
+/// let d = WordPiece::new("##", true);
+/// assert_eq!(d.decode(vec!["hello".to_string(), "world".to_string(), "##s".to_string(), "!".to_string()])?, "hello worlds!");
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct WordPiece {
     /// The continuing-subword prefix (default `##`).
     #[serde(default = "default_prefix")]
@@ -45,7 +57,7 @@ impl WordPiece {
 
 /// Undo the spaces a whitespace-joining decoder puts before punctuation
 /// and inside English contractions.
-pub fn cleanup(s: &str) -> String {
+pub(crate) fn cleanup(s: &str) -> String {
     s.replace(" .", ".")
         .replace(" ?", "?")
         .replace(" !", "!")

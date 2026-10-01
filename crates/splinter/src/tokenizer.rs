@@ -3,10 +3,13 @@
 
 mod decode_stream;
 #[cfg(feature = "hub")]
-pub mod hub;
+mod hub;
 mod serialization;
 
 pub use decode_stream::DecodeStream;
+#[cfg(feature = "hub")]
+#[cfg_attr(docsrs, doc(cfg(feature = "hub")))]
+pub use hub::FromPretrainedParameters;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -31,6 +34,7 @@ use crate::traits::{Decoder, Model, Normalizer, PostProcessor, PreTokenizer, Tra
 
 /// One input sequence: raw text, or text already split into words.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum InputSequence<'s> {
     /// Raw text.
     Raw(Cow<'s, str>),
@@ -77,6 +81,7 @@ impl From<Vec<String>> for InputSequence<'_> {
 
 /// What to encode: a single sequence or a pair.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum EncodeInput<'s> {
     /// One sequence.
     Single(InputSequence<'s>),
@@ -102,6 +107,7 @@ where
 
 /// How to truncate a pair of sequences.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum TruncationStrategy {
     /// Remove tokens from the longest sequence first.
     #[default]
@@ -139,6 +145,7 @@ impl Default for TruncationParams {
 
 /// Target length for padding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum PaddingStrategy {
     /// Pad every encoding of a batch to the longest one.
     #[default]
@@ -289,6 +296,30 @@ pub fn pad_encodings(encodings: &mut [Encoding], params: &PaddingParams) -> Resu
 
 /// A tokenizer: normalizer, pre-tokenizer, model, post-processor and
 /// decoder, plus added tokens and truncation/padding settings.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::WordLevel;
+/// use splinter::pre_tokenizers::Whitespace;
+/// use splinter::Tokenizer;
+///
+/// let vocab: HashMap<String, u32> = [("[UNK]", 0), ("[PAD]", 1), ("hello", 2), ("world", 3), ("!", 4)]
+///     .map(|(t, i)| (t.to_string(), i))
+///     .into();
+/// let model = WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?;
+/// let tokenizer = Tokenizer::new(model).with_pre_tokenizer(Whitespace);
+///
+/// let encoding = tokenizer.encode("hello world!", false)?;
+/// assert_eq!(encoding.ids(), [2, 3, 4]);
+/// assert_eq!(tokenizer.decode(encoding.ids(), false)?, "hello world !");
+///
+/// // Save and reload as a Hugging Face tokenizer.json.
+/// let reloaded = Tokenizer::from_json(&tokenizer.to_json(true)?)?;
+/// assert_eq!(reloaded.encode("hello world!", false)?, encoding);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct Tokenizer {
     normalizer: Option<NormalizerWrapper>,
@@ -339,7 +370,7 @@ impl Tokenizer {
     /// Files are cached in the standard Hugging Face cache (shared with
     /// Python), honoring `HF_HOME`, `HF_HUB_CACHE`, `HF_TOKEN`,
     /// `HF_ENDPOINT` and `HF_HUB_OFFLINE`. When the Hub is unreachable a
-    /// cached copy is used if there is one. See [`hub`] for details.
+    /// cached copy is used if there is one. See [`FromPretrainedParameters`] for the options.
     ///
     /// ```no_run
     /// use splinter::{FromPretrainedParameters, Tokenizer};
@@ -351,7 +382,22 @@ impl Tokenizer {
     /// )?;
     /// # Ok::<(), splinter::Error>(())
     /// ```
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use splinter::{FromPretrainedParameters, Tokenizer};
+    ///
+    /// // Downloads into (or reuses) the Hugging Face cache shared with Python.
+    /// let bert = Tokenizer::from_pretrained("google-bert/bert-base-uncased", None)?;
+    ///
+    /// // Pin a revision; use a token for gated models (or set HF_TOKEN).
+    /// let params = FromPretrainedParameters::default().revision("v1.0");
+    /// let pinned = Tokenizer::from_pretrained("my-org/my-model", Some(params))?;
+    /// # Ok::<(), splinter::Error>(())
+    /// ```
     #[cfg(feature = "hub")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "hub")))]
     pub fn from_pretrained(
         identifier: &str,
         params: Option<hub::FromPretrainedParameters>,
@@ -435,6 +481,29 @@ impl Tokenizer {
 
     /// Set truncation. Fails if the stride is not smaller than the
     /// effective max length (max length minus added special tokens).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use splinter::models::WordLevel;
+    /// use splinter::pre_tokenizers::Whitespace;
+    /// use splinter::Tokenizer;
+    ///
+    /// let vocab: HashMap<String, u32> = [("[UNK]", 0), ("[PAD]", 1), ("hello", 2), ("world", 3), ("!", 4)]
+    ///     .map(|(t, i)| (t.to_string(), i))
+    ///     .into();
+    /// let model = WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?;
+    /// use splinter::TruncationParams;
+    ///
+    /// let mut tokenizer = Tokenizer::new(model).with_pre_tokenizer(Whitespace);
+    /// tokenizer.set_truncation(Some(TruncationParams { max_length: 2, ..Default::default() }))?;
+    ///
+    /// let encoding = tokenizer.encode("hello world !", false)?;
+    /// assert_eq!(encoding.ids(), [2, 3]);
+    /// assert_eq!(encoding.overflowing()[0].ids(), [4]); // the rest
+    /// # Ok::<(), splinter::Error>(())
+    /// ```
     pub fn set_truncation(&mut self, truncation: Option<TruncationParams>) -> Result<()> {
         if let Some(t) = &truncation {
             let effective = t.max_length.saturating_sub(self.n_added_tokens(false));
@@ -506,10 +575,10 @@ impl Tokenizer {
     // ----- vocabulary -------------------------------------------------
 
     /// The vocabulary, optionally including added tokens.
-    pub fn get_vocab(&self, with_added_tokens: bool) -> HashMap<String, u32> {
-        let mut vocab = self.model.get_vocab();
+    pub fn vocab(&self, with_added_tokens: bool) -> HashMap<String, u32> {
+        let mut vocab = self.model.vocab();
         if with_added_tokens {
-            for (token, id) in self.added_vocabulary.get_vocab() {
+            for (token, id) in self.added_vocabulary.vocab() {
                 vocab.insert(token.clone(), *id);
             }
         }
@@ -518,12 +587,12 @@ impl Tokenizer {
 
     /// Vocabulary size, optionally counting added tokens that are not
     /// already in the model's vocabulary.
-    pub fn get_vocab_size(&self, with_added_tokens: bool) -> usize {
-        let base = self.model.get_vocab_size();
+    pub fn vocab_size(&self, with_added_tokens: bool) -> usize {
+        let base = self.model.vocab_size();
         if !with_added_tokens {
             return base;
         }
-        let added = self.added_vocabulary.get_vocab();
+        let added = self.added_vocabulary.vocab();
         let overlapping = added
             .keys()
             .filter(|t| self.model.token_to_id(t).is_some())
@@ -636,6 +705,29 @@ impl Tokenizer {
 
     /// Encode a sequence or a pair. Offsets are **byte** offsets into
     /// the original input(s).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use splinter::models::WordLevel;
+    /// use splinter::pre_tokenizers::Whitespace;
+    /// use splinter::Tokenizer;
+    ///
+    /// let vocab: HashMap<String, u32> = [("[UNK]", 0), ("[PAD]", 1), ("hello", 2), ("world", 3), ("!", 4)]
+    ///     .map(|(t, i)| (t.to_string(), i))
+    ///     .into();
+    /// let model = WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?;
+    /// let tokenizer = Tokenizer::new(model).with_pre_tokenizer(Whitespace);
+    ///
+    /// // A single sequence, a pair, or pre-split words.
+    /// assert_eq!(tokenizer.encode("hello world", true)?.ids(), [2, 3]);
+    /// let pair = tokenizer.encode(("hello", "world"), true)?;
+    /// assert_eq!(pair.type_ids(), [0, 1]);
+    /// let words = tokenizer.encode(vec!["hello", "world"], true)?;
+    /// assert_eq!(words.word_ids(), [Some(0), Some(1)]);
+    /// # Ok::<(), splinter::Error>(())
+    /// ```
     pub fn encode<'s>(
         &self,
         input: impl Into<EncodeInput<'s>>,
@@ -675,6 +767,29 @@ impl Tokenizer {
 
     /// Encode several inputs in parallel. With `BatchLongest` padding,
     /// all encodings are padded to the longest one. Byte offsets.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use splinter::models::WordLevel;
+    /// use splinter::pre_tokenizers::Whitespace;
+    /// use splinter::Tokenizer;
+    ///
+    /// let vocab: HashMap<String, u32> = [("[UNK]", 0), ("[PAD]", 1), ("hello", 2), ("world", 3), ("!", 4)]
+    ///     .map(|(t, i)| (t.to_string(), i))
+    ///     .into();
+    /// let model = WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?;
+    /// use splinter::PaddingParams;
+    ///
+    /// let mut tokenizer = Tokenizer::new(model).with_pre_tokenizer(Whitespace);
+    /// tokenizer.set_padding(Some(PaddingParams { pad_id: 1, ..Default::default() }));
+    ///
+    /// let batch = tokenizer.encode_batch(vec!["hello", "hello world !"], false)?;
+    /// assert_eq!(batch[0].ids(), [2, 1, 1]); // padded to the longest
+    /// assert_eq!(batch[0].attention_mask(), [1, 0, 0]);
+    /// # Ok::<(), splinter::Error>(())
+    /// ```
     pub fn encode_batch<'s, E>(
         &self,
         inputs: Vec<E>,
@@ -746,6 +861,31 @@ impl Tokenizer {
     // ----- decoding ---------------------------------------------------
 
     /// Decode ids back to text. Unknown ids are skipped.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use splinter::models::WordLevel;
+    /// use splinter::pre_tokenizers::Whitespace;
+    /// use splinter::Tokenizer;
+    ///
+    /// let vocab: HashMap<String, u32> = [("[UNK]", 0), ("[PAD]", 1), ("hello", 2), ("world", 3), ("!", 4)]
+    ///     .map(|(t, i)| (t.to_string(), i))
+    ///     .into();
+    /// let model = WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?;
+    /// use splinter::decoders::WordPiece;
+    /// use splinter::AddedToken;
+    ///
+    /// let mut tokenizer = Tokenizer::new(model)
+    ///     .with_pre_tokenizer(Whitespace)
+    ///     .with_decoder(WordPiece::new("##", true));
+    /// tokenizer.add_special_tokens(&[AddedToken::new("[PAD]", true)])?;
+    ///
+    /// assert_eq!(tokenizer.decode(&[2, 3, 4, 1], false)?, "hello world! [PAD]");
+    /// assert_eq!(tokenizer.decode(&[2, 3, 4, 1], true)?, "hello world!");
+    /// # Ok::<(), splinter::Error>(())
+    /// ```
     pub fn decode(&self, ids: &[u32], skip_special_tokens: bool) -> Result<String> {
         let tokens: Vec<String> = ids
             .iter()

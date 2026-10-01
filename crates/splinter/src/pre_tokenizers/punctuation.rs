@@ -13,7 +13,26 @@ fn default_behavior() -> SplitDelimiterBehavior {
 }
 
 /// Splits on punctuation chars (ASCII punctuation plus Unicode `P*`).
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::Punctuation;
+/// use splinter::SplitDelimiterBehavior;
+///
+/// let p = Punctuation::new(SplitDelimiterBehavior::Isolated);
+/// assert_eq!(split(&p, "Hey, you!"), ["Hey", ",", " you", "!"]);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Punctuation {
     /// What to do with the punctuation (default `Isolated`).
     #[serde(default = "default_behavior")]

@@ -9,7 +9,25 @@ use crate::traits::PreTokenizer;
 
 /// Isolates numeric chars: each digit on its own
 /// (`individual_digits: true`) or runs of digits together.
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::Digits;
+///
+/// assert_eq!(split(&Digits::new(true), "abc123"), ["abc", "1", "2", "3"]);
+/// assert_eq!(split(&Digits::new(false), "abc123"), ["abc", "123"]);
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Digits {
     /// Split every digit into its own piece.
     #[serde(default)]

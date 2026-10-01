@@ -44,8 +44,8 @@ fn main() -> splinter::Result<()> {
 ```
 
 Builder: `vocab`, `unk_token` (`[UNK]`), `continuing_subword_prefix`
-(`##`), `max_input_chars_per_word` (100), `build() -> Result`.
-`WordPiece::from_bpe(&bpe)` turns a trained BPE model's vocabulary into
+(`##`), `max_input_chars_per_word` (100), `build() -> Result`. Getters
+with the same names read them back. `WordPiece::from_bpe(&bpe)` turns a trained BPE model's vocabulary into
 a WordPiece model (taking over its unk token and prefix) — this is how
 `WordPieceTrainer` works.
 
@@ -72,7 +72,8 @@ The simplest model: each pre-token maps to exactly one vocabulary entry,
 or to `unk_token` (default `<unk>`) if it is missing. If the unk token is
 needed and not in the vocabulary, encoding returns an error.
 
-Builder: `vocab`, `unk_token`, `build() -> Result`. Serialization:
+Builder: `vocab`, `unk_token`, `build() -> Result`; getter
+`unk_token()`. Serialization:
 
 ```json
 {"type":"WordLevel","vocab":{"[UNK]":0,"the":1,...},"unk_token":"[UNK]"}

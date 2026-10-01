@@ -1,30 +1,97 @@
-//! `splinter` — a Rust tokenizer library compatible with Hugging Face
-//! `tokenizers`.
+//! `splinter` — fast, pure-Rust subword tokenization compatible with
+//! Hugging Face [`tokenizers`](https://github.com/huggingface/tokenizers).
 //!
-//! A [`Tokenizer`] is a pipeline:
-//!
-//! ```text
-//! input ─▶ added tokens ─▶ Normalizer ─▶ PreTokenizer ─▶ Model
-//!       ─▶ truncation ─▶ PostProcessor ─▶ padding ─▶ Encoding
-//! ```
-//!
-//! Tokenizers load from and save to the Hugging Face `tokenizer.json`
-//! format, and produce the same ids, tokens and offsets as the
+//! splinter loads, runs, trains and saves tokenizers in the Hugging Face
+//! `tokenizer.json` format (BPE, WordPiece, WordLevel and Unigram) and
+//! produces the same ids, tokens, offsets and decoded text as the
 //! reference implementation.
+//!
+//! # Quick start
+//!
+//! Load a `tokenizer.json` (from disk, or from the Hub with the `hub`
+//! feature) and encode:
 //!
 //! ```no_run
 //! use splinter::Tokenizer;
 //!
 //! let tokenizer = Tokenizer::from_file("tokenizer.json")?;
 //! let encoding = tokenizer.encode("Hello, world!", true)?;
-//! println!("{:?}", encoding.tokens());
+//! println!("{:?} {:?}", encoding.tokens(), encoding.ids());
 //! let text = tokenizer.decode(encoding.ids(), true)?;
 //! # Ok::<(), splinter::Error>(())
 //! ```
 //!
-//! See `docs/architecture.md` for the design.
+//! Or build one in code, train it, and save it:
+//!
+//! ```
+//! use splinter::models::WordPiece;
+//! use splinter::normalizers::BertNormalizer;
+//! use splinter::pre_tokenizers::BertPreTokenizer;
+//! use splinter::trainers::WordPieceTrainer;
+//! use splinter::{AddedToken, Tokenizer};
+//!
+//! let mut tokenizer = Tokenizer::new(WordPiece::default())
+//!     .with_normalizer(BertNormalizer::default())
+//!     .with_pre_tokenizer(BertPreTokenizer);
+//! let trainer = WordPieceTrainer::builder()
+//!     .vocab_size(100)
+//!     .special_tokens(vec![AddedToken::new("[UNK]", true)])
+//!     .show_progress(false)
+//!     .build()?;
+//! tokenizer.train(trainer, ["Hello world!", "hello again, World"].into_iter())?;
+//!
+//! let encoding = tokenizer.encode("HELLO, world", false)?;
+//! assert_eq!(encoding.tokens(), ["hello", ",", "world"]);
+//! assert_eq!(encoding.offsets()[1], (5, 6)); // byte offsets into the input
+//!
+//! let json = tokenizer.to_json(false)?; // a valid Hugging Face tokenizer.json
+//! let reloaded = Tokenizer::from_json(&json)?;
+//! assert_eq!(reloaded.encode("HELLO, world", false)?, encoding);
+//! # Ok::<(), splinter::Error>(())
+//! ```
+//!
+//! # The pipeline
+//!
+//! ```text
+//! input ─▶ added tokens ─▶ Normalizer ─▶ PreTokenizer ─▶ Model
+//!       ─▶ truncation ─▶ PostProcessor ─▶ padding ─▶ Encoding
+//!
+//! ids ─▶ (skip special tokens) ─▶ Decoder ─▶ text
+//! ```
+//!
+//! | Stage | Trait | Built-in components |
+//! | --- | --- | --- |
+//! | Normalize text | [`Normalizer`] | [`normalizers`] |
+//! | Split into words | [`PreTokenizer`] | [`pre_tokenizers`] |
+//! | Words → tokens | [`Model`] | [`models`] |
+//! | Add special tokens, merge pairs | [`PostProcessor`] | [`processors`] |
+//! | Tokens → text | [`Decoder`] | [`decoders`] |
+//! | Learn a model | [`Trainer`] | [`trainers`] |
+//!
+//! Each module has a wrapper enum ([`NormalizerWrapper`], [`ModelWrapper`],
+//! …) that a [`Tokenizer`] stores and that (de)serializes with the
+//! Hugging Face `"type"` tag. Offsets always point into the original input,
+//! even after normalization, thanks to [`NormalizedString`]'s alignment
+//! tracking: [`Tokenizer::encode`] returns byte offsets and
+//! [`Tokenizer::encode_char_offsets`] returns char offsets (what the Python
+//! library returns).
+//!
+//! # Cargo features
+//!
+//! | Feature | Default | Enables |
+//! | --- | --- | --- |
+//! | `progressbar` | yes | Trainer progress bars on stderr (`show_progress`) |
+//! | `hub` | no | [`Tokenizer::from_pretrained`]: download from the Hugging Face Hub into the cache shared with Python |
+//!
+//! # Compatibility
+//!
+//! Behavior is verified against 11 real tokenizers (BERT, GPT-2, RoBERTa,
+//! Llama, T5, XLM-R, …) recorded from `tokenizers` 0.23. Known, deliberate
+//! differences are listed in the repository's `docs/interop.md`.
 
 #![deny(missing_docs)]
+#![warn(missing_debug_implementations, unreachable_pub)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 /// Library version, mirrored from `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -59,7 +126,8 @@ pub use pre_tokenized_string::{OffsetType, PreTokenizedString, Split};
 pub use pre_tokenizers::PreTokenizerWrapper;
 pub use processors::PostProcessorWrapper;
 #[cfg(feature = "hub")]
-pub use tokenizer::hub::FromPretrainedParameters;
+#[cfg_attr(docsrs, doc(cfg(feature = "hub")))]
+pub use tokenizer::FromPretrainedParameters;
 pub use tokenizer::{
     DecodeStream, EncodeInput, InputSequence, PaddingParams, PaddingStrategy, Tokenizer,
     TruncationParams, TruncationStrategy,

@@ -34,7 +34,8 @@ fn bench_train(c: &mut Criterion) {
                 .vocab_size(VOCAB)
                 .initial_alphabet(ByteLevel::alphabet())
                 .show_progress(false)
-                .build();
+                .build()
+                .unwrap();
             tok.train(trainer, corpus.iter()).unwrap();
             black_box(tok)
         })
@@ -47,9 +48,10 @@ fn bench_train(c: &mut Criterion) {
                 .with_pre_tokenizer(BertPreTokenizer);
             let trainer = WordPieceTrainer::builder()
                 .vocab_size(VOCAB)
-                .special_tokens(vec![AddedToken::from("[UNK]", true)])
+                .special_tokens(vec![AddedToken::new("[UNK]", true)])
                 .show_progress(false)
-                .build();
+                .build()
+                .unwrap();
             tok.train(trainer, corpus.iter()).unwrap();
             black_box(tok)
         })
@@ -61,9 +63,9 @@ fn bench_train(c: &mut Criterion) {
                 .with_normalizer(Nfkc)
                 .with_pre_tokenizer(Metaspace::new('▁', PrependScheme::Always, true));
             let trainer = UnigramTrainer::builder()
-                .vocab_size(VOCAB as u32)
-                .special_tokens(vec![AddedToken::from("<unk>", true)])
-                .unk_token(Some("<unk>".into()))
+                .vocab_size(VOCAB)
+                .special_tokens(vec![AddedToken::new("<unk>", true)])
+                .unk_token("<unk>")
                 .show_progress(false)
                 .build()
                 .unwrap();

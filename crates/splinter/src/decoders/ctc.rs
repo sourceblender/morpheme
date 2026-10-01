@@ -8,7 +8,20 @@ use crate::traits::Decoder;
 
 /// Collapses repeated tokens, removes `pad_token`, and (with `cleanup`)
 /// turns `word_delimiter_token` into spaces.
+///
+/// # Example
+///
+/// ```
+/// use splinter::decoders::Ctc;
+/// use splinter::Decoder;
+///
+/// // Speech-model output: repeats collapse, pads drop, `|` separates words.
+/// let d = Ctc::new("<pad>", "|", true);
+/// assert_eq!(d.decode(vec!["h".to_string(), "h".to_string(), "<pad>".to_string(), "i".to_string(), "|".to_string(), "y".to_string(), "o".to_string(), "<pad>".to_string(), "u".to_string()])?, "hi you");
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Ctc {
     /// The CTC blank / padding token.
     pub pad_token: String,

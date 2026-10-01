@@ -1,6 +1,6 @@
 //! Split where the Unicode script changes (SentencePiece behavior).
 
-pub mod scripts;
+mod scripts;
 
 use crate::error::{Error, Result};
 use crate::normalized_string::OffsetRange;
@@ -10,6 +10,23 @@ use crate::traits::PreTokenizer;
 /// Splits a piece wherever the script of consecutive chars changes.
 /// Spaces belong to any script; Hiragana, Katakana and `ー` count as Han
 /// (as in SentencePiece).
+///
+/// # Example
+///
+/// ```
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// fn split(pt: &impl PreTokenizer, text: &str) -> Vec<String> {
+///     let mut s = PreTokenizedString::from(text);
+///     pt.pre_tokenize(&mut s).unwrap();
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, _, _)| w.to_owned()).collect()
+/// }
+///
+/// use splinter::pre_tokenizers::UnicodeScripts;
+///
+/// // Splits where the script changes (Han, Hiragana and Katakana count as one).
+/// assert_eq!(split(&UnicodeScripts::new(), "東京abcТест"), ["東京", "abc", "Тест"]);
+/// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct UnicodeScripts;
 

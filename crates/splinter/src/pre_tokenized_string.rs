@@ -46,6 +46,20 @@ impl From<(NormalizedString, Option<Vec<Token>>)> for Split {
 
 /// A string being pre-tokenized: an ordered list of [`Split`]s that,
 /// concatenated, cover the original input.
+///
+/// # Example
+///
+/// ```
+/// use splinter::pre_tokenizers::Whitespace;
+/// use splinter::{OffsetType, PreTokenizedString, PreTokenizer};
+///
+/// let mut s = PreTokenizedString::from("Hi there!");
+/// Whitespace.pre_tokenize(&mut s)?;
+/// let splits: Vec<(&str, (usize, usize))> =
+///     s.get_splits(OffsetType::Byte).into_iter().map(|(w, o, _)| (w, o)).collect();
+/// assert_eq!(splits, [("Hi", (0, 2)), ("there", (3, 8)), ("!", (8, 9))]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreTokenizedString {
     original: String,
@@ -55,7 +69,7 @@ pub struct PreTokenizedString {
 impl From<NormalizedString> for PreTokenizedString {
     fn from(normalized: NormalizedString) -> Self {
         Self {
-            original: normalized.get_original().to_owned(),
+            original: normalized.original().to_owned(),
             splits: vec![Split::from(normalized)],
         }
     }

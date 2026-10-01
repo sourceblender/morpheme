@@ -35,9 +35,9 @@ pub trait Model {
     /// Token for `id`, if it is in the vocabulary.
     fn id_to_token(&self, id: u32) -> Option<String>;
     /// The full vocabulary.
-    fn get_vocab(&self) -> HashMap<String, u32>;
+    fn vocab(&self) -> HashMap<String, u32>;
     /// Vocabulary size.
-    fn get_vocab_size(&self) -> usize;
+    fn vocab_size(&self) -> usize;
 }
 
 /// Adds special tokens and combines sequence pairs.

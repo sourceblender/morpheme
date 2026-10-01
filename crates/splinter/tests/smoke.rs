@@ -23,8 +23,9 @@ fn byte_level_bpe_round_trips_any_text() {
     let trainer = BpeTrainer::builder()
         .vocab_size(400)
         .initial_alphabet(ByteLevel::alphabet())
-        .special_tokens(vec![AddedToken::from("<|endoftext|>", true)])
-        .build();
+        .special_tokens(vec![AddedToken::new("<|endoftext|>", true)])
+        .build()
+        .unwrap();
     tok.train(trainer, lines()).unwrap();
 
     for text in [
@@ -75,12 +76,13 @@ fn bert_style_wordpiece() {
         .with_decoder(DecoderWrapper::from(decoders::WordPiece::new("##", true)));
     let specials: Vec<AddedToken> = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
         .iter()
-        .map(|s| AddedToken::from(*s, true))
+        .map(|s| AddedToken::new(*s, true))
         .collect();
     let trainer = WordPieceTrainer::builder()
         .vocab_size(300)
         .special_tokens(specials)
-        .build();
+        .build()
+        .unwrap();
     tok.train(trainer, lines()).unwrap();
     let cls = tok.token_to_id("[CLS]").unwrap();
     let sep = tok.token_to_id("[SEP]").unwrap();
@@ -123,13 +125,13 @@ fn sentencepiece_style_unigram() {
         .with_decoder(marker);
     let trainer = UnigramTrainer::builder()
         .vocab_size(150)
-        .special_tokens(vec![AddedToken::from("<unk>", true)])
-        .unk_token(Some("<unk>".into()))
+        .special_tokens(vec![AddedToken::new("<unk>", true)])
+        .unk_token("<unk>")
         .show_progress(false)
         .build()
         .unwrap();
     tok.train(trainer, lines()).unwrap();
-    assert!(tok.get_vocab_size(false) <= 150);
+    assert!(tok.vocab_size(false) <= 150);
 
     let unk = tok.token_to_id("<unk>").unwrap();
     for line in lines().filter(|l| !l.trim().is_empty()) {
@@ -154,8 +156,9 @@ fn word_level() {
     let mut tok = Tokenizer::new(model).with_pre_tokenizer(Whitespace);
     let trainer = WordLevelTrainer::builder()
         .vocab_size(1000)
-        .special_tokens(vec![AddedToken::from("[UNK]", true)])
-        .build();
+        .special_tokens(vec![AddedToken::new("[UNK]", true)])
+        .build()
+        .unwrap();
     tok.train(trainer, lines()).unwrap();
     let enc = tok.encode("the fox flibbertigibbet.", false).unwrap();
     assert_eq!(enc.tokens(), &["the", "fox", "[UNK]", "."]);

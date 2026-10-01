@@ -74,6 +74,27 @@ Python exactly. The CLI has `--char-offsets`.
 - Component-level unit tests compare against hardcoded Python outputs,
   and the BPE trainer is checked for identical vocab and merges.
 
+## Rust API naming
+
+The file format and behavior follow Hugging Face exactly; the Rust API
+follows the [Rust API guidelines](https://rust-lang.github.io/api-guidelines/)
+where they differ from the `tokenizers` crate's names:
+
+| Hugging Face (`tokenizers` crate) | splinter |
+| --- | --- |
+| `get_vocab()` / `get_vocab_size()` (models and `Tokenizer`) | `vocab()` / `vocab_size()` |
+| `Encoding::get_ids()`, `get_tokens()`, `get_offsets()`, … | `ids()`, `tokens()`, `offsets()`, … |
+| `AddedToken::from(content, special)` | `AddedToken::new(content, special)` |
+| `Unigram::from(vocab, unk_id, byte_fallback)` | `Unigram::new(vocab, unk_id, byte_fallback)` |
+| `Precompiled::from(&[u8])` | `Precompiled::from_bytes(&[u8])` |
+| `BPE`, `BPEDecoder`, `CTC` | `Bpe`, `BpeDecoder`, `Ctc` |
+| public fields on models and trainers | builders + getters |
+
+Methods that look something up by an argument keep `get_`
+(`NormalizedString::get_range`, `PreTokenizedString::get_splits`), as in
+the standard library. The JSON `"type"` names are unchanged (`"BPE"`,
+`"BPEDecoder"`, `"CTC"`).
+
 ## Known deviations
 
 Deliberate differences, all in the direction of *accepting more* or

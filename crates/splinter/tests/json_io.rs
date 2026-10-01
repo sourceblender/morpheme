@@ -13,8 +13,9 @@ fn trained() -> Tokenizer {
         .with_pre_tokenizer(Whitespace);
     let trainer = BpeTrainer::builder()
         .vocab_size(120)
-        .special_tokens(vec![AddedToken::from("[UNK]", true)])
-        .build();
+        .special_tokens(vec![AddedToken::new("[UNK]", true)])
+        .build()
+        .unwrap();
     tok.train(
         trainer,
         include_str!("../../../examples/corpus.txt").lines(),
@@ -104,7 +105,7 @@ fn malformed_inputs_are_errors_not_panics() {
 #[test]
 fn added_tokens_round_trip_with_flags() {
     let mut tok = trained();
-    tok.add_tokens(&[AddedToken::from("<mask>", false).lstrip(true)])
+    tok.add_tokens(&[AddedToken::new("<mask>", false).lstrip(true)])
         .unwrap();
     let reloaded = Tokenizer::from_json(&tok.to_json(false).unwrap()).unwrap();
     let a = reloaded.added_vocabulary().tokens_with_ids();

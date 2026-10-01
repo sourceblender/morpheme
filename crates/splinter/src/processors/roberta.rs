@@ -16,7 +16,29 @@ fn default_true() -> bool {
 /// id 0 (RoBERTa has no segment embeddings). With `trim_offsets`, the
 /// leading/trailing whitespace that byte-level tokens carry (`Ġ`) is
 /// removed from their offsets.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use splinter::models::WordLevel;
+/// use splinter::pre_tokenizers::WhitespaceSplit;
+/// use splinter::processors::RobertaProcessing;
+/// use splinter::Tokenizer;
+///
+/// let vocab: HashMap<String, u32> =
+///     [("<unk>", 3), ("hello", 7), ("world", 8)].map(|(t, i)| (t.to_string(), i)).into();
+/// let tokenizer = Tokenizer::new(WordLevel::builder().vocab(vocab).unk_token("<unk>").build()?)
+///     .with_pre_tokenizer(WhitespaceSplit)
+///     .with_post_processor(RobertaProcessing::new(("</s>", 2), ("<s>", 0)));
+///
+/// let pair = tokenizer.encode(("hello", "world"), true)?;
+/// assert_eq!(pair.tokens(), ["<s>", "hello", "</s>", "</s>", "world", "</s>"]);
+/// assert_eq!(pair.type_ids(), [0, 0, 0, 0, 0, 0]);
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct RobertaProcessing {
     /// Separator token and its id.
     pub sep: (String, u32),
@@ -44,10 +66,10 @@ impl Default for RobertaProcessing {
 
 impl RobertaProcessing {
     /// Build with explicit `(token, id)` pairs and default flags.
-    pub fn new(sep: (String, u32), cls: (String, u32)) -> Self {
+    pub fn new(sep: (impl Into<String>, u32), cls: (impl Into<String>, u32)) -> Self {
         Self {
-            sep,
-            cls,
+            sep: (sep.0.into(), sep.1),
+            cls: (cls.0.into(), cls.1),
             ..Default::default()
         }
     }

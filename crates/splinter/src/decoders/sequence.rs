@@ -7,6 +7,23 @@ use crate::error::Result;
 use crate::traits::Decoder;
 
 /// Applies each decoder's `decode_chain` in turn.
+///
+/// # Example
+///
+/// ```
+/// use splinter::decoders::{ByteFallback, Fuse, Replace, Sequence, Strip};
+/// use splinter::Decoder;
+///
+/// // Llama's decoder: `▁` → space, byte fallback, fuse, strip the leading space.
+/// let d = Sequence::new(vec![
+///     Replace::new("▁", " ")?.into(),
+///     ByteFallback::new().into(),
+///     Fuse::new().into(),
+///     Strip::new(' ', 1, 0).into(),
+/// ]);
+/// assert_eq!(d.decode(vec!["▁Hello".to_string(), "▁w".to_string(), "<0xC3>".to_string(), "<0xA9>".to_string()])?, "Hello wé");
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Sequence {
     decoders: Vec<DecoderWrapper>,

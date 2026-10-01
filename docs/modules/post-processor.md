@@ -72,11 +72,11 @@ fn main() -> splinter::Result<()> {
     assert_eq!(enc.offsets()[0], (0, 0));
 
     // Same layout as BertProcessing:
-    let bert = base.clone().with_post_processor(BertProcessing::new(("[SEP]".into(), 2), ("[CLS]".into(), 1)));
+    let bert = base.clone().with_post_processor(BertProcessing::new(("[SEP]", 2), ("[CLS]", 1)));
     assert_eq!(bert.encode(("hello", "world"), true)?.ids(), enc.ids());
 
     // RoBERTa: <s> A </s></s> B </s>, all type ids 0.
-    let rob = base.with_post_processor(RobertaProcessing::new(("[SEP]".into(), 2), ("[CLS]".into(), 1)));
+    let rob = base.with_post_processor(RobertaProcessing::new(("[SEP]", 2), ("[CLS]", 1)));
     let e = rob.encode(("hello", "world"), true)?;
     assert_eq!(e.tokens(), &["[CLS]", "hello", "[SEP]", "[SEP]", "world", "[SEP]"]);
     assert_eq!(e.type_ids(), &[0, 0, 0, 0, 0, 0]);

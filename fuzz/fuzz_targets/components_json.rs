@@ -90,7 +90,7 @@ fuzz_target!(|data: &[u8]| {
                     }
                 }
             }
-            let _ = m.get_vocab_size();
+            let _ = m.vocab_size();
             let json = serde_json::to_string(&m).expect("loaded model must serialize");
             serde_json::from_str::<ModelWrapper>(&json).expect("model's own JSON must reload");
         }

@@ -6,17 +6,17 @@
 //! back to the original input are preserved exactly as in Hugging Face
 //! `tokenizers`.
 
-pub mod bert;
+mod bert;
 pub mod byte_level;
-pub mod delimiter;
-pub mod digits;
-pub mod fixed_length;
-pub mod metaspace;
-pub mod punctuation;
-pub mod sequence;
-pub mod split;
-pub mod unicode_scripts;
-pub mod whitespace;
+mod delimiter;
+mod digits;
+mod fixed_length;
+mod metaspace;
+mod punctuation;
+mod sequence;
+mod split;
+mod unicode_scripts;
+mod whitespace;
 
 #[cfg(test)]
 mod tests;
@@ -43,6 +43,7 @@ pub use whitespace::{Whitespace, WhitespaceSplit};
 /// representation, tagged with `"type"`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
+#[non_exhaustive]
 pub enum PreTokenizerWrapper {
     /// See [`BertPreTokenizer`].
     BertPreTokenizer(BertPreTokenizer),

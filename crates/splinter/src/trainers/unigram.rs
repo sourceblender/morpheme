@@ -32,26 +32,51 @@ type Sentence = (String, u32);
 const CHUNK_SIZE: usize = 512;
 
 /// Trains a [`Unigram`] model. Build with [`UnigramTrainer::builder`].
+///
+/// # Example
+///
+/// ```
+/// use splinter::models::Unigram;
+/// use splinter::pre_tokenizers::{Metaspace, PrependScheme};
+/// use splinter::trainers::UnigramTrainer;
+/// use splinter::{AddedToken, Tokenizer};
+///
+/// let metaspace = Metaspace::new('▁', PrependScheme::Always, true);
+/// let mut tokenizer = Tokenizer::new(Unigram::default())
+///     .with_pre_tokenizer(metaspace.clone())
+///     .with_decoder(metaspace);
+/// let trainer = UnigramTrainer::builder()
+///     .vocab_size(40)
+///     .unk_token("<unk>")
+///     .special_tokens(vec![AddedToken::new("<unk>", true)])
+///     .show_progress(false)
+///     .build()?;
+/// tokenizer.train(trainer, ["low lower lowest", "new newer newest"].into_iter())?;
+///
+/// let ids = tokenizer.encode("lowest newer", false)?.ids().to_vec();
+/// assert_eq!(tokenizer.decode(&ids, false)?, "lowest newer");
+/// # Ok::<(), splinter::Error>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct UnigramTrainer {
-    /// Whether to report progress (no progress output is produced yet).
-    pub show_progress: bool,
+    /// Whether to report progress.
+    pub(crate) show_progress: bool,
     /// Target vocabulary size, special tokens included.
-    pub vocab_size: u32,
+    pub(crate) vocab_size: u32,
     /// EM iterations between pruning rounds.
-    pub n_sub_iterations: u32,
+    pub(crate) n_sub_iterations: u32,
     /// Fraction of pieces kept by each pruning round.
-    pub shrinking_factor: f64,
+    pub(crate) shrinking_factor: f64,
     /// Special tokens, placed first in the vocabulary.
-    pub special_tokens: Vec<AddedToken>,
+    pub(crate) special_tokens: Vec<AddedToken>,
     /// Chars always included in the vocabulary.
-    pub initial_alphabet: HashSet<char>,
+    pub(crate) initial_alphabet: HashSet<char>,
     /// Unknown token; added first unless it is already a special token.
-    pub unk_token: Option<String>,
+    pub(crate) unk_token: Option<String>,
     /// Maximum length of a piece, in chars.
-    pub max_piece_length: usize,
+    pub(crate) max_piece_length: usize,
     /// Number of seed pieces (chars included).
-    pub seed_size: usize,
+    pub(crate) seed_size: usize,
     words: HashMap<String, u32>,
 }
 
@@ -76,57 +101,88 @@ impl Default for UnigramTrainer {
 #[derive(Debug, Clone, Default)]
 pub struct UnigramTrainerBuilder {
     trainer: UnigramTrainer,
+    vocab_size: Option<usize>,
+    n_sub_iterations: Option<usize>,
 }
 
 impl UnigramTrainerBuilder {
+    /// A builder with HF defaults (vocab size 8000).
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Whether to report progress.
+    #[must_use]
     pub fn show_progress(mut self, v: bool) -> Self {
         self.trainer.show_progress = v;
         self
     }
-    /// Target vocabulary size (default 8000).
-    pub fn vocab_size(mut self, v: u32) -> Self {
-        self.trainer.vocab_size = v;
+    /// Target vocabulary size, special tokens included (default 8000).
+    #[must_use]
+    pub fn vocab_size(mut self, v: usize) -> Self {
+        self.vocab_size = Some(v);
         self
     }
     /// EM iterations per pruning round (default 2).
-    pub fn n_sub_iterations(mut self, v: u32) -> Self {
-        self.trainer.n_sub_iterations = v;
+    #[must_use]
+    pub fn n_sub_iterations(mut self, v: usize) -> Self {
+        self.n_sub_iterations = Some(v);
         self
     }
     /// Fraction kept per pruning round, in `(0, 1)` (default 0.75).
+    #[must_use]
     pub fn shrinking_factor(mut self, v: f64) -> Self {
         self.trainer.shrinking_factor = v;
         self
     }
-    /// Special tokens.
+    /// Special tokens, placed first in the vocabulary.
+    #[must_use]
     pub fn special_tokens(mut self, v: Vec<AddedToken>) -> Self {
         self.trainer.special_tokens = v;
         self
     }
-    /// Chars always included.
+    /// Chars always included in the vocabulary.
+    #[must_use]
     pub fn initial_alphabet(mut self, v: HashSet<char>) -> Self {
         self.trainer.initial_alphabet = v;
         self
     }
-    /// Unknown token.
-    pub fn unk_token(mut self, v: Option<String>) -> Self {
-        self.trainer.unk_token = v;
+    /// Unknown token; added to the vocabulary first unless it is already
+    /// one of the special tokens. None by default.
+    #[must_use]
+    pub fn unk_token(mut self, token: impl Into<String>) -> Self {
+        self.trainer.unk_token = Some(token.into());
         self
     }
     /// Maximum piece length in chars (default 16).
+    #[must_use]
     pub fn max_piece_length(mut self, v: usize) -> Self {
         self.trainer.max_piece_length = v;
         self
     }
     /// Number of seed pieces (default 1,000,000).
+    #[must_use]
     pub fn seed_size(mut self, v: usize) -> Self {
         self.trainer.seed_size = v;
         self
     }
     /// Validate and build.
+    ///
+    /// # Errors
+    /// Fails if `vocab_size`, `n_sub_iterations` or `max_piece_length` is
+    /// zero (or too large), or `shrinking_factor` is not in `(0, 1)`.
     pub fn build(self) -> Result<UnigramTrainer> {
-        let t = self.trainer;
+        let mut t = self.trainer;
+        let to_u32 = |v: usize, name: &str| {
+            u32::try_from(v)
+                .map_err(|_| Error::Config(format!("UnigramTrainer: {name} is too large")))
+        };
+        if let Some(v) = self.vocab_size {
+            t.vocab_size = to_u32(v, "vocab_size")?;
+        }
+        if let Some(v) = self.n_sub_iterations {
+            t.n_sub_iterations = to_u32(v, "n_sub_iterations")?;
+        }
         if t.vocab_size == 0 {
             return Err(Error::Config(
                 "UnigramTrainer: vocab_size must be > 0".into(),
@@ -341,7 +397,7 @@ impl UnigramTrainer {
                 let mut expected = vec![0.0; size];
                 let mut objective = 0.0;
                 for (s, n) in chunk {
-                    let mut lattice = Lattice::from(s, model.bos_id, model.eos_id);
+                    let mut lattice = Lattice::new(s, model.bos_id, model.eos_id);
                     model.populate_nodes(&mut lattice);
                     let z = lattice.populate_marginal(f64::from(*n), &mut expected);
                     objective -= z / all_freq;
@@ -400,7 +456,7 @@ impl UnigramTrainer {
                 if id == 0 {
                     return (false, vec![]);
                 }
-                let mut lattice = Lattice::from(token, bos_id, eos_id);
+                let mut lattice = Lattice::new(token, bos_id, eos_id);
                 model.populate_nodes(&mut lattice);
                 let nbests = lattice.nbest(2);
                 if nbests.len() == 1 {
@@ -428,7 +484,7 @@ impl UnigramTrainer {
                 let mut freq = vec![0.0; n_pieces];
                 let mut inverted: Vec<Vec<usize>> = vec![Vec::new(); n_pieces];
                 for &(i, (s, count)) in chunk {
-                    let mut lattice = Lattice::from(s, bos_id, eos_id);
+                    let mut lattice = Lattice::new(s, bos_id, eos_id);
                     model.populate_nodes(&mut lattice);
                     vsum += f64::from(*count);
                     for node in lattice.viterbi() {
@@ -510,7 +566,11 @@ impl UnigramTrainer {
         // The training-time unknown piece is not part of the result.
         inserted.insert("<UNK>".into());
 
-        let existing: HashMap<&str, f64> = model.iter().map(|(s, f)| (s.as_str(), *f)).collect();
+        let existing: HashMap<&str, f64> = model
+            .pieces()
+            .iter()
+            .map(|(s, f)| (s.as_str(), *f))
+            .collect();
         let mut required: Vec<String> = required_chars.into_iter().collect();
         required.sort();
         for c in required {
@@ -536,7 +596,7 @@ impl UnigramTrainer {
         let budget = (self.vocab_size as usize)
             .saturating_sub(self.special_tokens.len())
             .saturating_sub(usize::from(add_unk));
-        for (token, score) in model.iter() {
+        for (token, score) in model.pieces() {
             if inserted.contains(token) {
                 continue;
             }
@@ -554,7 +614,7 @@ impl UnigramTrainer {
         }
         vocab.extend(self.special_tokens.iter().map(|t| (t.content.clone(), 0.0)));
         vocab.extend(pieces);
-        Unigram::from(vocab, unk_id, model.byte_fallback())
+        Unigram::new(vocab, unk_id, model.byte_fallback())
     }
 
     /// Train on `(word, count)` pairs.
@@ -583,13 +643,13 @@ impl UnigramTrainer {
         progress.finish();
 
         let desired = (self.vocab_size as usize * 11) / 10;
-        let mut current = Unigram::from(pieces.clone(), Some(0), false)?;
+        let mut current = Unigram::new(pieces.clone(), Some(0), false)?;
         let progress = Progress::new(self.show_progress, "EM training", None);
         loop {
             for _ in 0..self.n_sub_iterations {
                 let expected = self.run_e_step(&current, &sentences);
                 pieces = self.run_m_step(&pieces, &expected);
-                current = Unigram::from(pieces.clone(), Some(0), false)?;
+                current = Unigram::new(pieces.clone(), Some(0), false)?;
                 progress.inc(1);
             }
             if pieces.len() <= desired {
@@ -602,7 +662,7 @@ impl UnigramTrainer {
                 break;
             }
             pieces = pruned;
-            current = Unigram::from(pieces.clone(), Some(0), false)?;
+            current = Unigram::new(pieces.clone(), Some(0), false)?;
         }
 
         progress.finish();
@@ -753,14 +813,15 @@ mod tests {
     #[test]
     fn unk_token_placement() {
         let words = || vec![("The".to_string(), 12), ("are".to_string(), 11)];
-        let first3 = |m: &Unigram| -> Vec<(String, f64)> { m.iter().take(3).cloned().collect() };
+        let first3 =
+            |m: &Unigram| -> Vec<(String, f64)> { m.pieces().iter().take(3).cloned().collect() };
 
         let t = trainer()
             .special_tokens(vec![
-                AddedToken::from("[SEP]", true),
-                AddedToken::from("[CLS]", true),
+                AddedToken::new("[SEP]", true),
+                AddedToken::new("[CLS]", true),
             ])
-            .unk_token(Some("[UNK]".into()))
+            .unk_token("[UNK]")
             .build()
             .unwrap();
         let mut m = Unigram::default();
@@ -777,11 +838,11 @@ mod tests {
 
         let t = trainer()
             .special_tokens(vec![
-                AddedToken::from("[SEP]", true),
-                AddedToken::from("[CLS]", true),
-                AddedToken::from("[UNK]", true),
+                AddedToken::new("[SEP]", true),
+                AddedToken::new("[CLS]", true),
+                AddedToken::new("[UNK]", true),
             ])
-            .unk_token(Some("[UNK]".into()))
+            .unk_token("[UNK]")
             .build()
             .unwrap();
         let mut m = Unigram::default();
@@ -799,7 +860,7 @@ mod tests {
         let t = trainer().build().unwrap();
         let mut m = Unigram::default();
         t.do_train(words(), &mut m).unwrap();
-        assert_eq!(m.iter().next().unwrap().0, "e");
+        assert_eq!(m.pieces()[0].0, "e");
         assert_eq!(m.unk_id(), None);
     }
 
@@ -807,15 +868,15 @@ mod tests {
     fn special_tokens_first() {
         let t = trainer()
             .special_tokens(vec![
-                AddedToken::from("[SEP]", true),
-                AddedToken::from("[CLS]", true),
+                AddedToken::new("[SEP]", true),
+                AddedToken::new("[CLS]", true),
             ])
             .build()
             .unwrap();
         let mut m = Unigram::default();
         t.do_train(vec![("The".into(), 12), ("are".into(), 11)], &mut m)
             .unwrap();
-        let first: Vec<_> = m.iter().take(2).cloned().collect();
+        let first: Vec<_> = m.pieces().iter().take(2).cloned().collect();
         assert_eq!(first, vec![("[SEP]".into(), 0.0), ("[CLS]".into(), 0.0)]);
     }
 
@@ -843,10 +904,10 @@ mod tests {
 
     #[test]
     fn empty_corpus_does_not_panic() {
-        let t = trainer().unk_token(Some("<unk>".into())).build().unwrap();
+        let t = trainer().unk_token("<unk>").build().unwrap();
         let mut m = Unigram::default();
         t.do_train(vec![], &mut m).unwrap();
-        assert_eq!(m.get_vocab_size(), 1);
+        assert_eq!(m.vocab_size(), 1);
     }
 
     fn corpus_words() -> Vec<String> {
@@ -875,11 +936,11 @@ mod tests {
         words
     }
 
-    fn train_corpus(vocab_size: u32) -> Unigram {
+    fn train_corpus(vocab_size: usize) -> Unigram {
         let mut t = trainer()
             .vocab_size(vocab_size)
-            .unk_token(Some("<unk>".into()))
-            .special_tokens(vec![AddedToken::from("<unk>", true)])
+            .unk_token("<unk>")
+            .special_tokens(vec![AddedToken::new("<unk>", true)])
             .build()
             .unwrap();
         let words = corpus_words();
@@ -897,10 +958,10 @@ mod tests {
         let a = train_corpus(80);
         let b = train_corpus(80);
         assert_eq!(a, b, "training must be deterministic");
-        assert_eq!(a.get_vocab_size(), 80);
+        assert_eq!(a.vocab_size(), 80);
         // This corpus only supports 102 pieces: HF tokenizers 0.23.2
         // stops at exactly the same 102-piece vocabulary.
-        assert_eq!(train_corpus(120).get_vocab_size(), 102);
+        assert_eq!(train_corpus(120).vocab_size(), 102);
         let unk = a.unk_id().unwrap() as u32;
         for w in corpus_words() {
             for t in a.tokenize(&w).unwrap() {
