@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Tokenizer` for the browser with `wasm-bindgen` (`fromJson`, `encode`,
   `tokens`, `count`, `decode`; Rust errors become JS exceptions), with a
   `www/index.html` token counter and `wasm-pack` build instructions (#51).
+- Unigram subword-regularization sampling: `Unigram::set_sampling(alpha,
+  nbest_size)` / `with_sampling` (n-best sampling for `nbest_size > 1`,
+  whole-lattice forward-filtering backward-sampling for `nbest_size < 0`)
+  and `set_seed` / `with_seed` for reproducible, batch-order-independent
+  draws from an in-crate PRNG. Sampled encodings bypass the sentence cache;
+  the settings are runtime-only and never written to `tokenizer.json` (#52).
+- `Tokenizer::model_mut` for changing runtime model settings in place,
+  without `set_model`, and `Bpe::set_dropout` as the validated runtime
+  setter for BPE dropout (clears the word cache) (#52).
 
 ## [0.3.0] - 2026-10-01
 
