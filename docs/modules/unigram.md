@@ -87,6 +87,14 @@ let model = Unigram::new(pieces, Some(0), false)?
     byte-for-byte identical to not sampling (`sampling()` reports
     `None`).
   - `alpha` must be finite and `>= 0`; anything else is a config error.
+    Any finite `alpha` is numerically safe: n-best weights are computed
+    as `exp(alpha * (score - best_score))` with the exponent clamped, and
+    if whole-lattice sampling underflows every path to `-inf` the draw
+    falls back to the Viterbi path (the distribution it has collapsed
+    onto).
+  - Sampling accepts exactly the inputs Viterbi accepts and raises the
+    same missing-`unk_id` error otherwise; it never fails where plain
+    encoding succeeds.
 - `set_seed(Option<u64>)` / `with_seed(u64)`: with a seed the draw for
   a given sentence is a pure function of `(seed, sentence)`, so results
   are reproducible and independent of thread or batch order

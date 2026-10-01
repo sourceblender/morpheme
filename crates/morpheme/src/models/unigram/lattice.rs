@@ -37,7 +37,7 @@ pub(crate) fn log_sum_exp(x: f64, y: f64, init: bool) -> f64 {
         return y;
     }
     let (lo, hi) = if x > y { (y, x) } else { (x, y) };
-    if hi > lo + 50.0 {
+    if hi == f64::NEG_INFINITY || hi > lo + 50.0 {
         hi
     } else {
         hi + ((lo - hi).exp() + 1.0).ln()
@@ -128,12 +128,23 @@ impl<'a> Lattice<'a> {
         &self.sentence[node.pos..node.pos + node.length]
     }
 
+    /// Char-boundary byte positions, `0..=len`.
+    fn boundaries(&self) -> impl Iterator<Item = usize> + '_ {
+        self.sentence
+            .char_indices()
+            .map(|(pos, _)| pos)
+            .chain(std::iter::once(self.len()))
+    }
+
     /// Best-scoring segmentation (node ids, BOS/EOS excluded). Empty if
     /// some position cannot be reached.
+    ///
+    /// As in SentencePiece and HF, a char position with no piece
+    /// starting there, or a piece with nothing ending where it starts,
+    /// makes the lattice incomplete; the caller reports the missing unk.
     pub(crate) fn viterbi(&mut self) -> Vec<usize> {
-        let len = self.len();
-        let mut pos = 0;
-        while pos <= len {
+        let boundaries: Vec<usize> = self.boundaries().collect();
+        for pos in boundaries {
             if self.begin_nodes[pos].is_empty() {
                 return vec![];
             }
@@ -157,10 +168,6 @@ impl<'a> Lattice<'a> {
                         return vec![];
                     }
                 }
-            }
-            match self.sentence[pos..].chars().next() {
-                Some(c) => pos += c.len_utf8(),
-                None => break,
             }
         }
 
@@ -228,7 +235,11 @@ impl<'a> Lattice<'a> {
         const MAX_AGENDA: usize = 100_000;
         const MIN_AGENDA: usize = 512;
 
-        self.viterbi();
+        if self.viterbi().is_empty() {
+            // Incomplete lattice: the partial backtraces Viterbi left
+            // behind must not be searched.
+            return vec![];
+        }
         let mut hyps: Vec<Hypothesis> = Vec::new();
         let mut agenda: BinaryHeap<Entry> = BinaryHeap::new();
         let mut seq = 0u64;
@@ -312,26 +323,32 @@ impl<'a> Lattice<'a> {
     /// One segmentation sampled from the lattice with probability
     /// proportional to `exp(theta * score)` (forward filtering, backward
     /// sampling, as SentencePiece's `Lattice::Sample`). `uniform` must
-    /// return values in `[0, 1)`. Empty if some position cannot be
-    /// reached.
+    /// return values in `[0, 1)`.
+    ///
+    /// Accepts exactly the lattices [`viterbi`](Self::viterbi) accepts
+    /// (same structural checks). Also empty when `theta * score`
+    /// underflows the forward mass to `-inf` on every complete path, in
+    /// which case the distribution has collapsed onto the Viterbi path
+    /// and callers fall back to it.
     pub(crate) fn sample(&self, theta: f64, uniform: &mut dyn FnMut() -> f64) -> Vec<usize> {
-        let len = self.len();
         let n = self.nodes.len();
         let mut alpha = vec![f64::NEG_INFINITY; n];
         alpha[BOS_NODE] = 0.0;
-        let boundaries = self
-            .sentence
-            .char_indices()
-            .map(|(pos, _)| pos)
-            .chain(std::iter::once(len));
+        let boundaries: Vec<usize> = self.boundaries().collect();
         for pos in boundaries {
             if self.begin_nodes[pos].is_empty() {
                 return vec![];
             }
             for &r in &self.begin_nodes[pos] {
-                for (k, &l) in self.end_nodes[pos].iter().enumerate() {
-                    alpha[r] =
-                        log_sum_exp(alpha[r], theta * self.nodes[l].score + alpha[l], k == 0);
+                if self.end_nodes[pos].is_empty() {
+                    return vec![];
+                }
+                for &l in &self.end_nodes[pos] {
+                    if alpha[l] == f64::NEG_INFINITY {
+                        continue; // mass underflowed on every path to `l`
+                    }
+                    let mass = theta * self.nodes[l].score + alpha[l];
+                    alpha[r] = log_sum_exp(alpha[r], mass, alpha[r] == f64::NEG_INFINITY);
                 }
             }
         }
@@ -345,28 +362,38 @@ impl<'a> Lattice<'a> {
         while node != BOS_NODE {
             let pos = self.nodes[node].pos;
             let candidates = &self.end_nodes[pos];
-            if candidates.is_empty() {
+            let mut z = f64::NEG_INFINITY;
+            probs.clear();
+            for &l in candidates {
+                let mass = if alpha[l] == f64::NEG_INFINITY {
+                    f64::NEG_INFINITY
+                } else {
+                    alpha[l] + theta * self.nodes[l].score
+                };
+                probs.push(mass);
+                z = log_sum_exp(z, mass, z == f64::NEG_INFINITY);
+            }
+            if !z.is_finite() {
                 return vec![];
             }
-            let mut z = 0.0;
-            for (k, &l) in candidates.iter().enumerate() {
-                z = log_sum_exp(z, alpha[l] + theta * self.nodes[l].score, k == 0);
+            for p in &mut probs {
+                *p = (*p - z).exp();
             }
-            probs.clear();
-            probs.extend(
-                candidates
-                    .iter()
-                    .map(|&l| (alpha[l] + theta * self.nodes[l].score - z).exp()),
-            );
             let mut target = uniform() * probs.iter().sum::<f64>();
-            let mut chosen = candidates.len() - 1;
+            let mut chosen = None;
             for (k, p) in probs.iter().enumerate() {
+                if *p <= 0.0 {
+                    continue;
+                }
+                chosen = Some(k);
                 if target < *p {
-                    chosen = k;
                     break;
                 }
                 target -= p;
             }
+            let Some(chosen) = chosen else {
+                return vec![];
+            };
             node = candidates[chosen];
             if node != BOS_NODE {
                 results.push(node);
@@ -548,6 +575,56 @@ mod tests {
         assert!((freq(&[6, 5]) - p2 / z).abs() < 0.02);
         assert!((freq(&[3, 7]) - p3 / z).abs() < 0.02);
         assert!((freq(&[8]) - p4 / z).abs() < 0.02);
+    }
+
+    /// `sample` accepts exactly the lattices `viterbi` accepts: a char
+    /// position with no piece starting there, or a piece with nothing
+    /// ending where it starts, is rejected by both; a complete lattice
+    /// is accepted by both and every sample covers the sentence.
+    #[test]
+    fn sample_and_viterbi_agree_on_acceptance() {
+        let mut state = 7u64;
+        let mut uniform = || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 11) as f64 / (1u64 << 53) as f64
+        };
+
+        // No node starts at byte 1 (only multi-char pieces).
+        let mut l = Lattice::new("abab", 1, 2);
+        l.insert(0, 2, -1.0, 3);
+        l.insert(2, 2, -1.0, 3);
+        l.insert(0, 4, -1.5, 4);
+        assert!(l.viterbi().is_empty());
+        assert!(l.sample(1.0, &mut uniform).is_empty());
+
+        // A node starts at byte 1 but nothing ends there.
+        l.insert(1, 1, 0.0, 5);
+        assert!(l.viterbi().is_empty());
+        assert!(l.sample(1.0, &mut uniform).is_empty());
+
+        // Complete lattice: single-char pieces everywhere.
+        let mut l = Lattice::new("abab", 1, 2);
+        l.insert(0, 2, -1.0, 3);
+        l.insert(2, 2, -1.0, 3);
+        l.insert(0, 4, -1.5, 4);
+        for pos in 0..4 {
+            l.insert(pos, 1, -3.0, 5);
+        }
+        assert_eq!(l.tokens(), ["abab"]);
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..300 {
+            let path = l.sample(1.0, &mut uniform);
+            let toks: Vec<&str> = path.iter().map(|&i| l.piece(l.node(i))).collect();
+            assert_eq!(toks.concat(), "abab");
+            seen.insert(toks);
+        }
+        assert!(seen.len() >= 3, "{seen:?}");
+        // Sharp sampling collapses onto Viterbi; absurd theta underflows
+        // every path to `-inf` and yields empty rather than NaN.
+        assert_eq!(l.sample(1e6, &mut uniform), l.viterbi());
+        assert!(l.sample(f64::MAX, &mut uniform).is_empty());
     }
 
     #[test]
