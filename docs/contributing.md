@@ -137,11 +137,13 @@ it needs nightly Rust:
 | `encode` | Arbitrary text through real tokenizers (BERT, GPT-2, Llama, T5, Qwen2.5): encoding never fails, offsets are valid slices, GPT-2 round-trips losslessly. |
 | `normalized_string` | Random sequences of normalization ops: alignments always map back into the original text. |
 | `components_json` | Arbitrary JSON for each component type: loading never panics; loaded components run and re-serialize. |
+| `precompiled` | Arbitrary bytes as a SentencePiece `precompiled_charsmap`: `from_bytes` never panics; anything that parses normalizes fixed inputs with valid alignments and round-trips through JSON. Seeded with the real T5 / ALBERT / XLM-R charsmaps. |
+| `decode` | Arbitrary id sequences (in-range, out-of-range, special) through `decode` and `DecodeStream` on the real tokenizers: nothing panics, out-of-range ids are dropped, and the streamed text is a prefix of (normally equal to) the full decode. |
 
 ```sh
 rustup toolchain install nightly
 cargo install cargo-fuzz
-./scripts/fetch-hf-fixtures.sh     # real tokenizers for `encode` and the seeds
+./scripts/fetch-hf-fixtures.sh     # real tokenizers for `encode` / `decode` and the seeds
 ./fuzz/run-all.sh 300              # all targets in parallel, 5 minutes each
 cargo +nightly fuzz run encode     # or one target, until Ctrl-C
 ```
