@@ -15,13 +15,15 @@ instance can serve many threads.
 | `set_normalizer` / `set_pre_tokenizer` / `set_model` / `set_post_processor` / `set_decoder` | Replace a component in place |
 | `normalizer()`, `pre_tokenizer()`, `model()`, `post_processor()`, `decoder()`, `truncation()`, `padding()`, `added_vocabulary()` | Inspect |
 
-### From the Hugging Face Hub (feature `hub`)
+### Atomic saves
 
 `Tokenizer::save` writes a complete temporary file in the destination
 directory and replaces the destination atomically, preserving existing
 permissions. Readers see the old or new complete file. A destination
 symlink is replaced rather than writing through it. This guarantees
 atomic visibility, not directory-entry durability after power loss.
+
+### From the Hugging Face Hub (feature `hub`)
 
 `Tokenizer::from_pretrained(id, params)` downloads `tokenizer.json` for
 a model id (`name` or `org/name`) and loads it. `FromPretrainedParameters`

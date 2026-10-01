@@ -430,6 +430,8 @@ impl Tokenizer {
             file.as_file().set_permissions(metadata.permissions())?;
         }
         file.as_file().sync_all()?;
+        // tempfile's Windows implementation uses MoveFileExW with
+        // MOVEFILE_REPLACE_EXISTING; persist replaces on both platforms.
         file.persist(path).map_err(|e| e.error)?;
         Ok(())
     }

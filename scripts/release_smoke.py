@@ -18,7 +18,7 @@ def require(condition, message):
 
 def smoke(cli, version, work):
     def run(*args):
-        return subprocess.check_output([str(cli), *map(str, args)], text=True).strip()
+        return subprocess.check_output([str(cli), *map(str, args)], text=True, encoding="utf-8").strip()
 
     require(run("--version") == f"morpheme {version}", "CLI version mismatch")
     corpus = work / "corpus.txt"

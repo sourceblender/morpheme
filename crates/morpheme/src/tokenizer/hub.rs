@@ -262,6 +262,12 @@ fn publish_verified_file(
     path: &Path,
     etag: &str,
 ) -> std::io::Result<()> {
+    if !verify_file(file.path(), etag)? {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "integrity check failed: temporary contents do not match the expected hash",
+        ));
+    }
     if verify_file(path, etag).unwrap_or(false) {
         return Ok(());
     }
@@ -962,7 +968,7 @@ mod tests {
         let path = dir.path().join("blob");
         std::fs::write(&path, "winner").unwrap();
         let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
-        file.write_all(b"other download").unwrap();
+        file.write_all(b"winner").unwrap();
         publish_verified_file(file, &path, &git_hash(b"winner")).unwrap();
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "winner");
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
@@ -978,6 +984,29 @@ mod tests {
             publish_revision_ref(file, &path, commit).unwrap();
             assert_eq!(std::fs::read_to_string(&path).unwrap(), commit);
             assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        }
+    }
+
+    #[test]
+    fn publication_rejects_corrupt_temporary_contents_without_replacing_destination() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("blob");
+        for existing in [None, Some("existing")] {
+            if let Some(contents) = existing {
+                std::fs::write(&path, contents).unwrap();
+            }
+            let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+            file.write_all(b"corrupt").unwrap();
+            let error = publish_verified_file(file, &path, &git_hash(b"expected")).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+            match existing {
+                Some(contents) => assert_eq!(std::fs::read_to_string(&path).unwrap(), contents),
+                None => assert!(!path.exists()),
+            }
+            assert_eq!(
+                std::fs::read_dir(dir.path()).unwrap().count(),
+                usize::from(existing.is_some())
+            );
         }
     }
 
