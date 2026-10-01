@@ -1,0 +1,985 @@
+{
+  "schema_version": 1,
+  "machine": {
+    "system": "Darwin",
+    "release": "27.0.0",
+    "arch": "arm64",
+    "cpu": "Apple M5",
+    "cores": 10
+  },
+  "settings": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8",
+    "workspace_manifest_sha256": "677cce34f5a8fe9e14b95bcf6597bf6b5a21cefb7db5420a4608d314f60b233e",
+    "cargo_config_sha256": "f25514dc8946cc776c1b158f7875520e509d91396b1cb73042e3ecf430b89bba",
+    "lock_sha256": "bc2a8cce8de772a79a7847a8af074b26d475d09bd05ac6ab945dc14cd30ff9fb",
+    "lines": 2000,
+    "batch_size": 256,
+    "threads": 4,
+    "corpus_generator": 1,
+    "seed": 42,
+    "profile": "release",
+    "padding": false,
+    "truncation": false,
+    "special_tokens": true,
+    "train_vocab": 4000
+  },
+  "revision": "2af8d246e111daa61010ec5b0a71bd00e30f001b",
+  "probe_sha256": "80ce9f943515c3e383aee7fd106c9f7637b4218e1d9758d98a1f17413eb6df64",
+  "dirty": true,
+  "inputs": {
+    "fixtures": {
+      "bert-base-uncased": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+      "gpt2": "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6",
+      "llama": "8eea70c4866c4f1320ba096fc986ac82038a8374dbe135212ba7628835b4a6f1",
+      "t5-small": "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066"
+    },
+    "corpora": {
+      "repeated": "93ab66e4c202cee06077ada760a2a4d59c39c7b6da7499df82ed8d018959de85",
+      "diverse": "c75b0a35329cfdbf009025e2e1b8ebdb08b8d03e710f3616ecf5745a1c9c71bc"
+    }
+  },
+  "results": {
+    "bert-base-uncased/load": {
+      "samples": [
+        {
+          "seconds": 0.006240792,
+          "vocab": 30522,
+          "peak_rss_bytes": 14499840
+        },
+        {
+          "seconds": 0.003548,
+          "vocab": 30522,
+          "peak_rss_bytes": 14499840
+        },
+        {
+          "seconds": 0.003879,
+          "vocab": 30522,
+          "peak_rss_bytes": 14532608
+        }
+      ]
+    },
+    "bert-base-uncased/repeated/encode_seq": {
+      "samples": [
+        {
+          "seconds": 0.039403542,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 17481728
+        },
+        {
+          "seconds": 0.034730499000000005,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 17481728
+        },
+        {
+          "seconds": 0.035053750999999994,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 17432576
+        }
+      ]
+    },
+    "bert-base-uncased/repeated/encode_batch": {
+      "samples": [
+        {
+          "seconds": 0.019632833000000002,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20234240
+        },
+        {
+          "seconds": 0.016638166,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20119552
+        },
+        {
+          "seconds": 0.017550042,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20119552
+        }
+      ]
+    },
+    "bert-base-uncased/repeated/decode_seq": {
+      "samples": [
+        {
+          "seconds": 0.022535875,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20348928
+        },
+        {
+          "seconds": 0.023463624999999995,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20217856
+        },
+        {
+          "seconds": 0.023417040999999996,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20316160
+        }
+      ]
+    },
+    "bert-base-uncased/repeated/decode_batch": {
+      "samples": [
+        {
+          "seconds": 0.008416373,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20217856
+        },
+        {
+          "seconds": 0.0074005,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20168704
+        },
+        {
+          "seconds": 0.007125126000000001,
+          "bytes": 331013,
+          "tokens": 79454,
+          "lines": 2000,
+          "peak_rss_bytes": 20299776
+        }
+      ]
+    },
+    "bert-base-uncased/diverse/encode_seq": {
+      "samples": [
+        {
+          "seconds": 0.079576834,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 17039360
+        },
+        {
+          "seconds": 0.077078085,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 17170432
+        },
+        {
+          "seconds": 0.078152457,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 17170432
+        }
+      ]
+    },
+    "bert-base-uncased/diverse/encode_batch": {
+      "samples": [
+        {
+          "seconds": 0.034734457999999996,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26476544
+        },
+        {
+          "seconds": 0.033020875,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26492928
+        },
+        {
+          "seconds": 0.034529875,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26378240
+        }
+      ]
+    },
+    "bert-base-uncased/diverse/decode_seq": {
+      "samples": [
+        {
+          "seconds": 0.102127124,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26640384
+        },
+        {
+          "seconds": 0.108530125,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26542080
+        },
+        {
+          "seconds": 0.101927708,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26591232
+        }
+      ]
+    },
+    "bert-base-uncased/diverse/decode_batch": {
+      "samples": [
+        {
+          "seconds": 0.035265666,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26656768
+        },
+        {
+          "seconds": 0.045397045000000004,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26689536
+        },
+        {
+          "seconds": 0.042093082999999996,
+          "bytes": 660000,
+          "tokens": 373784,
+          "lines": 2000,
+          "peak_rss_bytes": 26509312
+        }
+      ]
+    },
+    "gpt2/load": {
+      "samples": [
+        {
+          "seconds": 0.015709708,
+          "vocab": 50257,
+          "peak_rss_bytes": 26902528
+        },
+        {
+          "seconds": 0.016000875,
+          "vocab": 50257,
+          "peak_rss_bytes": 26902528
+        },
+        {
+          "seconds": 0.015313958,
+          "vocab": 50257,
+          "peak_rss_bytes": 26902528
+        }
+      ]
+    },
+    "gpt2/repeated/encode_seq": {
+      "samples": [
+        {
+          "seconds": 0.036054499,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 29687808
+        },
+        {
+          "seconds": 0.0321675,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 29671424
+        },
+        {
+          "seconds": 0.031380374999999995,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 29671424
+        }
+      ]
+    },
+    "gpt2/repeated/encode_batch": {
+      "samples": [
+        {
+          "seconds": 0.017270501,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 31997952
+        },
+        {
+          "seconds": 0.017671293,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 31916032
+        },
+        {
+          "seconds": 0.017165833999999998,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 32129024
+        }
+      ]
+    },
+    "gpt2/repeated/decode_seq": {
+      "samples": [
+        {
+          "seconds": 0.005918083000000001,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 32063488
+        },
+        {
+          "seconds": 0.005753584,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 31997952
+        },
+        {
+          "seconds": 0.005703377,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 32047104
+        }
+      ]
+    },
+    "gpt2/repeated/decode_batch": {
+      "samples": [
+        {
+          "seconds": 0.00311625,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 32161792
+        },
+        {
+          "seconds": 0.0028492920000000007,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 32292864
+        },
+        {
+          "seconds": 0.002735708,
+          "bytes": 331013,
+          "tokens": 83587,
+          "lines": 2000,
+          "peak_rss_bytes": 32210944
+        }
+      ]
+    },
+    "gpt2/diverse/encode_seq": {
+      "samples": [
+        {
+          "seconds": 0.07307503900000001,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 34062336
+        },
+        {
+          "seconds": 0.074900252,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 34078720
+        },
+        {
+          "seconds": 0.07510462400000001,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 34111488
+        }
+      ]
+    },
+    "gpt2/diverse/encode_batch": {
+      "samples": [
+        {
+          "seconds": 0.032863417,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 39665664
+        },
+        {
+          "seconds": 0.032996,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 40058880
+        },
+        {
+          "seconds": 0.031733958,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 39878656
+        }
+      ]
+    },
+    "gpt2/diverse/decode_seq": {
+      "samples": [
+        {
+          "seconds": 0.018961707999999997,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 39780352
+        },
+        {
+          "seconds": 0.020356709,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 39927808
+        },
+        {
+          "seconds": 0.018210668,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 39911424
+        }
+      ]
+    },
+    "gpt2/diverse/decode_batch": {
+      "samples": [
+        {
+          "seconds": 0.007157709999999999,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 40206336
+        },
+        {
+          "seconds": 0.006854917,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 40157184
+        },
+        {
+          "seconds": 0.007638374,
+          "bytes": 660000,
+          "tokens": 376544,
+          "lines": 2000,
+          "peak_rss_bytes": 40206336
+        }
+      ]
+    },
+    "llama/load": {
+      "samples": [
+        {
+          "seconds": 0.015803125,
+          "vocab": 32000,
+          "peak_rss_bytes": 29179904
+        },
+        {
+          "seconds": 0.015085375,
+          "vocab": 32000,
+          "peak_rss_bytes": 29179904
+        },
+        {
+          "seconds": 0.015850625,
+          "vocab": 32000,
+          "peak_rss_bytes": 29147136
+        }
+      ]
+    },
+    "llama/repeated/encode_seq": {
+      "samples": [
+        {
+          "seconds": 0.035271250000000004,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 34439168
+        },
+        {
+          "seconds": 0.034952669,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 34455552
+        },
+        {
+          "seconds": 0.035039291,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 34488320
+        }
+      ]
+    },
+    "llama/repeated/encode_batch": {
+      "samples": [
+        {
+          "seconds": 0.015213583,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 36552704
+        },
+        {
+          "seconds": 0.01492954,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 36618240
+        },
+        {
+          "seconds": 0.015916042000000002,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 36716544
+        }
+      ]
+    },
+    "llama/repeated/decode_seq": {
+      "samples": [
+        {
+          "seconds": 0.010198874,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 36470784
+        },
+        {
+          "seconds": 0.010248126,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 36372480
+        },
+        {
+          "seconds": 0.010312166000000001,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 37060608
+        }
+      ]
+    },
+    "llama/repeated/decode_batch": {
+      "samples": [
+        {
+          "seconds": 0.004933126,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 37306368
+        },
+        {
+          "seconds": 0.004879456999999999,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 36585472
+        },
+        {
+          "seconds": 0.00586154,
+          "bytes": 331013,
+          "tokens": 98327,
+          "lines": 2000,
+          "peak_rss_bytes": 36585472
+        }
+      ]
+    },
+    "llama/diverse/encode_seq": {
+      "samples": [
+        {
+          "seconds": 0.05633433400000001,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 30064640
+        },
+        {
+          "seconds": 0.05458945800000001,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 30588928
+        },
+        {
+          "seconds": 0.054371708,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 30556160
+        }
+      ]
+    },
+    "llama/diverse/encode_batch": {
+      "samples": [
+        {
+          "seconds": 0.022739625,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 35897344
+        },
+        {
+          "seconds": 0.023409582,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 35700736
+        },
+        {
+          "seconds": 0.022941332999999998,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 35995648
+        }
+      ]
+    },
+    "llama/diverse/decode_seq": {
+      "samples": [
+        {
+          "seconds": 0.030158916,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 36093952
+        },
+        {
+          "seconds": 0.029891499000000002,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 35602432
+        },
+        {
+          "seconds": 0.030229461,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 35536896
+        }
+      ]
+    },
+    "llama/diverse/decode_batch": {
+      "samples": [
+        {
+          "seconds": 0.010717918,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 36306944
+        },
+        {
+          "seconds": 0.010759959000000001,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 35848192
+        },
+        {
+          "seconds": 0.010747458000000001,
+          "bytes": 660000,
+          "tokens": 381209,
+          "lines": 2000,
+          "peak_rss_bytes": 35946496
+        }
+      ]
+    },
+    "t5-small/load": {
+      "samples": [
+        {
+          "seconds": 0.011374625,
+          "vocab": 32100,
+          "peak_rss_bytes": 24428544
+        },
+        {
+          "seconds": 0.009178584,
+          "vocab": 32100,
+          "peak_rss_bytes": 24428544
+        },
+        {
+          "seconds": 0.009177958,
+          "vocab": 32100,
+          "peak_rss_bytes": 24428544
+        }
+      ]
+    },
+    "t5-small/repeated/encode_seq": {
+      "samples": [
+        {
+          "seconds": 0.037993752,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 26181632
+        },
+        {
+          "seconds": 0.034476124,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 26116096
+        },
+        {
+          "seconds": 0.033954248000000006,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 26214400
+        }
+      ]
+    },
+    "t5-small/repeated/encode_batch": {
+      "samples": [
+        {
+          "seconds": 0.018290082000000003,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29294592
+        },
+        {
+          "seconds": 0.022383873999999998,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29147136
+        },
+        {
+          "seconds": 0.017573750000000003,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29294592
+        }
+      ]
+    },
+    "t5-small/repeated/decode_seq": {
+      "samples": [
+        {
+          "seconds": 0.005807458,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29442048
+        },
+        {
+          "seconds": 0.006121291000000001,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29671424
+        },
+        {
+          "seconds": 0.006201542000000001,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29622272
+        }
+      ]
+    },
+    "t5-small/repeated/decode_batch": {
+      "samples": [
+        {
+          "seconds": 0.002480083,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29474816
+        },
+        {
+          "seconds": 0.002515126,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29261824
+        },
+        {
+          "seconds": 0.002302834,
+          "bytes": 331013,
+          "tokens": 86073,
+          "lines": 2000,
+          "peak_rss_bytes": 29573120
+        }
+      ]
+    },
+    "t5-small/diverse/encode_seq": {
+      "samples": [
+        {
+          "seconds": 0.073274915,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 31408128
+        },
+        {
+          "seconds": 0.070582667,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 31375360
+        },
+        {
+          "seconds": 0.07104653999999999,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 31424512
+        }
+      ]
+    },
+    "t5-small/diverse/encode_batch": {
+      "samples": [
+        {
+          "seconds": 0.035747124,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 44892160
+        },
+        {
+          "seconds": 0.035815041000000006,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 43089920
+        },
+        {
+          "seconds": 0.036104627,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 43024384
+        }
+      ]
+    },
+    "t5-small/diverse/decode_seq": {
+      "samples": [
+        {
+          "seconds": 0.0314925,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 44990464
+        },
+        {
+          "seconds": 0.027638914,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 43220992
+        },
+        {
+          "seconds": 0.029677916,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 45088768
+        }
+      ]
+    },
+    "t5-small/diverse/decode_batch": {
+      "samples": [
+        {
+          "seconds": 0.009751708,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 43335680
+        },
+        {
+          "seconds": 0.008278875000000002,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 45137920
+        },
+        {
+          "seconds": 0.009613751,
+          "bytes": 660000,
+          "tokens": 533034,
+          "lines": 2000,
+          "peak_rss_bytes": 43270144
+        }
+      ]
+    },
+    "bpe/train": {
+      "samples": [
+        {
+          "seconds": 0.115852916,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 92028928
+        },
+        {
+          "seconds": 0.115626,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 93241344
+        },
+        {
+          "seconds": 0.112070458,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 93306880
+        }
+      ]
+    },
+    "wordpiece/train": {
+      "samples": [
+        {
+          "seconds": 0.124295125,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 91422720
+        },
+        {
+          "seconds": 0.126033333,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 93208576
+        },
+        {
+          "seconds": 0.136457625,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 96813056
+        }
+      ]
+    },
+    "unigram/train": {
+      "samples": [
+        {
+          "seconds": 1.485233125,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 301072384
+        },
+        {
+          "seconds": 1.2592505,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 299679744
+        },
+        {
+          "seconds": 1.271514292,
+          "bytes": 660000,
+          "vocab": 4000,
+          "peak_rss_bytes": 292864000
+        }
+      ]
+    }
+  }
+}

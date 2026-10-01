@@ -124,7 +124,63 @@ per sequence and `decode_batch` over the same lines. Wrap either in
 `/usr/bin/time -l` (macOS) or `/usr/bin/time -v` (Linux) for peak
 memory.
 
-## Not yet measured
+## Local performance baselines
 
-- Automated regression tracking (needs dedicated benchmark hardware).
-- Memory of the tokenizer alone, separate from retained encodings.
+The baseline runner records **39 isolated workloads**, three samples each by
+default: load-only processes for four tokenizer families; sequential and bounded
+batch encode/decode over both repeated and diverse text; and BPE, WordPiece,
+and Unigram training. Each sample starts a fresh process, so sequential encoding
+does not pre-warm the cache for batch encoding. Within a sample, caches warm
+naturally as input is processed.
+
+```sh
+./scripts/fetch-hf-fixtures.sh
+python3 scripts/benchmark_baseline.py --output baseline-main.json
+# Run again after a change on the same machine:
+python3 scripts/benchmark_baseline.py --output baseline-branch.json \
+    --compare baseline-main.json --threshold-percent 20
+```
+
+Comparison uses median duration and peak RSS and exits with status 1 if either
+increases by more than the selected threshold. It rejects comparisons with
+different machine/OS/compiler, lockfile or build configuration fingerprints,
+fixture/corpus hashes, workload keys, or settings. Revision and dirty state are
+recorded but allowed to differ. Investigate a flagged change with more repetitions
+(`--repeats 7`) and Criterion before calling it a regression; laptop load and
+thermal state still affect measurements. This is an opt-in local check. The manual
+`Performance baseline` workflow uploads a JSON artifact from its shared runner
+and does not enforce a threshold.
+
+The default deterministic inputs have 2,000 lines of 24 words plus accented,
+CJK, and emoji text per line. The repeated corpus samples a small English
+vocabulary; the diverse corpus generates 48,000 pseudo-random 12-letter words
+with seed 42, exceeding the BPE cache capacity. Four Rayon workers and 256-record
+batches are explicit defaults. `--lines`, `--batch-size`, and `--threads` tune these
+settings and become part of the comparison fingerprint.
+
+All raw samples, counts, input hashes, compiler details, and machine information
+are retained in JSON. Encode time excludes load and input reading; decode time
+also excludes preparing the IDs. Output construction, disposal, and per-operation
+batch allocation are timed. Training time includes trainer construction and
+training, excluding corpus reading. Load time includes reading/parsing the model.
+Peak RSS is for the whole isolated process (`time -l` on macOS, `time -v` on Linux):
+load-only processes do not read a corpus; encode/decode processes include the
+input string, line references, model, caches, and at most one encoding batch.
+Decode RSS also includes its untimed encoding preparation. Peak RSS measures
+process memory, not just model heap allocations. Other systems record timings
+with RSS unavailable.
+
+[Apple M5 baseline](baselines/apple-m5.json), recorded 2026-10-01 with rustc
+1.98.1, three samples and four workers (medians; different workloads from the
+older Python comparison above):
+
+| Tokenizer | Load-only peak MiB | Repeated seq MB/s | Repeated batch MB/s | Diverse seq MB/s | Diverse batch MB/s |
+| --- | --- | --- | --- | --- | --- |
+| bert-base-uncased | 13.8 | 9.4 | 18.9 | 8.4 | 19.1 |
+| gpt2 | 25.7 | 10.3 | 19.2 | 8.8 | 20.1 |
+| llama | 27.8 | 9.4 | 21.8 | 12.1 | 28.8 |
+| t5-small | 23.3 | 9.6 | 18.1 | 9.3 | 18.4 |
+
+Dedicated-hardware trend tracking remains future work. The baseline runner and
+Criterion provide the repeatable measurements needed to start that tracking.
+
