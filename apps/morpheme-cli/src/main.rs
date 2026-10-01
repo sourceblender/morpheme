@@ -6,8 +6,9 @@
 //! the full pipeline stored in it; nothing is replaced or dropped.
 
 use std::collections::HashSet;
-use std::io::{IsTerminal, Read};
-use std::path::PathBuf;
+use std::io::{self, IsTerminal, Read, Write};
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -40,13 +41,16 @@ enum Command {
     Count {
         #[command(flatten)]
         source: Source,
+        /// Second sequence, for pair inputs.
         #[arg(long)]
         pair: Option<String>,
+        /// Do not count special tokens (e.g. [CLS]/[SEP]).
         #[arg(long)]
         no_special_tokens: bool,
         /// Apply the tokenizer's configured padding and truncation.
         #[arg(long)]
         use_tokenizer_settings: bool,
+        /// Print the count and the options used as JSON.
         #[arg(long)]
         json: bool,
         /// Text to count; `-` reads standard input.
@@ -56,8 +60,10 @@ enum Command {
     EncodeBatch {
         #[command(flatten)]
         options: automation::BatchOptions,
+        /// Do not add special tokens (e.g. [CLS]/[SEP]).
         #[arg(long)]
         no_special_tokens: bool,
+        /// Report char offsets instead of byte offsets.
         #[arg(long)]
         char_offsets: bool,
         /// Ignore configured padding and truncation.
@@ -68,6 +74,7 @@ enum Command {
     DecodeBatch {
         #[command(flatten)]
         options: automation::BatchOptions,
+        /// Drop special tokens from the output.
         #[arg(long)]
         skip_special_tokens: bool,
     },
@@ -172,7 +179,28 @@ enum Preset {
     Whitespace,
 }
 
-fn main() -> Result<()> {
+fn main() -> ExitCode {
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        // The reader went away (`morpheme ... | head -n 1`): not an error.
+        Err(err) if is_broken_pipe(&err) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("Error: {err:?}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Whether an error chain bottoms out in a closed stdout pipe.
+fn is_broken_pipe(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        cause
+            .downcast_ref::<io::Error>()
+            .is_some_and(|io| io.kind() == io::ErrorKind::BrokenPipe)
+    })
+}
+
+fn run() -> Result<()> {
     match Cli::parse().command {
         Command::Count {
             source,
@@ -247,13 +275,23 @@ fn main() -> Result<()> {
 }
 
 fn load(source: &Source) -> Result<Tokenizer> {
-    let path = std::path::Path::new(&source.tokenizer);
-    if path.exists() {
+    let path = Path::new(&source.tokenizer);
+    // A directory (e.g. a cloned model repo) stands for its tokenizer.json;
+    // a directory without one falls through to the Hub, so a local folder
+    // named like a model id does not shadow it.
+    let file = if path.is_file() {
+        Some(path.to_path_buf())
+    } else if path.is_dir() {
+        Some(path.join("tokenizer.json")).filter(|p| p.is_file())
+    } else {
+        None
+    };
+    if let Some(file) = file {
         if source.revision.is_some() {
             bail!("--revision only applies to Hugging Face Hub model ids, not files");
         }
-        return Tokenizer::from_file(path)
-            .with_context(|| format!("failed to load {}", path.display()));
+        return Tokenizer::from_file(&file)
+            .with_context(|| format!("failed to load {}", file.display()));
     }
     load_from_hub(source)
 }
@@ -307,6 +345,7 @@ fn encode(
     }
     .context("encode failed")?;
 
+    let mut out = io::stdout().lock();
     if json {
         let value = serde_json::json!({
             "ids": encoding.ids(),
@@ -317,13 +356,13 @@ fn encode(
             "special_tokens_mask": encoding.special_tokens_mask(),
             "word_ids": encoding.word_ids(),
         });
-        println!("{}", serde_json::to_string_pretty(&value)?);
+        writeln!(out, "{}", serde_json::to_string_pretty(&value)?)?;
     } else {
-        println!("tokens:  {:?}", encoding.tokens());
-        println!("ids:     {:?}", encoding.ids());
-        println!("offsets: {:?}", encoding.offsets());
+        writeln!(out, "tokens:  {:?}", encoding.tokens())?;
+        writeln!(out, "ids:     {:?}", encoding.ids())?;
+        writeln!(out, "offsets: {:?}", encoding.offsets())?;
         if pair.is_some() {
-            println!("types:   {:?}", encoding.type_ids());
+            writeln!(out, "types:   {:?}", encoding.type_ids())?;
         }
     }
     Ok(())
@@ -348,7 +387,11 @@ fn decode(source: &Source, raw_ids: &[String], skip_special_tokens: bool) -> Res
     if let Some(bad) = ids.iter().find(|id| tokenizer.id_to_token(**id).is_none()) {
         bail!("id {bad} is not in the vocabulary (size {vocab_size})");
     }
-    println!("{}", tokenizer.decode(&ids, skip_special_tokens)?);
+    writeln!(
+        io::stdout().lock(),
+        "{}",
+        tokenizer.decode(&ids, skip_special_tokens)?
+    )?;
     Ok(())
 }
 
@@ -398,22 +441,31 @@ fn inspect(source: &Source) -> Result<()> {
         // `ModelWrapper` is non-exhaustive: describe future models by type.
         other => describe(&serde_json::to_value(other)?),
     };
-    println!("model:          {model}");
-    println!("vocab size:     {} (+{} added)", t.vocab_size(false), {
-        t.vocab_size(true) - t.vocab_size(false)
-    });
-    println!("normalizer:     {}", type_name(t.normalizer()));
-    println!("pre-tokenizer:  {}", type_name(t.pre_tokenizer()));
-    println!("post-processor: {}", type_name(t.post_processor()));
-    println!("decoder:        {}", type_name(t.decoder()));
+    let mut out = io::stdout().lock();
+    writeln!(out, "model:          {model}")?;
+    writeln!(
+        out,
+        "vocab size:     {} (+{} added)",
+        t.vocab_size(false),
+        { t.vocab_size(true) - t.vocab_size(false) }
+    )?;
+    writeln!(out, "normalizer:     {}", type_name(t.normalizer()))?;
+    writeln!(out, "pre-tokenizer:  {}", type_name(t.pre_tokenizer()))?;
+    writeln!(out, "post-processor: {}", type_name(t.post_processor()))?;
+    writeln!(out, "decoder:        {}", type_name(t.decoder()))?;
     if let Some(tr) = t.truncation() {
-        println!(
+        writeln!(
+            out,
             "truncation:     max_length={} stride={}",
             tr.max_length, tr.stride
-        );
+        )?;
     }
     if let Some(p) = t.padding() {
-        println!("padding:        {:?} with {:?}", p.strategy, p.pad_token);
+        writeln!(
+            out,
+            "padding:        {:?} with {:?}",
+            p.strategy, p.pad_token
+        )?;
     }
     let added = t.added_vocabulary().tokens_with_ids();
     if !added.is_empty() {
@@ -427,7 +479,7 @@ fn inspect(source: &Source) -> Result<()> {
         } else {
             String::new()
         };
-        println!("added tokens:   {}{more}", shown.join(" "));
+        writeln!(out, "added tokens:   {}{more}", shown.join(" "))?;
     }
     Ok(())
 }
@@ -451,14 +503,50 @@ fn default_specials(preset: Preset) -> Vec<String> {
     v.iter().map(|s| s.to_string()).collect()
 }
 
-/// The unknown token for a preset, if its model needs one.
-fn unk_token(preset: Preset, specials: &[String]) -> Option<String> {
-    let wanted = match preset {
-        Preset::ByteLevel => return None,
-        Preset::Bert | Preset::Whitespace => "[UNK]",
-        Preset::Sentencepiece => "<unk>",
-    };
-    specials.iter().find(|s| *s == wanted).cloned()
+/// The unknown token a preset names, if any (byte-level needs none).
+fn preset_unk(preset: Preset) -> Option<&'static str> {
+    match preset {
+        Preset::ByteLevel => None,
+        Preset::Bert | Preset::Whitespace => Some("[UNK]"),
+        Preset::Sentencepiece => Some("<unk>"),
+    }
+}
+
+/// The unknown token the trained model will use, validated against the
+/// special tokens before any training happens.
+///
+/// WordPiece and WordLevel always fall back to an unknown token, so it
+/// must be one of the specials (the preset's, or `[UNK]` for byte-level);
+/// otherwise the saved tokenizer fails on the first out-of-vocabulary
+/// word. BPE and Unigram only use the preset's unknown token when it is
+/// listed.
+fn unk_token(model: ModelKind, preset: Preset, specials: &[String]) -> Result<Option<String>> {
+    let listed = |wanted: &str| specials.iter().any(|s| s == wanted);
+    match model {
+        ModelKind::Wordpiece | ModelKind::Wordlevel => {
+            let wanted = preset_unk(preset).unwrap_or("[UNK]");
+            if !listed(wanted) {
+                bail!(
+                    "{} needs an unknown token: add --special-token {wanted:?} \
+                     (every out-of-vocabulary word maps to it)",
+                    model_name(model)
+                );
+            }
+            Ok(Some(wanted.to_owned()))
+        }
+        ModelKind::Bpe | ModelKind::Unigram => {
+            Ok(preset_unk(preset).filter(|w| listed(w)).map(str::to_owned))
+        }
+    }
+}
+
+fn model_name(model: ModelKind) -> &'static str {
+    match model {
+        ModelKind::Bpe => "BPE",
+        ModelKind::Wordpiece => "WordPiece",
+        ModelKind::Unigram => "Unigram",
+        ModelKind::Wordlevel => "WordLevel",
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -482,7 +570,19 @@ fn train(
         .iter()
         .map(|s| AddedToken::new(s.as_str(), true))
         .collect();
-    let unk = unk_token(preset, &specials);
+    // Reject special-token lists the preset cannot work with before
+    // spending time on training.
+    let unk = unk_token(model, preset, &specials)?;
+    if preset == Preset::Bert {
+        for wanted in ["[CLS]", "[SEP]"] {
+            if !specials.iter().any(|s| s == wanted) {
+                bail!(
+                    "the bert preset needs [CLS] and [SEP] for its post-processor: \
+                     add --special-token {wanted:?}"
+                );
+            }
+        }
+    }
 
     // Trainers keep the model's own options (unk token, …), so start from
     // a model of the right kind.
@@ -495,11 +595,11 @@ fn train(
             b.build()?.into()
         }
         ModelKind::Wordpiece => WordPiece::builder()
-            .unk_token(unk.clone().unwrap_or_else(|| "[UNK]".to_owned()))
+            .unk_token(unk.clone().expect("validated above"))
             .build()?
             .into(),
         ModelKind::Wordlevel => WordLevel::builder()
-            .unk_token(unk.clone().unwrap_or_else(|| "[UNK]".to_owned()))
+            .unk_token(unk.clone().expect("validated above"))
             .build()?
             .into(),
         ModelKind::Unigram => Unigram::default().into(),
@@ -591,17 +691,19 @@ fn train(
     tokenizer
         .save(out, true)
         .with_context(|| format!("failed to write {}", out.display()))?;
+    let trained = tokenizer.vocab_size(true);
     eprintln!(
-        "trained {} tokenizer: {} tokens → {}",
-        match model {
-            ModelKind::Bpe => "BPE",
-            ModelKind::Wordpiece => "WordPiece",
-            ModelKind::Unigram => "Unigram",
-            ModelKind::Wordlevel => "WordLevel",
-        },
-        tokenizer.vocab_size(true),
+        "trained {} tokenizer: {trained} tokens → {}",
+        model_name(model),
         out.display()
     );
+    if trained > vocab_size {
+        eprintln!(
+            "warning: --vocab-size {vocab_size} is below the {trained} tokens the \
+             special tokens and initial alphabet alone need; nothing was learned \
+             beyond them"
+        );
+    }
     Ok(())
 }
 
