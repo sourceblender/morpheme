@@ -11,6 +11,102 @@ pub use decode_stream::DecodeStream;
 #[cfg_attr(docsrs, doc(cfg(feature = "hub")))]
 pub use hub::FromPretrainedParameters;
 
+/// Atomically move a complete temporary file onto `dest`.
+///
+/// On Windows, `MoveFileExW(MOVEFILE_REPLACE_EXISTING)` can fail with
+/// `ERROR_ACCESS_DENIED` (or a sharing violation) while another handle
+/// has the destination open, including readers that are just loading
+/// it, or antivirus and indexer scans. Those handles are short-lived, so
+/// retry with a growing pause (10 ms doubling, capped at 200 ms, ten
+/// attempts; about 1.3 s in all). Other errors are returned at once.
+/// Unix renames are never retried. The temporary file is removed when
+/// the move ultimately fails.
+pub(crate) fn persist_with_retry(
+    file: tempfile::NamedTempFile,
+    dest: &std::path::Path,
+) -> std::io::Result<()> {
+    #[cfg(windows)]
+    let file = {
+        const ATTEMPTS: u32 = 10;
+        let mut file = file;
+        let mut backoff = std::time::Duration::from_millis(10);
+        for _ in 1..ATTEMPTS {
+            match file.persist(dest) {
+                Ok(_) => return Ok(()),
+                Err(e) if is_transient_windows_share_error(&e.error) => {
+                    file = e.file;
+                    std::thread::sleep(backoff);
+                    backoff = (backoff * 2).min(std::time::Duration::from_millis(200));
+                }
+                // Dropping `e.file` removes the temporary file.
+                Err(e) => return Err(e.error),
+            }
+        }
+        file
+    };
+    // Last (or only) attempt; a failure drops and removes the temporary file.
+    file.persist(dest).map(|_| ()).map_err(|e| e.error)
+}
+
+/// `ERROR_ACCESS_DENIED` or `ERROR_SHARING_VIOLATION` while the
+/// destination is open elsewhere.
+#[cfg(windows)]
+fn is_transient_windows_share_error(e: &std::io::Error) -> bool {
+    const ERROR_SHARING_VIOLATION: i32 = 32;
+    e.kind() == std::io::ErrorKind::PermissionDenied
+        || e.raw_os_error() == Some(ERROR_SHARING_VIOLATION)
+}
+
+#[cfg(all(test, windows))]
+mod persist_tests {
+    use std::io::Write;
+
+    #[test]
+    fn persist_retries_while_the_destination_is_held_open() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("tokenizer.json");
+        std::fs::write(&dest, "old").unwrap();
+        // An exclusive handle (share mode 0) blocks the replacing move
+        // until it is dropped, ~60 ms later.
+        let holder = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&dest)
+            .unwrap();
+        let releaser = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(60));
+            drop(holder);
+        });
+        let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+        file.write_all(b"new").unwrap();
+        super::persist_with_retry(file, &dest).unwrap();
+        releaser.join().unwrap();
+        assert_eq!(std::fs::read_to_string(&dest).unwrap(), "new");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn persist_gives_up_and_removes_the_temporary_file() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("tokenizer.json");
+        std::fs::write(&dest, "old").unwrap();
+        let _holder = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&dest)
+            .unwrap();
+        let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+        file.write_all(b"new").unwrap();
+        let err = super::persist_with_retry(file, &dest).unwrap_err();
+        assert!(super::is_transient_windows_share_error(&err), "{err}");
+        drop(_holder);
+        assert_eq!(std::fs::read_to_string(&dest).unwrap(), "old");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+}
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
@@ -426,13 +522,24 @@ impl Tokenizer {
             .unwrap_or(Path::new("."));
         let mut file = tempfile::NamedTempFile::new_in(parent)?;
         file.write_all(contents.as_bytes())?;
-        if let Ok(metadata) = std::fs::metadata(path) {
-            file.as_file().set_permissions(metadata.permissions())?;
+        // Keep an existing file's permissions. A new file would otherwise
+        // inherit tempfile's 0600, unreadable by other users of a shared
+        // directory (or a later container uid), so give it the usual 0644.
+        match std::fs::metadata(path) {
+            Ok(metadata) => file.as_file().set_permissions(metadata.permissions())?,
+            #[cfg(unix)]
+            Err(_) => {
+                use std::os::unix::fs::PermissionsExt;
+                file.as_file()
+                    .set_permissions(std::fs::Permissions::from_mode(0o644))?;
+            }
+            #[cfg(not(unix))]
+            Err(_) => {}
         }
         file.as_file().sync_all()?;
         // tempfile's Windows implementation uses MoveFileExW with
         // MOVEFILE_REPLACE_EXISTING; persist replaces on both platforms.
-        file.persist(path).map_err(|e| e.error)?;
+        persist_with_retry(file, path)?;
         Ok(())
     }
 

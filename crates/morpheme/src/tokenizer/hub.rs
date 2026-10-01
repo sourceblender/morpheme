@@ -31,6 +31,15 @@ use crate::error::{Error, Result};
 
 const DEFAULT_ENDPOINT: &str = "https://huggingface.co";
 const FILENAME: &str = "tokenizer.json";
+/// Connect, response-header and body-read timeout (`huggingface_hub`
+/// uses a 10 s read timeout as well).
+const TIMEOUT: Duration = Duration::from_secs(10);
+/// Pause before the single retry of a `429`/`5xx` metadata or blob request.
+const RETRY_BACKOFF: Duration = Duration::from_millis(500);
+/// Permissions of newly created cache files and saved tokenizers on Unix
+/// (what `huggingface_hub` produces under the default umask).
+#[cfg(unix)]
+const NEW_FILE_MODE: u32 = 0o644;
 
 /// Options for [`crate::Tokenizer::from_pretrained`].
 #[derive(Debug, Clone)]
@@ -41,8 +50,12 @@ pub struct FromPretrainedParameters {
     /// Extra `key/value` pairs appended to the `User-Agent` header.
     pub user_agent: HashMap<String, String>,
     /// Access token for private or gated repositories. Defaults to
-    /// `HF_TOKEN`, then the token saved by `huggingface-cli login`.
+    /// `HF_TOKEN`, then the token saved by `huggingface-cli login`
+    /// (unless [`anonymous`](Self::anonymous) is set).
     pub token: Option<String>,
+    /// Do not read `HF_TOKEN` or the token file: send no token unless
+    /// one is given explicitly with [`token`](Self::token).
+    pub anonymous: bool,
     /// Cache directory. Defaults to the shared Hugging Face cache.
     pub cache_dir: Option<PathBuf>,
 }
@@ -53,6 +66,7 @@ impl Default for FromPretrainedParameters {
             revision: "main".to_owned(),
             user_agent: HashMap::new(),
             token: None,
+            anonymous: false,
             cache_dir: None,
         }
     }
@@ -70,6 +84,16 @@ impl FromPretrainedParameters {
     #[must_use]
     pub fn token(mut self, token: impl Into<String>) -> Self {
         self.token = Some(token.into());
+        self
+    }
+
+    /// Do not read `HF_TOKEN` or the token file saved by
+    /// `huggingface-cli login`: requests for public repositories carry
+    /// no credentials. A token passed with [`token`](Self::token) is
+    /// still used.
+    #[must_use]
+    pub fn anonymous(mut self) -> Self {
+        self.anonymous = true;
         self
     }
 
@@ -165,12 +189,16 @@ pub(crate) fn validate_repo_id(id: &str) -> Result<()> {
                 && p.chars().all(is_valid_char)
                 && !p.starts_with(['.', '-'])
                 && !p.contains("..")
+                // `--` separates org and name in the cache directory, so
+                // `acme--model` would collide with `acme/model`
+                // (huggingface_hub rejects it too).
+                && !p.contains("--")
         });
     if ok {
         Ok(())
     } else {
         Err(Error::Hub(format!(
-            "invalid model id {id:?}: expected `name` or `org/name` using letters, digits, '-', '_' and '.'"
+            "invalid model id {id:?}: expected `name` or `org/name` using letters, digits, '-', '_' and '.' (no `..` or `--`)"
         )))
     }
 }
@@ -257,6 +285,24 @@ fn verify_file(path: &Path, etag: &str) -> std::io::Result<bool> {
     Ok(etag == git || etag == sha256)
 }
 
+/// Give a temporary file the permissions its destination will need:
+/// those of an existing destination, otherwise the shared-cache default
+/// (`tempfile` creates files `0600`, which other users of a shared cache
+/// or a later container uid cannot read). No-op on non-Unix platforms.
+fn prepare_permissions(file: &std::fs::File, destination: &Path) -> std::io::Result<()> {
+    let existing = std::fs::metadata(destination).ok().map(|m| m.permissions());
+    #[cfg(unix)]
+    let permissions = {
+        use std::os::unix::fs::PermissionsExt;
+        existing.unwrap_or_else(|| std::fs::Permissions::from_mode(NEW_FILE_MODE))
+    };
+    #[cfg(not(unix))]
+    let Some(permissions) = existing else {
+        return Ok(());
+    };
+    file.set_permissions(permissions)
+}
+
 fn publish_verified_file(
     file: tempfile::NamedTempFile,
     path: &Path,
@@ -271,10 +317,11 @@ fn publish_verified_file(
     if verify_file(path, etag).unwrap_or(false) {
         return Ok(());
     }
-    match file.persist(path) {
-        Ok(_) => Ok(()),
+    prepare_permissions(file.as_file(), path)?;
+    match super::persist_with_retry(file, path) {
+        Ok(()) => Ok(()),
         Err(_) if verify_file(path, etag).unwrap_or(false) => Ok(()),
-        Err(e) => Err(e.error),
+        Err(e) => Err(e),
     }
 }
 
@@ -301,9 +348,58 @@ fn encode_segment(s: &str) -> String {
         .collect()
 }
 
-fn host_of(url: &str) -> Option<&str> {
-    let rest = url.split_once("://")?.1;
-    Some(rest.split(['/', '?', '#']).next().unwrap_or(rest))
+/// `(scheme, host, port)` of a URL, with the scheme's default port.
+fn origin_of(url: &str) -> Option<(String, String, u16)> {
+    let (scheme, rest) = url.split_once("://")?;
+    let scheme = scheme.to_ascii_lowercase();
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or(rest);
+    // Ignore user-info; a `host:port` after it is still an authority.
+    let authority = authority.rsplit('@').next().unwrap_or(authority);
+    let default_port = match scheme.as_str() {
+        "https" => 443,
+        "http" => 80,
+        _ => return None,
+    };
+    // A bracketed IPv6 host (`[::1]`, `[fe80::1%25eth0]:8443`) contains
+    // colons itself, so look for it before splitting `host[:port]`.
+    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+        let (inner, after) = rest
+            .split_once(']')
+            .filter(|(inner, _)| !inner.is_empty())?;
+        let port = match after.strip_prefix(':') {
+            Some(port) => port.parse().ok()?,
+            None if after.is_empty() => default_port,
+            None => return None,
+        };
+        (format!("[{inner}]"), port)
+    } else {
+        match authority.rsplit_once(':') {
+            Some((host, port)) => (host.to_owned(), port.parse().ok()?),
+            None => (authority.to_owned(), default_port),
+        }
+    };
+    if host.is_empty() {
+        return None;
+    }
+    Some((scheme, host.to_ascii_lowercase(), port))
+}
+
+/// Whether a bearer token sent to `endpoint` may also be sent to `url`:
+/// only to the very same origin, and never after a downgrade to
+/// cleartext (an `https` endpoint redirecting to `http://` must not see
+/// the token again on port 80). A plain `http` endpoint (a local mirror
+/// or test server) is allowed to redirect within itself.
+fn same_target(url: &str, endpoint: &str) -> bool {
+    match (origin_of(url), origin_of(endpoint)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    }
+}
+
+/// Strip the query string and fragment from a URL before embedding it in
+/// an error message (presigned LFS/CDN URLs carry credentials there).
+fn redact_url(url: &str) -> &str {
+    url.split(['?', '#']).next().unwrap_or(url)
 }
 
 fn header(resp: &ureq::http::Response<ureq::Body>, name: &str) -> Option<String> {
@@ -359,6 +455,9 @@ pub(crate) fn from_pretrained(
     if let Some(dir) = &params.cache_dir {
         config.cache_dir = dir.clone();
     }
+    if params.anonymous {
+        config.token = None;
+    }
     if let Some(token) = &params.token {
         config.token = Some(token.clone());
     }
@@ -399,6 +498,10 @@ pub(crate) fn resolve(
                 config.endpoint
             ))
         }),
+        // A rate limit or server error is served from the cache, as
+        // huggingface_hub does; without a valid cache entry the HTTP
+        // error is reported.
+        Err(Fetch::Unavailable(e)) => cached_file(&repo_dir, revision).ok_or(e),
         Err(Fetch::Failed(e)) => Err(e),
     }
 }
@@ -406,8 +509,17 @@ pub(crate) fn resolve(
 enum Fetch {
     /// Network failure: the cache may still be used.
     Unreachable(ureq::Error),
-    /// The Hub answered with an error, or writing the cache failed.
+    /// The Hub answered the metadata request with a transient error
+    /// (`429`, `5xx`, …) even after a retry: the cache may still be used.
+    Unavailable(Error),
+    /// The Hub answered with a definitive error, or writing the cache failed.
     Failed(Error),
+}
+
+/// Statuses worth one retry and, for metadata, a cache fallback: not the
+/// definitive answers (`401`/`403` no access, `404` missing).
+fn is_transient_status(status: u16) -> bool {
+    status >= 400 && !matches!(status, 401 | 403 | 404)
 }
 
 impl From<std::io::Error> for Fetch {
@@ -416,16 +528,38 @@ impl From<std::io::Error> for Fetch {
     }
 }
 
-fn agent(max_redirects: u32) -> ureq::Agent {
+/// An agent that follows at most `max_redirects` redirects. With
+/// `https_only`, every request (including redirect targets) must use TLS.
+fn agent(max_redirects: u32, https_only: bool) -> ureq::Agent {
     ureq::Agent::config_builder()
         .max_redirects(max_redirects)
         .http_status_as_error(false)
-        .timeout_connect(Some(Duration::from_secs(10)))
+        .https_only(https_only)
+        .timeout_connect(Some(TIMEOUT))
+        .timeout_recv_response(Some(TIMEOUT))
+        .timeout_recv_body(Some(TIMEOUT))
         .build()
         .into()
 }
 
+/// One request, retried once after a short pause on a transient status.
 fn get(
+    agent: &ureq::Agent,
+    url: &str,
+    token: Option<&str>,
+    ua: &str,
+    range: bool,
+) -> std::result::Result<ureq::http::Response<ureq::Body>, Fetch> {
+    let resp = get_once(agent, url, token, ua, range)?;
+    if !is_transient_status(resp.status().as_u16()) {
+        return Ok(resp);
+    }
+    drop(resp);
+    std::thread::sleep(RETRY_BACKOFF);
+    get_once(agent, url, token, ua, range)
+}
+
+fn get_once(
     agent: &ureq::Agent,
     url: &str,
     token: Option<&str>,
@@ -443,7 +577,10 @@ fn get(
         if is_connection_error(&e) {
             Fetch::Unreachable(e)
         } else {
-            Fetch::Failed(Error::Hub(format!("request to {url} failed: {e}")))
+            Fetch::Failed(Error::Hub(format!(
+                "request to {} failed: {e}",
+                redact_url(url)
+            )))
         }
     })
 }
@@ -462,10 +599,12 @@ fn download(
         config.endpoint,
         encode_segment(revision)
     );
+    // Never let a redirect downgrade an https endpoint to cleartext.
+    let https_only = config.endpoint.starts_with("https://");
 
     // 1. Metadata: commit hash and etag, without following redirects
     //    (relative redirects, e.g. for renamed repos, are followed).
-    let no_redirects = agent(0);
+    let no_redirects = agent(0, https_only);
     let mut resp = get(&no_redirects, &url, token, &ua, true)?;
     for _ in 0..5 {
         let status = resp.status().as_u16();
@@ -480,12 +619,12 @@ fn download(
     }
     let status = resp.status().as_u16();
     if status >= 400 {
-        return Err(Fetch::Failed(status_error(
-            status,
-            header(&resp, "x-error-code"),
-            repo_id,
-            revision,
-        )));
+        let error = status_error(status, header(&resp, "x-error-code"), repo_id, revision);
+        return Err(if is_transient_status(status) {
+            Fetch::Unavailable(error)
+        } else {
+            Fetch::Failed(error)
+        });
     }
     let commit = header(&resp, "x-repo-commit").ok_or_else(|| {
         Fetch::Failed(Error::Hub(format!(
@@ -496,6 +635,15 @@ fn download(
     if !is_commit_hash(&commit) {
         return Err(Fetch::Failed(Error::Hub(format!(
             "unexpected commit hash {commit:?} from the Hub"
+        ))));
+    }
+    // A pinned commit must come back as itself; a mirror serving another
+    // commit would otherwise be cached under a misleading ref.
+    if is_commit_hash(revision) && commit != revision {
+        return Err(Fetch::Failed(Error::Hub(format!(
+            "{} returned commit {commit} for {repo_id:?} at pinned revision {revision}; \
+             is HF_ENDPOINT a faithful mirror?",
+            config.endpoint
         ))));
     }
     let etag = header(&resp, "x-linked-etag")
@@ -515,12 +663,13 @@ fn download(
     let blob = blobs.join(&etag);
     if !verify_file(&blob, &etag).unwrap_or(false) {
         std::fs::create_dir_all(&blobs)?;
-        // Only send the token to the Hub itself, never to a CDN.
-        let same_host = host_of(&download_url) == host_of(&config.endpoint);
+        // Only send the token to the Hub itself over the same scheme:
+        // never to a CDN, never over cleartext after a downgrade.
+        let same_origin = same_target(&download_url, &config.endpoint);
         let resp = get(
-            &agent(10),
+            &agent(10, https_only),
             &download_url,
-            token.filter(|_| same_host),
+            token.filter(|_| same_origin),
             &ua,
             false,
         )?;
@@ -575,10 +724,11 @@ fn publish_revision_ref(
     if std::fs::read_to_string(path).is_ok_and(|existing| existing == commit) {
         return Ok(());
     }
-    match file.persist(path) {
-        Ok(_) => Ok(()),
+    prepare_permissions(file.as_file(), path)?;
+    match super::persist_with_retry(file, path) {
+        Ok(()) => Ok(()),
         Err(_) if std::fs::read_to_string(path).is_ok_and(|existing| existing == commit) => Ok(()),
-        Err(e) => Err(e.error),
+        Err(e) => Err(e),
     }
 }
 
@@ -1031,13 +1181,307 @@ mod tests {
     #[test]
     fn revision_with_slash_is_encoded() {
         assert_eq!(encode_segment("refs/pr/1"), "refs%2Fpr%2F1");
+    }
+
+    #[test]
+    fn repo_ids_with_double_dash_are_rejected() {
+        // `acme--model` would share `models--acme--model` with `acme/model`.
+        for bad in ["acme--model", "acme/mo--del", "a--b/c"] {
+            assert!(validate_repo_id(bad).is_err(), "{bad}");
+        }
         assert_eq!(
-            host_of("https://huggingface.co/x/y"),
-            Some("huggingface.co")
+            repo_cache_dir(Path::new("/c"), "acme/model"),
+            PathBuf::from("/c/models--acme--model")
+        );
+    }
+
+    #[test]
+    fn token_is_only_sent_to_the_same_origin() {
+        let hub = "https://huggingface.co";
+        assert!(same_target("https://huggingface.co/x/y?sig=1", hub));
+        assert!(same_target("HTTPS://HuggingFace.co:443/x", hub));
+        // Downgrade to cleartext on the same host: no token.
+        assert!(!same_target("http://huggingface.co/x/y", hub));
+        assert!(!same_target("http://huggingface.co:443/x/y", hub));
+        // Other hosts and ports: no token.
+        assert!(!same_target("https://cdn-lfs.hf.co/abc?x=1", hub));
+        assert!(!same_target("https://huggingface.co:8443/x", hub));
+        assert!(!same_target("https://huggingface.co.evil.example/x", hub));
+        assert!(!same_target("https://huggingface.co@evil.example/x", hub));
+        assert!(!same_target("ftp://huggingface.co/x", hub));
+        assert!(!same_target("huggingface.co/x", hub));
+        // A plain-http endpoint (local mirror) may redirect within itself.
+        let local = "http://127.0.0.1:8080";
+        assert!(same_target("http://127.0.0.1:8080/blob", local));
+        assert!(!same_target("http://127.0.0.1:8081/blob", local));
+        assert!(!same_target("http://127.0.0.1/blob", local));
+        assert!(!same_target("https://127.0.0.1:8080/blob", local));
+        assert!(same_target("http://localhost/blob", "http://localhost:80"));
+        assert!(same_target("https://[::1]:8443/x", "https://[::1]:8443"));
+        assert!(!same_target("https://[::1]:8443/x", "https://[::1]"));
+    }
+
+    #[test]
+    fn origins_parse_bracketed_ipv6_hosts() {
+        let https = |host: &str, port: u16| Some(("https".to_owned(), host.to_owned(), port));
+        let http = |host: &str, port: u16| Some(("http".to_owned(), host.to_owned(), port));
+        assert_eq!(origin_of("https://[::1]"), https("[::1]", 443));
+        assert_eq!(origin_of("https://[::1]/x/y"), https("[::1]", 443));
+        assert_eq!(origin_of("https://[::1]:8443/x"), https("[::1]", 8443));
+        assert_eq!(
+            origin_of("http://[fe80::1%25eth0]/"),
+            http("[fe80::1%25eth0]", 80)
         );
         assert_eq!(
-            host_of("https://cdn-lfs.hf.co/abc?x=1"),
-            Some("cdn-lfs.hf.co")
+            origin_of("http://user@[2001:DB8::1]:8080/p?q#f"),
+            http("[2001:db8::1]", 8080)
         );
+        // Existing non-bracketed cases.
+        assert_eq!(
+            origin_of("https://huggingface.co/x"),
+            https("huggingface.co", 443)
+        );
+        assert_eq!(
+            origin_of("HTTPS://HuggingFace.co:443/x"),
+            https("huggingface.co", 443)
+        );
+        assert_eq!(
+            origin_of("http://127.0.0.1:8080/blob"),
+            http("127.0.0.1", 8080)
+        );
+        assert_eq!(origin_of("http://localhost/blob"), http("localhost", 80));
+        // Malformed or unsupported.
+        for bad in [
+            "https://[::1",
+            "https://[::1]x",
+            "https://[::1]:port",
+            "https://[]",
+            "https://",
+            "https://:8443",
+            "ftp://[::1]",
+            "huggingface.co/x",
+        ] {
+            assert_eq!(origin_of(bad), None, "{bad}");
+        }
+        // The token follows IPv6 endpoints to the same origin only.
+        assert!(same_target("https://[::1]/x", "https://[::1]:443"));
+        assert!(same_target(
+            "http://[fe80::1%25eth0]:80/x",
+            "http://[fe80::1%25eth0]"
+        ));
+        assert!(!same_target("https://[::2]/x", "https://[::1]"));
+        assert!(!same_target("http://[::1]/x", "https://[::1]"));
+    }
+
+    #[test]
+    fn error_messages_redact_presigned_urls() {
+        let url = "https://cdn-lfs.hf.co/repos/ab/cd/file?X-Amz-Signature=SECRET&Expires=1#frag";
+        assert_eq!(redact_url(url), "https://cdn-lfs.hf.co/repos/ab/cd/file");
+        assert_eq!(redact_url("https://hf.co/x"), "https://hf.co/x");
+
+        // A server answering with garbage is a protocol error (not
+        // "unreachable"), so the URL lands in the message: without its
+        // query string.
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut line = String::new();
+            while reader.read_line(&mut line).unwrap() > 0 && line != "\r\n" {
+                line.clear();
+            }
+            stream.write_all(b"garbage\r\n\r\n").unwrap();
+        });
+        let url = format!("http://{addr}/blob?X-Amz-Signature=SECRET");
+        let err = match get_once(&agent(0, false), &url, None, "ua", false) {
+            Ok(_) => panic!("garbage is not a response"),
+            Err(Fetch::Failed(e)) => e.to_string(),
+            Err(Fetch::Unreachable(e)) => panic!("unexpected connection error: {e}"),
+            Err(Fetch::Unavailable(e)) => panic!("unexpected transient error: {e}"),
+        };
+        assert!(err.contains("/blob"), "{err}");
+        assert!(!err.contains("SECRET"), "{err}");
+    }
+
+    /// Like [`serve`], also counting requests carrying an `Authorization`
+    /// header.
+    fn serve_counting_auth(responses: Vec<String>) -> (String, Arc<AtomicUsize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let authorized = Arc::new(AtomicUsize::new(0));
+        let seen = authorized.clone();
+        std::thread::spawn(move || {
+            for (stream, response) in listener.incoming().zip(responses) {
+                let mut stream = stream.unwrap();
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                let mut line = String::new();
+                while reader.read_line(&mut line).unwrap() > 0 && line != "\r\n" {
+                    if line.to_ascii_lowercase().starts_with("authorization:") {
+                        seen.fetch_add(1, Ordering::SeqCst);
+                    }
+                    line.clear();
+                }
+                stream.write_all(response.as_bytes()).unwrap();
+            }
+        });
+        (url, authorized)
+    }
+
+    #[test]
+    fn token_is_withheld_from_other_origins_after_a_redirect() {
+        let body = r#"{"version":"1.0"}"#;
+        let etag = git_hash(body.as_bytes());
+        let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
+
+        // Metadata on the endpoint redirects to a blob on another origin
+        // (same scheme, different port): the token must not follow.
+        let (blob_url, blob_authorized) =
+            serve_counting_auth(vec![response("200 OK", &headers, body)]);
+        let location = format!("{blob_url}/blob?X-Amz-Signature=SECRET");
+        let redirect = [
+            ("X-Repo-Commit", COMMIT),
+            ("ETag", etag.as_str()),
+            ("Location", location.as_str()),
+        ];
+        let (url, authorized) = serve_counting_auth(vec![response("302 Found", &redirect, "")]);
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = config(dir.path(), &url, false);
+        cfg.token = Some("hf_secret".into());
+        let params = FromPretrainedParameters::default();
+        let path = resolve("org/model", &params, &cfg).unwrap();
+        assert_eq!(std::fs::read_to_string(path).unwrap(), body);
+        assert_eq!(authorized.load(Ordering::SeqCst), 1);
+        assert_eq!(blob_authorized.load(Ordering::SeqCst), 0);
+
+        // The blob served by the endpoint itself (same plain-http origin)
+        // does receive the token.
+        let (url, authorized) = serve_counting_auth(vec![
+            response("206 Partial Content", &headers, "{"),
+            response("200 OK", &headers, body),
+        ]);
+        let other = tempfile::tempdir().unwrap();
+        let mut cfg = config(other.path(), &url, false);
+        cfg.token = Some("hf_secret".into());
+        resolve("org/model", &params, &cfg).unwrap();
+        assert_eq!(authorized.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn server_errors_fall_back_to_cache_after_one_retry() {
+        // 503 twice (initial + retry) with a valid cache: served from cache.
+        let (url, count) = serve(vec![
+            response("503 Service Unavailable", &[], ""),
+            response("503 Service Unavailable", &[], ""),
+        ]);
+        let dir = tempfile::tempdir().unwrap();
+        let want = populate(dir.path(), "org/model", "main");
+        let cfg = config(dir.path(), &url, false);
+        let params = FromPretrainedParameters::default();
+        assert_eq!(resolve("org/model", &params, &cfg).unwrap(), want);
+        assert_eq!(count.load(Ordering::SeqCst), 2);
+
+        // 503 with an empty cache: the HTTP error is reported.
+        let (url, count) = serve(vec![
+            response("503 Service Unavailable", &[], ""),
+            response("503 Service Unavailable", &[], ""),
+        ]);
+        let empty = tempfile::tempdir().unwrap();
+        let cfg = config(empty.path(), &url, false);
+        let err = resolve("org/model", &params, &cfg).unwrap_err().to_string();
+        assert!(err.contains("503"), "{err}");
+        assert_eq!(count.load(Ordering::SeqCst), 2);
+
+        // 429 once, then success: the retry completes the download.
+        let body = r#"{"version":"1.0"}"#;
+        let etag = git_hash(body.as_bytes());
+        let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
+        let (url, count) = serve(vec![
+            response("429 Too Many Requests", &[], ""),
+            response("206 Partial Content", &headers, "{"),
+            response("200 OK", &headers, body),
+        ]);
+        let cfg = config(empty.path(), &url, false);
+        let path = resolve("org/model", &params, &cfg).unwrap();
+        assert_eq!(std::fs::read_to_string(path).unwrap(), body);
+        assert_eq!(count.load(Ordering::SeqCst), 3);
+
+        // Definitive answers (404) are not retried and do not use the cache.
+        let (url, count) = serve(vec![response(
+            "404 Not Found",
+            &[("X-Error-Code", "RevisionNotFound")],
+            "",
+        )]);
+        let cfg = config(dir.path(), &url, false);
+        let err = resolve("org/model", &params, &cfg).unwrap_err().to_string();
+        assert!(err.contains("revision"), "{err}");
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn pinned_commit_must_match_the_served_commit() {
+        let other = "fedcba9876543210fedcba9876543210fedcba98";
+        let body = r#"{"version":"1.0"}"#;
+        let etag = git_hash(body.as_bytes());
+        let headers = [("X-Repo-Commit", other), ("ETag", etag.as_str())];
+        let (url, count) = serve(vec![response("206 Partial Content", &headers, "{")]);
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = config(dir.path(), &url, false);
+        let params = FromPretrainedParameters::default().revision(COMMIT);
+        let err = resolve("org/model", &params, &cfg).unwrap_err().to_string();
+        assert!(err.contains(other) && err.contains(COMMIT), "{err}");
+        assert_eq!(count.load(Ordering::SeqCst), 1);
+        let repo = repo_cache_dir(dir.path(), "org/model");
+        assert!(!repo.join("snapshots").exists());
+        assert!(!repo.join("refs").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn new_cache_files_are_readable_by_other_users() {
+        use std::os::unix::fs::PermissionsExt;
+        let body = r#"{"version":"1.0"}"#;
+        let etag = git_hash(body.as_bytes());
+        let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
+        let (url, _) = serve(vec![
+            response("206 Partial Content", &headers, "{"),
+            response("200 OK", &headers, body),
+        ]);
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = config(dir.path(), &url, false);
+        resolve("org/model", &FromPretrainedParameters::default(), &cfg).unwrap();
+        let repo = repo_cache_dir(dir.path(), "org/model");
+        for file in [repo.join("blobs").join(&etag), repo.join("refs/main")] {
+            let mode = std::fs::metadata(&file).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, NEW_FILE_MODE, "{}: {mode:o}", file.display());
+            assert_ne!(mode & 0o044, 0, "{}: {mode:o}", file.display());
+        }
+
+        // Existing permissions are kept when a ref is replaced.
+        let ref_path = repo.join("refs/main");
+        std::fs::set_permissions(&ref_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let mut file = tempfile::NamedTempFile::new_in(ref_path.parent().unwrap()).unwrap();
+        file.write_all(b"other").unwrap();
+        publish_revision_ref(file, &ref_path, "other").unwrap();
+        let mode = std::fs::metadata(&ref_path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn saved_tokenizer_is_not_private_to_the_creator() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let tokenizer = crate::Tokenizer::new(crate::models::WordLevel::default());
+        let path = dir.path().join("tokenizer.json");
+        tokenizer.save(&path, false).unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o644, "{mode:o}");
+
+        // Existing permissions are preserved on replacement.
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        tokenizer.save(&path, true).unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "{mode:o}");
     }
 }
