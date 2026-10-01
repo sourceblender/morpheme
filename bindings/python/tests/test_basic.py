@@ -1,3 +1,4 @@
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,27 @@ def test_encode_fields(tokenizer):
     assert len(enc.tokens) == len(enc.offsets) == len(enc.type_ids) == n
     assert len(enc.attention_mask) == len(enc.special_tokens_mask) == n
     assert all(isinstance(o, tuple) and len(o) == 2 for o in enc.offsets)
+
+
+def test_offsets_are_character_offsets():
+    # Like the Hugging Face Python package: offsets index the Python string,
+    # not its UTF-8 bytes ("ï" and "é" are two bytes each).
+    tok = morpheme.Tokenizer.from_file(str(_fixture("bert-base-uncased.json")))
+    text = "naïve café"
+    for enc in (tok.encode(text), tok.encode_batch([text])[0]):
+        checked = 0
+        for token, (start, end), special in zip(enc.tokens, enc.offsets, enc.special_tokens_mask):
+            if special or token.startswith("##"):
+                continue
+            span = text[start:end]
+            # bert-base-uncased lowercases and strips accents.
+            folded = "".join(
+                c for c in unicodedata.normalize("NFD", span.lower()) if not unicodedata.combining(c)
+            )
+            assert folded == token, (token, span, start, end)
+            checked += 1
+        assert checked >= 2
+        assert max(end for _, end in enc.offsets) <= len(text)
 
 
 def test_decode_round_trip(tokenizer):

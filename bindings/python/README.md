@@ -15,7 +15,7 @@ tok = morpheme.Tokenizer.from_file("tokenizer.json")
 # or: morpheme.Tokenizer.from_pretrained("bert-base-uncased")
 
 enc = tok.encode("Hello world!")
-print(enc.ids, enc.tokens, enc.offsets)
+print(enc.ids, enc.tokens, enc.offsets)  # offsets are character spans
 print(tok.count("Hello world!"))          # == len(enc.ids)
 print(tok.decode(enc.ids))                # "hello world!"
 batch = tok.encode_batch(["a", "b"])      # releases the GIL

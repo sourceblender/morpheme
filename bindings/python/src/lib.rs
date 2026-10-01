@@ -42,7 +42,8 @@ impl PyEncoding {
         self.inner.tokens().to_vec()
     }
 
-    /// Byte offsets `(start, end)` of each token in the input.
+    /// Character offsets `(start, end)` of each token in the input, like the
+    /// Hugging Face Python package: `text[start:end]` is the token's span.
     #[getter]
     fn offsets(&self) -> Vec<(usize, usize)> {
         self.inner.offsets().to_vec()
@@ -108,14 +109,18 @@ impl PyTokenizer {
         Ok(Self { inner })
     }
 
-    /// Encode one text.
+    /// Encode one text (offsets are in characters).
     #[pyo3(signature = (text, add_special_tokens=true))]
     fn encode(&self, text: &str, add_special_tokens: bool) -> PyResult<PyEncoding> {
-        let inner = self.inner.encode(text, add_special_tokens).map_err(to_py)?;
+        let inner = self
+            .inner
+            .encode_char_offsets(text, add_special_tokens)
+            .map_err(to_py)?;
         Ok(PyEncoding { inner })
     }
 
-    /// Encode a list of texts. Releases the GIL while encoding.
+    /// Encode a list of texts (offsets are in characters). Releases the GIL
+    /// while encoding.
     #[pyo3(signature = (texts, add_special_tokens=true))]
     fn encode_batch(
         &self,
@@ -126,7 +131,8 @@ impl PyTokenizer {
         let encodings = py
             .detach(|| {
                 let inputs: Vec<&str> = texts.iter().map(String::as_str).collect();
-                self.inner.encode_batch(inputs, add_special_tokens)
+                self.inner
+                    .encode_batch_char_offsets(inputs, add_special_tokens)
             })
             .map_err(to_py)?;
         Ok(encodings
