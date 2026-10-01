@@ -408,18 +408,25 @@ fn origin_prefix(url: &str) -> Option<&str> {
     Some(&url[..scheme.len() + 3 + authority.len()])
 }
 
-/// Resolve a redirect `Location` against the URL that returned it:
-/// absolute (`https://host/p`), scheme-relative (`//host/p`), absolute-path
-/// (`/p`), query-only (`?q`) and path-relative (`p`) forms. Returns `None`
-/// for a malformed location or a scheme other than `http`/`https`.
+/// Resolve a redirect `Location` against the URL that returned it
+/// (RFC 3986, section 5.2): absolute (`https://host/p`), scheme-relative
+/// (`//host/p`), absolute-path (`/p`), path-relative (`p`, `../p`) and
+/// query-only (`?q`) references. Dot segments are removed from the path,
+/// the query is preserved and the fragment is dropped (it is never part of
+/// a request). Returns `None` for a malformed location or a scheme other
+/// than `http`/`https`.
 fn resolve_location(base: &str, location: &str) -> Option<String> {
-    let location = location.trim();
-    origin_of(base)?;
+    let without_fragment =
+        |url: &'_ str| -> String { url.split('#').next().unwrap_or(url).to_owned() };
+    let base = without_fragment(base);
+    let location = without_fragment(location.trim());
+    let base_prefix = origin_prefix(&base)?;
+    origin_of(&base)?;
     let resolved = if location.starts_with("//") {
         let (scheme, _) = base.split_once("://")?;
         format!("{scheme}:{location}")
     } else if location.starts_with('/') {
-        format!("{}{location}", origin_prefix(base)?)
+        format!("{base_prefix}{location}")
     } else if let Some((scheme, _)) = location.split_once(':').filter(|(scheme, _)| {
         // RFC 3986 scheme: a letter, then letters, digits, `+`, `-`, `.`.
         scheme.starts_with(|c: char| c.is_ascii_alphabetic())
@@ -433,35 +440,31 @@ fn resolve_location(base: &str, location: &str) -> Option<String> {
         {
             return None;
         }
-        location.to_owned()
+        location
+    } else if location.is_empty() {
+        // Same document: the base itself, query included.
+        base.clone()
+    } else if location.starts_with('?') {
+        format!("{}{location}", base.split('?').next().unwrap_or(&base))
     } else {
-        // Relative to the base: drop its fragment (and query, unless the
-        // location is a fragment), then its last path segment.
-        let base = base.split('#').next().unwrap_or(base);
-        if location.is_empty() || location.starts_with('#') {
-            format!("{base}{location}")
-        } else if location.starts_with('?') {
-            format!("{}{location}", base.split('?').next().unwrap_or(base))
-        } else {
-            let base = base.split('?').next().unwrap_or(base);
-            let prefix = origin_prefix(base)?;
-            match base[prefix.len()..].rfind('/') {
-                Some(i) => format!("{}{location}", &base[..prefix.len() + i + 1]),
-                None => format!("{prefix}/{location}"),
-            }
+        // Merge with the base path up to and including its last `/`
+        // (`/` when the base has no path).
+        let base = base.split('?').next().unwrap_or(&base);
+        match base[base_prefix.len()..].rfind('/') {
+            Some(i) => format!("{}{location}", &base[..base_prefix.len() + i + 1]),
+            None => format!("{base_prefix}/{location}"),
         }
     };
     origin_of(&resolved)?;
     // Normalize `.` and `..` in the path (RFC 3986, section 5.2.4), keeping
-    // the query and fragment: servers need not do it before routing.
+    // the query: servers need not do it before routing.
     let prefix = origin_prefix(&resolved)?;
     let rest = &resolved[prefix.len()..];
-    let path_end = rest.find(['?', '#']).unwrap_or(rest.len());
-    let (path, tail) = rest.split_at(path_end);
+    let (path, query) = rest.split_at(rest.find('?').unwrap_or(rest.len()));
     if path.is_empty() {
         return Some(resolved);
     }
-    Some(format!("{prefix}{}{tail}", remove_dot_segments(path)))
+    Some(format!("{prefix}{}{query}", remove_dot_segments(path)))
 }
 
 /// Remove `.` and `..` segments from an absolute URL path (one starting
@@ -1739,7 +1742,8 @@ mod tests {
                 "https://huggingface.co/org/model/resolve/main/tokenizer.json?b=2",
             ),
             (" /trimmed ", "https://huggingface.co/trimmed"),
-            // Dot segments are removed; the query and fragment are kept.
+            // Dot segments are removed; the query is kept, the fragment
+            // dropped.
             (
                 "../protected?sig=a/../b",
                 "https://huggingface.co/org/model/resolve/protected?sig=a/../b",
@@ -1748,7 +1752,16 @@ mod tests {
                 "./x/./y",
                 "https://huggingface.co/org/model/resolve/main/x/y",
             ),
-            ("/a/b/../../../c#f", "https://huggingface.co/c#f"),
+            ("/a/b/../../../c#f", "https://huggingface.co/c"),
+            (
+                "",
+                "https://huggingface.co/org/model/resolve/main/tokenizer.json?a=1",
+            ),
+            (
+                "#g",
+                "https://huggingface.co/org/model/resolve/main/tokenizer.json?a=1",
+            ),
+            ("https://cdn.hf.co/x?s=1#frag", "https://cdn.hf.co/x?s=1"),
             ("/a/b/..", "https://huggingface.co/a/"),
             ("/a/.", "https://huggingface.co/a/"),
             ("//cdn.hf.co/a/../b", "https://cdn.hf.co/b"),
@@ -1780,6 +1793,64 @@ mod tests {
             assert_eq!(resolve_location(base, bad), None, "{bad}");
         }
         assert_eq!(resolve_location("not a url", "/x"), None);
+    }
+
+    #[test]
+    fn redirect_locations_follow_rfc_3986_normal_examples() {
+        // RFC 3986, section 5.4.1, with fragments dropped from the result
+        // (a request URL has none). `g:h` is another scheme: rejected.
+        let base = "http://a/b/c/d;p?q";
+        let cases = [
+            ("g", "http://a/b/c/g"),
+            ("./g", "http://a/b/c/g"),
+            ("g/", "http://a/b/c/g/"),
+            ("/g", "http://a/g"),
+            ("//g", "http://g"),
+            ("?y", "http://a/b/c/d;p?y"),
+            ("g?y", "http://a/b/c/g?y"),
+            ("#s", "http://a/b/c/d;p?q"),
+            ("g#s", "http://a/b/c/g"),
+            ("g?y#s", "http://a/b/c/g?y"),
+            (";x", "http://a/b/c/;x"),
+            ("g;x", "http://a/b/c/g;x"),
+            ("g;x?y#s", "http://a/b/c/g;x?y"),
+            ("", "http://a/b/c/d;p?q"),
+            (".", "http://a/b/c/"),
+            ("./", "http://a/b/c/"),
+            ("..", "http://a/b/"),
+            ("../", "http://a/b/"),
+            ("../g", "http://a/b/g"),
+            ("../..", "http://a/"),
+            ("../../", "http://a/"),
+            ("../../g", "http://a/g"),
+            // Section 5.4.2: `..` never climbs above the root.
+            ("../../../g", "http://a/g"),
+            ("../../../../g", "http://a/g"),
+            ("/./g", "http://a/g"),
+            ("/../g", "http://a/g"),
+            ("g.", "http://a/b/c/g."),
+            (".g", "http://a/b/c/.g"),
+            ("g..", "http://a/b/c/g.."),
+            ("..g", "http://a/b/c/..g"),
+            ("./../g", "http://a/b/g"),
+            ("./g/.", "http://a/b/c/g/"),
+            ("g/./h", "http://a/b/c/g/h"),
+            ("g/../h", "http://a/b/c/h"),
+            ("g;x=1/./y", "http://a/b/c/g;x=1/y"),
+            ("g;x=1/../y", "http://a/b/c/y"),
+            ("g?y/./x", "http://a/b/c/g?y/./x"),
+            ("g?y/../x", "http://a/b/c/g?y/../x"),
+            ("g#s/./x", "http://a/b/c/g"),
+            ("http://a/b/c/../g", "http://a/b/g"),
+        ];
+        for (location, want) in cases {
+            assert_eq!(
+                resolve_location(base, location).as_deref(),
+                Some(want),
+                "{location}"
+            );
+        }
+        assert_eq!(resolve_location(base, "g:h"), None);
     }
 
     #[test]
