@@ -135,6 +135,34 @@ fn compare_encoding(r: &mut Report, ctx: &str, got: &Encoding, want: &Value) {
     r.check(&format!("{ctx} word_ids"), got.word_ids().to_vec(), words);
 }
 
+/// Feed `ids` one at a time and compare every step's output.
+fn check_stream(
+    r: &mut Report,
+    ctx: &str,
+    stream: &mut splinter::DecodeStream<'_>,
+    ids: &[u32],
+    want: &Value,
+) {
+    let want: Vec<Option<String>> = want
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().map(str::to_owned))
+        .collect();
+    let mut got = Vec::with_capacity(ids.len());
+    for &id in ids {
+        match stream.step(id) {
+            Ok(chunk) => got.push(chunk),
+            Err(e) => {
+                r.failures
+                    .push(format!("{ctx}: stream error at id {id}: {e}"));
+                return;
+            }
+        }
+    }
+    r.check(ctx, got, want);
+}
+
 fn run_cases(r: &mut Report, label: &str, tok: &Tokenizer, golden: &Value) {
     for (i, case) in golden["cases"].as_array().unwrap().iter().enumerate() {
         let input = case["input"].as_str().unwrap();
@@ -157,6 +185,24 @@ fn run_cases(r: &mut Report, label: &str, tok: &Tokenizer, golden: &Value) {
                 Err(e) => r.failures.push(format!("{ctx}: decode error: {e}")),
             }
         }
+        for (key, skip) in [
+            ("stream_keep_special", false),
+            ("stream_skip_special", true),
+        ] {
+            let ctx = format!("[{label}] case {i} {short:?} {key}");
+            let mut stream = tok.decode_stream(skip);
+            check_stream(r, &ctx, &mut stream, &ids, &case[key]);
+        }
+        let half = ids.len() / 2;
+        let ctx = format!("[{label}] case {i} {short:?} stream_prefill_half");
+        let mut stream = tok.decode_stream(false).prefill(&ids[..half]);
+        check_stream(
+            r,
+            &ctx,
+            &mut stream,
+            &ids[half..],
+            &case["stream_prefill_half"],
+        );
     }
 
     for (i, pair) in golden["pairs"].as_array().unwrap().iter().enumerate() {

@@ -49,6 +49,34 @@ first), drops special tokens if asked, and runs the decoder (or joins
 with spaces when there is none). Unknown ids are skipped.
 `decode_batch(&[&[u32]], skip)` runs in parallel.
 
+### Streaming decode
+
+For ids that arrive one at a time (text generation), decoding each id
+on its own is wrong: a character split across byte-fallback or
+byte-level tokens decodes to `�`, and decoders such as `Metaspace` or
+`Strip` treat the start of every call as the start of the text.
+`decode_stream(skip_special_tokens)` returns a `DecodeStream` that keeps
+the context it needs and returns exactly the new text per step:
+
+```rust,ignore
+let mut stream = tokenizer.decode_stream(true);
+for id in generated_ids {
+    if let Some(chunk) = stream.step(id)? {
+        print!("{chunk}"); // None means "not a complete character yet"
+    }
+}
+```
+
+- `step(id)` / `step_many(&ids)` return `Some(new_text)` or `None` when
+  the ids don't complete any text yet. Concatenating every chunk equals
+  `decode` of all ids.
+- `.prefill(&ids)` starts from ids whose text was already shown (e.g.
+  the prompt): later chunks are decoded in their context but the prefill
+  itself is not re-emitted. A prefill that ends mid-character is not
+  considered shown, matching Hugging Face.
+- Semantics match Python `tokenizers.decoders.DecodeStream` step for step
+  (checked against all 11 golden fixtures, including the `None` steps).
+
 ## Added tokens
 
 `add_tokens(&[AddedToken])` / `add_special_tokens(&[AddedToken])`.

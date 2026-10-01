@@ -1,7 +1,10 @@
 //! The [`Tokenizer`]: the full pipeline, plus loading and saving in the
 //! Hugging Face `tokenizer.json` format.
 
+mod decode_stream;
 mod serialization;
+
+pub use decode_stream::DecodeStream;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -737,6 +740,12 @@ impl Tokenizer {
             .par_iter()
             .map(|ids| self.decode(ids, skip_special_tokens))
             .collect()
+    }
+
+    /// Start incremental decoding for ids that arrive one at a time
+    /// (e.g. during generation). See [`DecodeStream`].
+    pub fn decode_stream(&self, skip_special_tokens: bool) -> DecodeStream<'_> {
+        DecodeStream::new(self, skip_special_tokens)
     }
 
     // ----- training ---------------------------------------------------

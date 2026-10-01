@@ -58,8 +58,8 @@ pub use pre_tokenized_string::{OffsetType, PreTokenizedString, Split};
 pub use pre_tokenizers::PreTokenizerWrapper;
 pub use processors::PostProcessorWrapper;
 pub use tokenizer::{
-    EncodeInput, InputSequence, PaddingParams, PaddingStrategy, Tokenizer, TruncationParams,
-    TruncationStrategy,
+    DecodeStream, EncodeInput, InputSequence, PaddingParams, PaddingStrategy, Tokenizer,
+    TruncationParams, TruncationStrategy,
 };
 pub use traits::{Decoder, Model, Normalizer, PostProcessor, PreTokenizer, Trainer};
 

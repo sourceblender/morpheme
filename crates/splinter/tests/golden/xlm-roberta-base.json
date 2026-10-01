@@ -52,7 +52,18 @@
     "word_ids": []
    },
    "decode_keep_special": "<s></s>",
-   "decode_skip_special": ""
+   "decode_skip_special": "",
+   "stream_keep_special": [
+    "<s>",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    null
+   ],
+   "stream_prefill_half": [
+    "</s>"
+   ]
   },
   {
    "input": " ",
@@ -102,7 +113,18 @@
     "word_ids": []
    },
    "decode_keep_special": "<s></s>",
-   "decode_skip_special": ""
+   "decode_skip_special": "",
+   "stream_keep_special": [
+    "<s>",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    null
+   ],
+   "stream_prefill_half": [
+    "</s>"
+   ]
   },
   {
    "input": "Hello, World!",
@@ -239,7 +261,28 @@
     ]
    },
    "decode_keep_special": "<s> Hello, World!</s>",
-   "decode_skip_special": "Hello, World!"
+   "decode_skip_special": "Hello, World!",
+   "stream_keep_special": [
+    "<s>",
+    " Hello",
+    ",",
+    " World",
+    "!",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "Hello",
+    ",",
+    " World",
+    "!",
+    null
+   ],
+   "stream_prefill_half": [
+    " World",
+    "!",
+    "</s>"
+   ]
   },
   {
    "input": "hello world",
@@ -356,7 +399,26 @@
     ]
    },
    "decode_keep_special": "<s> hello world</s>",
-   "decode_skip_special": "hello world"
+   "decode_skip_special": "hello world",
+   "stream_keep_special": [
+    "<s>",
+    " hell",
+    "o",
+    " world",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "hell",
+    "o",
+    " world",
+    null
+   ],
+   "stream_prefill_half": [
+    "o",
+    " world",
+    "</s>"
+   ]
   },
   {
    "input": "  leading and trailing spaces  ",
@@ -533,7 +595,33 @@
     ]
    },
    "decode_keep_special": "<s> leading and trailing spaces</s>",
-   "decode_skip_special": "leading and trailing spaces"
+   "decode_skip_special": "leading and trailing spaces",
+   "stream_keep_special": [
+    "<s>",
+    " leading",
+    " and",
+    " trail",
+    "ing",
+    " space",
+    "s",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "leading",
+    " and",
+    " trail",
+    "ing",
+    " space",
+    "s",
+    null
+   ],
+   "stream_prefill_half": [
+    "ing",
+    " space",
+    "s",
+    "</s>"
+   ]
   },
   {
    "input": "multiple   internal    spaces",
@@ -670,7 +758,28 @@
     ]
    },
    "decode_keep_special": "<s> multiple internal spaces</s>",
-   "decode_skip_special": "multiple internal spaces"
+   "decode_skip_special": "multiple internal spaces",
+   "stream_keep_special": [
+    "<s>",
+    " multiple",
+    " internal",
+    " space",
+    "s",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "multiple",
+    " internal",
+    " space",
+    "s",
+    null
+   ],
+   "stream_prefill_half": [
+    " space",
+    "s",
+    "</s>"
+   ]
   },
   {
    "input": "tabs\tand\nnewlines\r\nmixed",
@@ -867,7 +976,36 @@
     ]
    },
    "decode_keep_special": "<s> tabs and newlines mixed</s>",
-   "decode_skip_special": "tabs and newlines mixed"
+   "decode_skip_special": "tabs and newlines mixed",
+   "stream_keep_special": [
+    "<s>",
+    " tab",
+    "s",
+    " and",
+    " new",
+    "lines",
+    " mix",
+    "ed",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "tab",
+    "s",
+    " and",
+    " new",
+    "lines",
+    " mix",
+    "ed",
+    null
+   ],
+   "stream_prefill_half": [
+    " new",
+    "lines",
+    " mix",
+    "ed",
+    "</s>"
+   ]
   },
   {
    "input": "The quick brown fox jumps over the lazy dog.",
@@ -1184,7 +1322,51 @@
     ]
    },
    "decode_keep_special": "<s> The quick brown fox jumps over the lazy dog.</s>",
-   "decode_skip_special": "The quick brown fox jumps over the lazy dog."
+   "decode_skip_special": "The quick brown fox jumps over the lazy dog.",
+   "stream_keep_special": [
+    "<s>",
+    " The",
+    " quick",
+    " brown",
+    " ",
+    "fox",
+    " jump",
+    "s",
+    " over",
+    " the",
+    " la",
+    "zy",
+    " dog",
+    ".",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "The",
+    " quick",
+    " brown",
+    " ",
+    "fox",
+    " jump",
+    "s",
+    " over",
+    " the",
+    " la",
+    "zy",
+    " dog",
+    ".",
+    null
+   ],
+   "stream_prefill_half": [
+    "s",
+    " over",
+    " the",
+    " la",
+    "zy",
+    " dog",
+    ".",
+    "</s>"
+   ]
   },
   {
    "input": "I'm sure they'll say it's fine, don't you think? We've seen it.",
@@ -1741,7 +1923,81 @@
     ]
    },
    "decode_keep_special": "<s> I'm sure they'll say it's fine, don't you think? We've seen it.</s>",
-   "decode_skip_special": "I'm sure they'll say it's fine, don't you think? We've seen it."
+   "decode_skip_special": "I'm sure they'll say it's fine, don't you think? We've seen it.",
+   "stream_keep_special": [
+    "<s>",
+    " I",
+    "'",
+    "m",
+    " sure",
+    " they",
+    "'",
+    "ll",
+    " say",
+    " it",
+    "'",
+    "s",
+    " fine",
+    ",",
+    " don",
+    "'",
+    "t",
+    " you",
+    " think",
+    "?",
+    " We",
+    "'",
+    "ve",
+    " seen",
+    " it",
+    ".",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "I",
+    "'",
+    "m",
+    " sure",
+    " they",
+    "'",
+    "ll",
+    " say",
+    " it",
+    "'",
+    "s",
+    " fine",
+    ",",
+    " don",
+    "'",
+    "t",
+    " you",
+    " think",
+    "?",
+    " We",
+    "'",
+    "ve",
+    " seen",
+    " it",
+    ".",
+    null
+   ],
+   "stream_prefill_half": [
+    ",",
+    " don",
+    "'",
+    "t",
+    " you",
+    " think",
+    "?",
+    " We",
+    "'",
+    "ve",
+    " seen",
+    " it",
+    ".",
+    "</s>"
+   ]
   },
   {
    "input": "Café naïve résumé façade Ångström",
@@ -1998,7 +2254,43 @@
     ]
    },
    "decode_keep_special": "<s> Café naïve résumé façade Ångström</s>",
-   "decode_skip_special": "Café naïve résumé façade Ångström"
+   "decode_skip_special": "Café naïve résumé façade Ångström",
+   "stream_keep_special": [
+    "<s>",
+    " Café",
+    " na",
+    "ï",
+    "ve",
+    " résumé",
+    " faça",
+    "de",
+    " Å",
+    "ng",
+    "ström",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "Café",
+    " na",
+    "ï",
+    "ve",
+    " résumé",
+    " faça",
+    "de",
+    " Å",
+    "ng",
+    "ström",
+    null
+   ],
+   "stream_prefill_half": [
+    " faça",
+    "de",
+    " Å",
+    "ng",
+    "ström",
+    "</s>"
+   ]
   },
   {
    "input": "ÀÉÎÕÜ àéîõü",
@@ -2255,7 +2547,43 @@
     ]
    },
    "decode_keep_special": "<s> ÀÉÎÕÜ àéîõü</s>",
-   "decode_skip_special": "ÀÉÎÕÜ àéîõü"
+   "decode_skip_special": "ÀÉÎÕÜ àéîõü",
+   "stream_keep_special": [
+    "<s>",
+    " À",
+    "É",
+    "Î",
+    "Õ",
+    "Ü",
+    " à",
+    "é",
+    "î",
+    "õ",
+    "ü",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "À",
+    "É",
+    "Î",
+    "Õ",
+    "Ü",
+    " à",
+    "é",
+    "î",
+    "õ",
+    "ü",
+    null
+   ],
+   "stream_prefill_half": [
+    " à",
+    "é",
+    "î",
+    "õ",
+    "ü",
+    "</s>"
+   ]
   },
   {
    "input": "é combining accent",
@@ -2412,7 +2740,31 @@
     ]
    },
    "decode_keep_special": "<s> é combining accent</s>",
-   "decode_skip_special": "é combining accent"
+   "decode_skip_special": "é combining accent",
+   "stream_keep_special": [
+    "<s>",
+    " é",
+    " com",
+    "bi",
+    "ning",
+    " accent",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "é",
+    " com",
+    "bi",
+    "ning",
+    " accent",
+    null
+   ],
+   "stream_prefill_half": [
+    "bi",
+    "ning",
+    " accent",
+    "</s>"
+   ]
   },
   {
    "input": "你好，世界！这是一个测试。",
@@ -2629,7 +2981,38 @@
     ]
    },
    "decode_keep_special": "<s> 你好,世界!这是一个测试。</s>",
-   "decode_skip_special": "你好,世界!这是一个测试。"
+   "decode_skip_special": "你好,世界!这是一个测试。",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "你好",
+    ",",
+    "世界",
+    "!",
+    "这是一个",
+    "测试",
+    "。",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    "你好",
+    ",",
+    "世界",
+    "!",
+    "这是一个",
+    "测试",
+    "。",
+    null
+   ],
+   "stream_prefill_half": [
+    "!",
+    "这是一个",
+    "测试",
+    "。",
+    "</s>"
+   ]
   },
   {
    "input": "日本語のテキストとカタカナ",
@@ -2866,7 +3249,41 @@
     ]
    },
    "decode_keep_special": "<s> 日本語のテキストとカタカナ</s>",
-   "decode_skip_special": "日本語のテキストとカタカナ"
+   "decode_skip_special": "日本語のテキストとカタカナ",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "日本語",
+    "の",
+    "テキスト",
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    "日本語",
+    "の",
+    "テキスト",
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ",
+    null
+   ],
+   "stream_prefill_half": [
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ",
+    "</s>"
+   ]
   },
   {
    "input": "한국어 텍스트입니다",
@@ -2983,7 +3400,26 @@
     ]
    },
    "decode_keep_special": "<s> 한국어 텍스트입니다</s>",
-   "decode_skip_special": "한국어 텍스트입니다"
+   "decode_skip_special": "한국어 텍스트입니다",
+   "stream_keep_special": [
+    "<s>",
+    " 한국어",
+    " 텍스트",
+    "입니다",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "한국어",
+    " 텍스트",
+    "입니다",
+    null
+   ],
+   "stream_prefill_half": [
+    " 텍스트",
+    "입니다",
+    "</s>"
+   ]
   },
   {
    "input": "Россия и Українa",
@@ -3140,7 +3576,31 @@
     ]
    },
    "decode_keep_special": "<s> Россия и Українa</s>",
-   "decode_skip_special": "Россия и Українa"
+   "decode_skip_special": "Россия и Українa",
+   "stream_keep_special": [
+    "<s>",
+    " Россия",
+    " и",
+    " ",
+    "Україн",
+    "a",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "Россия",
+    " и",
+    " ",
+    "Україн",
+    "a",
+    null
+   ],
+   "stream_prefill_half": [
+    " ",
+    "Україн",
+    "a",
+    "</s>"
+   ]
   },
   {
    "input": "مرحبا بالعالم",
@@ -3297,7 +3757,31 @@
     ]
    },
    "decode_keep_special": "<s> مرحبا بالعالم</s>",
-   "decode_skip_special": "مرحبا بالعالم"
+   "decode_skip_special": "مرحبا بالعالم",
+   "stream_keep_special": [
+    "<s>",
+    " م",
+    "رحب",
+    "ا",
+    " بال",
+    "عالم",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "م",
+    "رحب",
+    "ا",
+    " بال",
+    "عالم",
+    null
+   ],
+   "stream_prefill_half": [
+    "ا",
+    " بال",
+    "عالم",
+    "</s>"
+   ]
   },
   {
    "input": "Emoji: 😀👍🏽🇺🇸 and ❤️",
@@ -3574,7 +4058,46 @@
     ]
    },
    "decode_keep_special": "<s> Emoji: 😀👍🏽🇺🇸 and ❤️</s>",
-   "decode_skip_special": "Emoji: 😀👍🏽🇺🇸 and ❤️"
+   "decode_skip_special": "Emoji: 😀👍🏽🇺🇸 and ❤️",
+   "stream_keep_special": [
+    "<s>",
+    " E",
+    "moji",
+    ":",
+    " 😀",
+    "👍",
+    "🏽",
+    "🇺",
+    "🇸",
+    " and",
+    " ❤",
+    "️",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "E",
+    "moji",
+    ":",
+    " 😀",
+    "👍",
+    "🏽",
+    "🇺",
+    "🇸",
+    " and",
+    " ❤",
+    "️",
+    null
+   ],
+   "stream_prefill_half": [
+    "🏽",
+    "🇺",
+    "🇸",
+    " and",
+    " ❤",
+    "️",
+    "</s>"
+   ]
   },
   {
    "input": "Numbers 12345 and 3.14159 and 1,000,000",
@@ -3851,7 +4374,46 @@
     ]
    },
    "decode_keep_special": "<s> Numbers 12345 and 3.14159 and 1,000,000</s>",
-   "decode_skip_special": "Numbers 12345 and 3.14159 and 1,000,000"
+   "decode_skip_special": "Numbers 12345 and 3.14159 and 1,000,000",
+   "stream_keep_special": [
+    "<s>",
+    " Number",
+    "s",
+    " 12",
+    "345",
+    " and",
+    " 3.",
+    "14",
+    "159",
+    " and",
+    " 1",
+    ",000,000",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "Number",
+    "s",
+    " 12",
+    "345",
+    " and",
+    " 3.",
+    "14",
+    "159",
+    " and",
+    " 1",
+    ",000,000",
+    null
+   ],
+   "stream_prefill_half": [
+    " 3.",
+    "14",
+    "159",
+    " and",
+    " 1",
+    ",000,000",
+    "</s>"
+   ]
   },
   {
    "input": "Punctuation!!! ??? ... --- (parens) [brackets] {braces}",
@@ -4308,7 +4870,68 @@
     ]
    },
    "decode_keep_special": "<s> Punctuation!!! ??? ... --- (parens) [brackets] {braces}</s>",
-   "decode_skip_special": "Punctuation!!! ??? ... --- (parens) [brackets] {braces}"
+   "decode_skip_special": "Punctuation!!! ??? ... --- (parens) [brackets] {braces}",
+   "stream_keep_special": [
+    "<s>",
+    " Punct",
+    "u",
+    "ation",
+    "!!!",
+    " ???",
+    " ...",
+    " ---",
+    " (",
+    "par",
+    "ens",
+    ")",
+    " [",
+    "bra",
+    "cket",
+    "s",
+    "]",
+    " {",
+    "bra",
+    "ces",
+    "}",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "Punct",
+    "u",
+    "ation",
+    "!!!",
+    " ???",
+    " ...",
+    " ---",
+    " (",
+    "par",
+    "ens",
+    ")",
+    " [",
+    "bra",
+    "cket",
+    "s",
+    "]",
+    " {",
+    "bra",
+    "ces",
+    "}",
+    null
+   ],
+   "stream_prefill_half": [
+    ")",
+    " [",
+    "bra",
+    "cket",
+    "s",
+    "]",
+    " {",
+    "bra",
+    "ces",
+    "}",
+    "</s>"
+   ]
   },
   {
    "input": "zero​width and nbsp",
@@ -4485,7 +5108,33 @@
     ]
    },
    "decode_keep_special": "<s> zero width and nbsp</s>",
-   "decode_skip_special": "zero width and nbsp"
+   "decode_skip_special": "zero width and nbsp",
+   "stream_keep_special": [
+    "<s>",
+    " zero",
+    " ",
+    "width",
+    " and",
+    " ",
+    "nbsp",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "zero",
+    " ",
+    "width",
+    " and",
+    " ",
+    "nbsp",
+    null
+   ],
+   "stream_prefill_half": [
+    " and",
+    " ",
+    "nbsp",
+    "</s>"
+   ]
   },
   {
    "input": "control\u0000char\u0007bell",
@@ -4622,7 +5271,28 @@
     ]
    },
    "decode_keep_special": "<s> control<unk>charbell</s>",
-   "decode_skip_special": "controlcharbell"
+   "decode_skip_special": "controlcharbell",
+   "stream_keep_special": [
+    "<s>",
+    " control",
+    "<unk>",
+    "char",
+    "bell",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "control",
+    null,
+    "char",
+    "bell",
+    null
+   ],
+   "stream_prefill_half": [
+    "char",
+    "bell",
+    "</s>"
+   ]
   },
   {
    "input": "ALL CAPS SENTENCE HERE",
@@ -4819,7 +5489,36 @@
     ]
    },
    "decode_keep_special": "<s> ALL CAPS SENTENCE HERE</s>",
-   "decode_skip_special": "ALL CAPS SENTENCE HERE"
+   "decode_skip_special": "ALL CAPS SENTENCE HERE",
+   "stream_keep_special": [
+    "<s>",
+    " ALL",
+    " CAP",
+    "S",
+    " S",
+    "ENT",
+    "ENCE",
+    " HERE",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "ALL",
+    " CAP",
+    "S",
+    " S",
+    "ENT",
+    "ENCE",
+    " HERE",
+    null
+   ],
+   "stream_prefill_half": [
+    " S",
+    "ENT",
+    "ENCE",
+    " HERE",
+    "</s>"
+   ]
   },
   {
    "input": "camelCaseIdentifier snake_case_identifier kebab-case",
@@ -5236,7 +5935,63 @@
     ]
    },
    "decode_keep_special": "<s> camelCaseIdentifier snake_case_identifier kebab-case</s>",
-   "decode_skip_special": "camelCaseIdentifier snake_case_identifier kebab-case"
+   "decode_skip_special": "camelCaseIdentifier snake_case_identifier kebab-case",
+   "stream_keep_special": [
+    "<s>",
+    " ca",
+    "mel",
+    "C",
+    "ase",
+    "I",
+    "dent",
+    "ifier",
+    " sna",
+    "ke",
+    "_",
+    "case",
+    "_",
+    "identifi",
+    "er",
+    " ke",
+    "bab",
+    "-",
+    "case",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "ca",
+    "mel",
+    "C",
+    "ase",
+    "I",
+    "dent",
+    "ifier",
+    " sna",
+    "ke",
+    "_",
+    "case",
+    "_",
+    "identifi",
+    "er",
+    " ke",
+    "bab",
+    "-",
+    "case",
+    null
+   ],
+   "stream_prefill_half": [
+    "_",
+    "case",
+    "_",
+    "identifi",
+    "er",
+    " ke",
+    "bab",
+    "-",
+    "case",
+    "</s>"
+   ]
   },
   {
    "input": "https://example.com/path?query=1&x=y",
@@ -5633,7 +6388,61 @@
     ]
    },
    "decode_keep_special": "<s> https://example.com/path?query=1&x=y</s>",
-   "decode_skip_special": "https://example.com/path?query=1&x=y"
+   "decode_skip_special": "https://example.com/path?query=1&x=y",
+   "stream_keep_special": [
+    "<s>",
+    " https",
+    "://",
+    "ex",
+    "a",
+    "mple",
+    ".",
+    "com",
+    "/",
+    "path",
+    "?",
+    "que",
+    "ry",
+    "=1",
+    "&",
+    "x",
+    "=",
+    "y",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "https",
+    "://",
+    "ex",
+    "a",
+    "mple",
+    ".",
+    "com",
+    "/",
+    "path",
+    "?",
+    "que",
+    "ry",
+    "=1",
+    "&",
+    "x",
+    "=",
+    "y",
+    null
+   ],
+   "stream_prefill_half": [
+    "path",
+    "?",
+    "que",
+    "ry",
+    "=1",
+    "&",
+    "x",
+    "=",
+    "y",
+    "</s>"
+   ]
   },
   {
    "input": "def foo(x):\n    return x ** 2  # comment",
@@ -5950,7 +6759,51 @@
     ]
    },
    "decode_keep_special": "<s> def foo(x): return x ** 2 # comment</s>",
-   "decode_skip_special": "def foo(x): return x ** 2 # comment"
+   "decode_skip_special": "def foo(x): return x ** 2 # comment",
+   "stream_keep_special": [
+    "<s>",
+    " de",
+    "f",
+    " fo",
+    "o",
+    "(",
+    "x",
+    "):",
+    " return",
+    " x",
+    " **",
+    " 2",
+    " #",
+    " comment",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "de",
+    "f",
+    " fo",
+    "o",
+    "(",
+    "x",
+    "):",
+    " return",
+    " x",
+    " **",
+    " 2",
+    " #",
+    " comment",
+    null
+   ],
+   "stream_prefill_half": [
+    "):",
+    " return",
+    " x",
+    " **",
+    " 2",
+    " #",
+    " comment",
+    "</s>"
+   ]
   },
   {
    "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -6507,7 +7360,81 @@
     ]
    },
    "decode_keep_special": "<s> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</s>",
-   "decode_skip_special": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   "decode_skip_special": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    null
+   ],
+   "stream_prefill_half": [
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "aaaaa",
+    "</s>"
+   ]
   },
   {
    "input": "supercalifragilisticexpialidocious antidisestablishmentarianism",
@@ -6904,7 +7831,61 @@
     ]
    },
    "decode_keep_special": "<s> supercalifragilisticexpialidocious antidisestablishmentarianism</s>",
-   "decode_skip_special": "supercalifragilisticexpialidocious antidisestablishmentarianism"
+   "decode_skip_special": "supercalifragilisticexpialidocious antidisestablishmentarianism",
+   "stream_keep_special": [
+    "<s>",
+    " super",
+    "cali",
+    "fra",
+    "gil",
+    "istic",
+    "exp",
+    "ial",
+    "ido",
+    "cious",
+    " anti",
+    "d",
+    "isesta",
+    "bli",
+    "shme",
+    "n",
+    "tarian",
+    "ism",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "super",
+    "cali",
+    "fra",
+    "gil",
+    "istic",
+    "exp",
+    "ial",
+    "ido",
+    "cious",
+    " anti",
+    "d",
+    "isesta",
+    "bli",
+    "shme",
+    "n",
+    "tarian",
+    "ism",
+    null
+   ],
+   "stream_prefill_half": [
+    "cious",
+    " anti",
+    "d",
+    "isesta",
+    "bli",
+    "shme",
+    "n",
+    "tarian",
+    "ism",
+    "</s>"
+   ]
   },
   {
    "input": "unaffable",
@@ -7021,7 +8002,26 @@
     ]
    },
    "decode_keep_special": "<s> unaffable</s>",
-   "decode_skip_special": "unaffable"
+   "decode_skip_special": "unaffable",
+   "stream_keep_special": [
+    "<s>",
+    " una",
+    "ff",
+    "able",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "una",
+    "ff",
+    "able",
+    null
+   ],
+   "stream_prefill_half": [
+    "ff",
+    "able",
+    "</s>"
+   ]
   },
   {
    "input": "<s>special</s> [CLS] tokens [SEP] <|endoftext|> <unk> <pad> [MASK] <mask>",
@@ -7618,7 +8618,86 @@
     ]
    },
    "decode_keep_special": "<s><s> special</s> [CLS] tokens [SEP] <|endoftext|><unk><pad> [MASK]<mask></s>",
-   "decode_skip_special": "special [CLS] tokens [SEP] <|endoftext|> [MASK]"
+   "decode_skip_special": "special [CLS] tokens [SEP] <|endoftext|> [MASK]",
+   "stream_keep_special": [
+    "<s>",
+    "<s>",
+    " special",
+    "</s>",
+    " [",
+    "C",
+    "LS",
+    "]",
+    " to",
+    "kens",
+    " [",
+    "S",
+    "EP",
+    "]",
+    " <",
+    "|",
+    "endo",
+    "f",
+    "text",
+    "|",
+    ">",
+    "<unk>",
+    "<pad>",
+    " [",
+    "MAS",
+    "K",
+    "]",
+    "<mask>",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    "special",
+    null,
+    " [",
+    "C",
+    "LS",
+    "]",
+    " to",
+    "kens",
+    " [",
+    "S",
+    "EP",
+    "]",
+    " <",
+    "|",
+    "endo",
+    "f",
+    "text",
+    "|",
+    ">",
+    null,
+    null,
+    " [",
+    "MAS",
+    "K",
+    "]",
+    null,
+    null
+   ],
+   "stream_prefill_half": [
+    " <",
+    "|",
+    "endo",
+    "f",
+    "text",
+    "|",
+    ">",
+    "<unk>",
+    "<pad>",
+    " [",
+    "MAS",
+    "K",
+    "]",
+    "<mask>",
+    "</s>"
+   ]
   },
   {
    "input": "Ġ Ċ ▁ ## </w>",
@@ -7855,7 +8934,41 @@
     ]
    },
    "decode_keep_special": "<s> Ġ Ċ ## </w></s>",
-   "decode_skip_special": "Ġ Ċ ## </w>"
+   "decode_skip_special": "Ġ Ċ ## </w>",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "Ġ",
+    " ",
+    "Ċ",
+    " ##",
+    " ",
+    "</",
+    "w",
+    ">",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    null,
+    "Ġ",
+    " ",
+    "Ċ",
+    " ##",
+    " ",
+    "</",
+    "w",
+    ">",
+    null
+   ],
+   "stream_prefill_half": [
+    " ##",
+    " ",
+    "</",
+    "w",
+    ">",
+    "</s>"
+   ]
   },
   {
    "input": "†Р Ġbyte-lookalikes",
@@ -8092,7 +9205,41 @@
     ]
    },
    "decode_keep_special": "<s> †Р Ġbyte-lookalikes</s>",
-   "decode_skip_special": "†Р Ġbyte-lookalikes"
+   "decode_skip_special": "†Р Ġbyte-lookalikes",
+   "stream_keep_special": [
+    "<s>",
+    " †",
+    "Р",
+    " ",
+    "Ġ",
+    "byte",
+    "-",
+    "look",
+    "ali",
+    "kes",
+    "</s>"
+   ],
+   "stream_skip_special": [
+    null,
+    "†",
+    "Р",
+    " ",
+    "Ġ",
+    "byte",
+    "-",
+    "look",
+    "ali",
+    "kes",
+    null
+   ],
+   "stream_prefill_half": [
+    "byte",
+    "-",
+    "look",
+    "ali",
+    "kes",
+    "</s>"
+   ]
   }
  ],
  "pairs": [

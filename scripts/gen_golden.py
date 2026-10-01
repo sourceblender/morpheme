@@ -18,6 +18,7 @@ import pathlib
 
 import tokenizers
 from tokenizers import Tokenizer
+from tokenizers.decoders import DecodeStream
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DATA = ROOT / "crates/splinter/tests/data/hf"
@@ -89,6 +90,14 @@ def gen(name: str, path: pathlib.Path):
         ids = case["with_special"]["ids"]
         case["decode_keep_special"] = tok.decode(ids, skip_special_tokens=False)
         case["decode_skip_special"] = tok.decode(ids, skip_special_tokens=True)
+        # Streaming decode: per-step chunk (or None) for every id.
+        for key, skip in (("stream_keep_special", False), ("stream_skip_special", True)):
+            stream = DecodeStream(skip_special_tokens=skip)
+            case[key] = [stream.step(tok, i) for i in ids]
+        # Prefill the first half as context, then stream the rest.
+        half = len(ids) // 2
+        stream = DecodeStream(ids=ids[:half], skip_special_tokens=False)
+        case["stream_prefill_half"] = [stream.step(tok, i) for i in ids[half:]]
         cases.append(case)
 
     pairs = []

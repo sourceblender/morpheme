@@ -42,7 +42,16 @@
     "word_ids": []
    },
    "decode_keep_special": "<s>",
-   "decode_skip_special": "<s>"
+   "decode_skip_special": "<s>",
+   "stream_keep_special": [
+    "<s>"
+   ],
+   "stream_skip_special": [
+    "<s>"
+   ],
+   "stream_prefill_half": [
+    "<s>"
+   ]
   },
   {
    "input": " ",
@@ -109,7 +118,18 @@
     ]
    },
    "decode_keep_special": "<s>  ",
-   "decode_skip_special": "<s>  "
+   "decode_skip_special": "<s>  ",
+   "stream_keep_special": [
+    "<s>",
+    "  "
+   ],
+   "stream_skip_special": [
+    "<s>",
+    "  "
+   ],
+   "stream_prefill_half": [
+    "  "
+   ]
   },
   {
    "input": "Hello, World!",
@@ -236,7 +256,26 @@
     ]
    },
    "decode_keep_special": "<s> Hello, World!",
-   "decode_skip_special": "<s> Hello, World!"
+   "decode_skip_special": "<s> Hello, World!",
+   "stream_keep_special": [
+    "<s>",
+    " Hello",
+    ",",
+    " World",
+    "!"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " Hello",
+    ",",
+    " World",
+    "!"
+   ],
+   "stream_prefill_half": [
+    ",",
+    " World",
+    "!"
+   ]
   },
   {
    "input": "hello world",
@@ -323,7 +362,21 @@
     ]
    },
    "decode_keep_special": "<s> hello world",
-   "decode_skip_special": "<s> hello world"
+   "decode_skip_special": "<s> hello world",
+   "stream_keep_special": [
+    "<s>",
+    " hello",
+    " world"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " hello",
+    " world"
+   ],
+   "stream_prefill_half": [
+    " hello",
+    " world"
+   ]
   },
   {
    "input": "  leading and trailing spaces  ",
@@ -490,7 +543,31 @@
     ]
    },
    "decode_keep_special": "<s>   leading and trailing spaces  ",
-   "decode_skip_special": "<s>   leading and trailing spaces  "
+   "decode_skip_special": "<s>   leading and trailing spaces  ",
+   "stream_keep_special": [
+    "<s>",
+    "  ",
+    " leading",
+    " and",
+    " trailing",
+    " spaces",
+    "  "
+   ],
+   "stream_skip_special": [
+    "<s>",
+    "  ",
+    " leading",
+    " and",
+    " trailing",
+    " spaces",
+    "  "
+   ],
+   "stream_prefill_half": [
+    " and",
+    " trailing",
+    " spaces",
+    "  "
+   ]
   },
   {
    "input": "multiple   internal    spaces",
@@ -637,7 +714,28 @@
     ]
    },
    "decode_keep_special": "<s> multiple   internal    spaces",
-   "decode_skip_special": "<s> multiple   internal    spaces"
+   "decode_skip_special": "<s> multiple   internal    spaces",
+   "stream_keep_special": [
+    "<s>",
+    " multiple",
+    "  ",
+    " internal",
+    "   ",
+    " spaces"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " multiple",
+    "  ",
+    " internal",
+    "   ",
+    " spaces"
+   ],
+   "stream_prefill_half": [
+    " internal",
+    "   ",
+    " spaces"
+   ]
   },
   {
    "input": "tabs\tand\nnewlines\r\nmixed",
@@ -884,7 +982,41 @@
     ]
    },
    "decode_keep_special": "<s> tabs\tand\nnewlines\r\nmixed",
-   "decode_skip_special": "<s> tabs\tand\nnewlines\r\nmixed"
+   "decode_skip_special": "<s> tabs\tand\nnewlines\r\nmixed",
+   "stream_keep_special": [
+    "<s>",
+    " tabs",
+    "\t",
+    "and",
+    "\n",
+    "new",
+    "lines",
+    "\r",
+    "\n",
+    "m",
+    "ixed"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " tabs",
+    "\t",
+    "and",
+    "\n",
+    "new",
+    "lines",
+    "\r",
+    "\n",
+    "m",
+    "ixed"
+   ],
+   "stream_prefill_half": [
+    "new",
+    "lines",
+    "\r",
+    "\n",
+    "m",
+    "ixed"
+   ]
   },
   {
    "input": "The quick brown fox jumps over the lazy dog.",
@@ -1171,7 +1303,46 @@
     ]
    },
    "decode_keep_special": "<s> The quick brown fox jumps over the lazy dog.",
-   "decode_skip_special": "<s> The quick brown fox jumps over the lazy dog."
+   "decode_skip_special": "<s> The quick brown fox jumps over the lazy dog.",
+   "stream_keep_special": [
+    "<s>",
+    " The",
+    " quick",
+    " brown",
+    " fo",
+    "x",
+    " j",
+    "umps",
+    " over",
+    " the",
+    " lazy",
+    " dog",
+    "."
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " The",
+    " quick",
+    " brown",
+    " fo",
+    "x",
+    " j",
+    "umps",
+    " over",
+    " the",
+    " lazy",
+    " dog",
+    "."
+   ],
+   "stream_prefill_half": [
+    " j",
+    "umps",
+    " over",
+    " the",
+    " lazy",
+    " dog",
+    "."
+   ]
   },
   {
    "input": "I'm sure they'll say it's fine, don't you think? We've seen it.",
@@ -1718,7 +1889,78 @@
     ]
    },
    "decode_keep_special": "<s> I'm sure they'll say it's fine, don't you think? We've seen it.",
-   "decode_skip_special": "<s> I'm sure they'll say it's fine, don't you think? We've seen it."
+   "decode_skip_special": "<s> I'm sure they'll say it's fine, don't you think? We've seen it.",
+   "stream_keep_special": [
+    "<s>",
+    " I",
+    "'",
+    "m",
+    " sure",
+    " they",
+    "'",
+    "ll",
+    " say",
+    " it",
+    "'",
+    "s",
+    " fine",
+    ",",
+    " don",
+    "'",
+    "t",
+    " you",
+    " think",
+    "?",
+    " We",
+    "'",
+    "ve",
+    " seen",
+    " it",
+    "."
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " I",
+    "'",
+    "m",
+    " sure",
+    " they",
+    "'",
+    "ll",
+    " say",
+    " it",
+    "'",
+    "s",
+    " fine",
+    ",",
+    " don",
+    "'",
+    "t",
+    " you",
+    " think",
+    "?",
+    " We",
+    "'",
+    "ve",
+    " seen",
+    " it",
+    "."
+   ],
+   "stream_prefill_half": [
+    ",",
+    " don",
+    "'",
+    "t",
+    " you",
+    " think",
+    "?",
+    " We",
+    "'",
+    "ve",
+    " seen",
+    " it",
+    "."
+   ]
   },
   {
    "input": "Café naïve résumé façade Ångström",
@@ -2045,7 +2287,51 @@
     ]
    },
    "decode_keep_special": "<s> Café naïve résumé façade Ångström",
-   "decode_skip_special": "<s> Café naïve résumé façade Ångström"
+   "decode_skip_special": "<s> Café naïve résumé façade Ångström",
+   "stream_keep_special": [
+    "<s>",
+    " C",
+    "afé",
+    " na",
+    "ï",
+    "ve",
+    " rés",
+    "um",
+    "é",
+    " fa",
+    "ç",
+    "ade",
+    " Å",
+    "ng",
+    "ström"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " C",
+    "afé",
+    " na",
+    "ï",
+    "ve",
+    " rés",
+    "um",
+    "é",
+    " fa",
+    "ç",
+    "ade",
+    " Å",
+    "ng",
+    "ström"
+   ],
+   "stream_prefill_half": [
+    "um",
+    "é",
+    " fa",
+    "ç",
+    "ade",
+    " Å",
+    "ng",
+    "ström"
+   ]
   },
   {
    "input": "ÀÉÎÕÜ àéîõü",
@@ -2292,7 +2578,41 @@
     ]
    },
    "decode_keep_special": "<s> ÀÉÎÕÜ àéîõü",
-   "decode_skip_special": "<s> ÀÉÎÕÜ àéîõü"
+   "decode_skip_special": "<s> ÀÉÎÕÜ àéîõü",
+   "stream_keep_special": [
+    "<s>",
+    " À",
+    "É",
+    "Î",
+    "Õ",
+    "Ü",
+    " à",
+    "é",
+    "î",
+    "õ",
+    "ü"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " À",
+    "É",
+    "Î",
+    "Õ",
+    "Ü",
+    " à",
+    "é",
+    "î",
+    "õ",
+    "ü"
+   ],
+   "stream_prefill_half": [
+    "Ü",
+    " à",
+    "é",
+    "î",
+    "õ",
+    "ü"
+   ]
   },
   {
    "input": "é combining accent",
@@ -2439,7 +2759,28 @@
     ]
    },
    "decode_keep_special": "<s> é combining accent",
-   "decode_skip_special": "<s> é combining accent"
+   "decode_skip_special": "<s> é combining accent",
+   "stream_keep_special": [
+    "<s>",
+    " e",
+    "́",
+    " combining",
+    " acc",
+    "ent"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " e",
+    "́",
+    " combining",
+    " acc",
+    "ent"
+   ],
+   "stream_prefill_half": [
+    " combining",
+    " acc",
+    "ent"
+   ]
   },
   {
    "input": "你好，世界！这是一个测试。",
@@ -2766,7 +3107,51 @@
     ]
    },
    "decode_keep_special": "<s> 你好，世界！这是一个测试。",
-   "decode_skip_special": "<s> 你好，世界！这是一个测试。"
+   "decode_skip_special": "<s> 你好，世界！这是一个测试。",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "你",
+    "好",
+    "，",
+    "世",
+    "界",
+    "！",
+    "这",
+    "是",
+    "一",
+    "个",
+    "测",
+    "试",
+    "。"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " ",
+    "你",
+    "好",
+    "，",
+    "世",
+    "界",
+    "！",
+    "这",
+    "是",
+    "一",
+    "个",
+    "测",
+    "试",
+    "。"
+   ],
+   "stream_prefill_half": [
+    "！",
+    "这",
+    "是",
+    "一",
+    "个",
+    "测",
+    "试",
+    "。"
+   ]
   },
   {
    "input": "日本語のテキストとカタカナ",
@@ -3093,7 +3478,51 @@
     ]
    },
    "decode_keep_special": "<s> 日本語のテキストとカタカナ",
-   "decode_skip_special": "<s> 日本語のテキストとカタカナ"
+   "decode_skip_special": "<s> 日本語のテキストとカタカナ",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "日",
+    "本",
+    "語",
+    "の",
+    "テ",
+    "キ",
+    "ス",
+    "ト",
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " ",
+    "日",
+    "本",
+    "語",
+    "の",
+    "テ",
+    "キ",
+    "ス",
+    "ト",
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ"
+   ],
+   "stream_prefill_half": [
+    "キ",
+    "ス",
+    "ト",
+    "と",
+    "カ",
+    "タ",
+    "カ",
+    "ナ"
+   ]
   },
   {
    "input": "한국어 텍스트입니다",
@@ -3440,7 +3869,53 @@
     ]
    },
    "decode_keep_special": "<s> 한국어 텍스트입니다",
-   "decode_skip_special": "<s> 한국어 텍스트입니다"
+   "decode_skip_special": "<s> 한국어 텍스트입니다",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "한",
+    "국",
+    "어",
+    " ",
+    null,
+    null,
+    "텍",
+    "스",
+    "트",
+    null,
+    null,
+    "입",
+    "니",
+    "다"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " ",
+    "한",
+    "국",
+    "어",
+    " ",
+    null,
+    null,
+    "텍",
+    "스",
+    "트",
+    null,
+    null,
+    "입",
+    "니",
+    "다"
+   ],
+   "stream_prefill_half": [
+    "<s> 한국어 텍",
+    "스",
+    "트",
+    null,
+    null,
+    "입",
+    "니",
+    "다"
+   ]
   },
   {
    "input": "Россия и Українa",
@@ -3607,7 +4082,31 @@
     ]
    },
    "decode_keep_special": "<s> Россия и Українa",
-   "decode_skip_special": "<s> Россия и Українa"
+   "decode_skip_special": "<s> Россия и Українa",
+   "stream_keep_special": [
+    "<s>",
+    " Росси",
+    "я",
+    " и",
+    " Украї",
+    "н",
+    "a"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " Росси",
+    "я",
+    " и",
+    " Украї",
+    "н",
+    "a"
+   ],
+   "stream_prefill_half": [
+    " и",
+    " Украї",
+    "н",
+    "a"
+   ]
   },
   {
    "input": "مرحبا بالعالم",
@@ -3894,7 +4393,46 @@
     ]
    },
    "decode_keep_special": "<s> مرحبا بالعالم",
-   "decode_skip_special": "<s> مرحبا بالعالم"
+   "decode_skip_special": "<s> مرحبا بالعالم",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "م",
+    "ر",
+    "ح",
+    "ب",
+    "ا",
+    " ",
+    "ب",
+    "ال",
+    "ع",
+    "ال",
+    "م"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " ",
+    "م",
+    "ر",
+    "ح",
+    "ب",
+    "ا",
+    " ",
+    "ب",
+    "ال",
+    "ع",
+    "ال",
+    "م"
+   ],
+   "stream_prefill_half": [
+    "ا",
+    " ",
+    "ب",
+    "ال",
+    "ع",
+    "ال",
+    "م"
+   ]
   },
   {
    "input": "Emoji: 😀👍🏽🇺🇸 and ❤️",
@@ -4561,7 +5099,93 @@
     ]
    },
    "decode_keep_special": "<s> Emoji: 😀👍🏽🇺🇸 and ❤️",
-   "decode_skip_special": "<s> Emoji: 😀👍🏽🇺🇸 and ❤️"
+   "decode_skip_special": "<s> Emoji: 😀👍🏽🇺🇸 and ❤️",
+   "stream_keep_special": [
+    "<s>",
+    " Em",
+    "o",
+    "ji",
+    ":",
+    " ",
+    null,
+    null,
+    null,
+    "😀",
+    null,
+    null,
+    null,
+    "👍",
+    null,
+    null,
+    null,
+    "🏽",
+    null,
+    null,
+    null,
+    "🇺",
+    null,
+    null,
+    null,
+    "🇸",
+    " and",
+    " ",
+    null,
+    null,
+    "❤",
+    "️"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " Em",
+    "o",
+    "ji",
+    ":",
+    " ",
+    null,
+    null,
+    null,
+    "😀",
+    null,
+    null,
+    null,
+    "👍",
+    null,
+    null,
+    null,
+    "🏽",
+    null,
+    null,
+    null,
+    "🇺",
+    null,
+    null,
+    null,
+    "🇸",
+    " and",
+    " ",
+    null,
+    null,
+    "❤",
+    "️"
+   ],
+   "stream_prefill_half": [
+    null,
+    "<s> Emoji: 😀👍🏽",
+    null,
+    null,
+    null,
+    "🇺",
+    null,
+    null,
+    null,
+    "🇸",
+    " and",
+    " ",
+    null,
+    null,
+    "❤",
+    "️"
+   ]
   },
   {
    "input": "Numbers 12345 and 3.14159 and 1,000,000",
@@ -5168,7 +5792,86 @@
     ]
    },
    "decode_keep_special": "<s> Numbers 12345 and 3.14159 and 1,000,000",
-   "decode_skip_special": "<s> Numbers 12345 and 3.14159 and 1,000,000"
+   "decode_skip_special": "<s> Numbers 12345 and 3.14159 and 1,000,000",
+   "stream_keep_special": [
+    "<s>",
+    " Num",
+    "bers",
+    " ",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    " and",
+    " ",
+    "3",
+    ".",
+    "1",
+    "4",
+    "1",
+    "5",
+    "9",
+    " and",
+    " ",
+    "1",
+    ",",
+    "0",
+    "0",
+    "0",
+    ",",
+    "0",
+    "0",
+    "0"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " Num",
+    "bers",
+    " ",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    " and",
+    " ",
+    "3",
+    ".",
+    "1",
+    "4",
+    "1",
+    "5",
+    "9",
+    " and",
+    " ",
+    "1",
+    ",",
+    "0",
+    "0",
+    "0",
+    ",",
+    "0",
+    "0",
+    "0"
+   ],
+   "stream_prefill_half": [
+    "4",
+    "1",
+    "5",
+    "9",
+    " and",
+    " ",
+    "1",
+    ",",
+    "0",
+    "0",
+    "0",
+    ",",
+    "0",
+    "0",
+    "0"
+   ]
   },
   {
    "input": "Punctuation!!! ??? ... --- (parens) [brackets] {braces}",
@@ -5635,7 +6338,68 @@
     ]
    },
    "decode_keep_special": "<s> Punctuation!!! ??? ... --- (parens) [brackets] {braces}",
-   "decode_skip_special": "<s> Punctuation!!! ??? ... --- (parens) [brackets] {braces}"
+   "decode_skip_special": "<s> Punctuation!!! ??? ... --- (parens) [brackets] {braces}",
+   "stream_keep_special": [
+    "<s>",
+    " P",
+    "unct",
+    "u",
+    "ation",
+    "!!!",
+    " ?",
+    "??",
+    " ...",
+    " ---",
+    " (",
+    "par",
+    "ens",
+    ")",
+    " [",
+    "bra",
+    "ckets",
+    "]",
+    " {",
+    "bra",
+    "ces",
+    "}"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " P",
+    "unct",
+    "u",
+    "ation",
+    "!!!",
+    " ?",
+    "??",
+    " ...",
+    " ---",
+    " (",
+    "par",
+    "ens",
+    ")",
+    " [",
+    "bra",
+    "ckets",
+    "]",
+    " {",
+    "bra",
+    "ces",
+    "}"
+   ],
+   "stream_prefill_half": [
+    "par",
+    "ens",
+    ")",
+    " [",
+    "bra",
+    "ckets",
+    "]",
+    " {",
+    "bra",
+    "ces",
+    "}"
+   ]
   },
   {
    "input": "zero​width and nbsp",
@@ -5802,7 +6566,31 @@
     ]
    },
    "decode_keep_special": "<s> zero​width and nbsp",
-   "decode_skip_special": "<s> zero​width and nbsp"
+   "decode_skip_special": "<s> zero​width and nbsp",
+   "stream_keep_special": [
+    "<s>",
+    " zero",
+    "​",
+    "width",
+    " and",
+    " ",
+    "nbsp"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " zero",
+    "​",
+    "width",
+    " and",
+    " ",
+    "nbsp"
+   ],
+   "stream_prefill_half": [
+    "width",
+    " and",
+    " ",
+    "nbsp"
+   ]
   },
   {
    "input": "control\u0000char\u0007bell",
@@ -5949,7 +6737,28 @@
     ]
    },
    "decode_keep_special": "<s> control\u0000char\u0007bell",
-   "decode_skip_special": "<s> control\u0000char\u0007bell"
+   "decode_skip_special": "<s> control\u0000char\u0007bell",
+   "stream_keep_special": [
+    "<s>",
+    " control",
+    "\u0000",
+    "char",
+    "\u0007",
+    "bell"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " control",
+    "\u0000",
+    "char",
+    "\u0007",
+    "bell"
+   ],
+   "stream_prefill_half": [
+    "char",
+    "\u0007",
+    "bell"
+   ]
   },
   {
    "input": "ALL CAPS SENTENCE HERE",
@@ -6196,7 +7005,41 @@
     ]
    },
    "decode_keep_special": "<s> ALL CAPS SENTENCE HERE",
-   "decode_skip_special": "<s> ALL CAPS SENTENCE HERE"
+   "decode_skip_special": "<s> ALL CAPS SENTENCE HERE",
+   "stream_keep_special": [
+    "<s>",
+    " ALL",
+    " C",
+    "AP",
+    "S",
+    " S",
+    "ENT",
+    "EN",
+    "CE",
+    " H",
+    "ERE"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " ALL",
+    " C",
+    "AP",
+    "S",
+    " S",
+    "ENT",
+    "EN",
+    "CE",
+    " H",
+    "ERE"
+   ],
+   "stream_prefill_half": [
+    " S",
+    "ENT",
+    "EN",
+    "CE",
+    " H",
+    "ERE"
+   ]
   },
   {
    "input": "camelCaseIdentifier snake_case_identifier kebab-case",
@@ -6543,7 +7386,53 @@
     ]
    },
    "decode_keep_special": "<s> camelCaseIdentifier snake_case_identifier kebab-case",
-   "decode_skip_special": "<s> camelCaseIdentifier snake_case_identifier kebab-case"
+   "decode_skip_special": "<s> camelCaseIdentifier snake_case_identifier kebab-case",
+   "stream_keep_special": [
+    "<s>",
+    " cam",
+    "el",
+    "Case",
+    "Identifier",
+    " s",
+    "nake",
+    "_",
+    "case",
+    "_",
+    "identifier",
+    " k",
+    "eb",
+    "ab",
+    "-",
+    "case"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " cam",
+    "el",
+    "Case",
+    "Identifier",
+    " s",
+    "nake",
+    "_",
+    "case",
+    "_",
+    "identifier",
+    " k",
+    "eb",
+    "ab",
+    "-",
+    "case"
+   ],
+   "stream_prefill_half": [
+    "case",
+    "_",
+    "identifier",
+    " k",
+    "eb",
+    "ab",
+    "-",
+    "case"
+   ]
   },
   {
    "input": "https://example.com/path?query=1&x=y",
@@ -6890,7 +7779,53 @@
     ]
    },
    "decode_keep_special": "<s> https://example.com/path?query=1&x=y",
-   "decode_skip_special": "<s> https://example.com/path?query=1&x=y"
+   "decode_skip_special": "<s> https://example.com/path?query=1&x=y",
+   "stream_keep_special": [
+    "<s>",
+    " https",
+    "://",
+    "example",
+    ".",
+    "com",
+    "/",
+    "path",
+    "?",
+    "query",
+    "=",
+    "1",
+    "&",
+    "x",
+    "=",
+    "y"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " https",
+    "://",
+    "example",
+    ".",
+    "com",
+    "/",
+    "path",
+    "?",
+    "query",
+    "=",
+    "1",
+    "&",
+    "x",
+    "=",
+    "y"
+   ],
+   "stream_prefill_half": [
+    "?",
+    "query",
+    "=",
+    "1",
+    "&",
+    "x",
+    "=",
+    "y"
+   ]
   },
   {
    "input": "def foo(x):\n    return x ** 2  # comment",
@@ -7237,7 +8172,53 @@
     ]
    },
    "decode_keep_special": "<s> def foo(x):\n    return x ** 2  # comment",
-   "decode_skip_special": "<s> def foo(x):\n    return x ** 2  # comment"
+   "decode_skip_special": "<s> def foo(x):\n    return x ** 2  # comment",
+   "stream_keep_special": [
+    "<s>",
+    " def",
+    " foo",
+    "(",
+    "x",
+    "):",
+    "\n",
+    "   ",
+    " return",
+    " x",
+    " **",
+    " ",
+    "2",
+    " ",
+    " #",
+    " comment"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " def",
+    " foo",
+    "(",
+    "x",
+    "):",
+    "\n",
+    "   ",
+    " return",
+    " x",
+    " **",
+    " ",
+    "2",
+    " ",
+    " #",
+    " comment"
+   ],
+   "stream_prefill_half": [
+    " return",
+    " x",
+    " **",
+    " ",
+    "2",
+    " ",
+    " #",
+    " comment"
+   ]
   },
   {
    "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -7924,7 +8905,96 @@
     ]
    },
    "decode_keep_special": "<s> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-   "decode_skip_special": "<s> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   "decode_skip_special": "<s> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "stream_keep_special": [
+    "<s>",
+    " a",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aa",
+    "a"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " a",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aa",
+    "a"
+   ],
+   "stream_prefill_half": [
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aaaa",
+    "aa",
+    "a"
+   ]
   },
   {
    "input": "supercalifragilisticexpialidocious antidisestablishmentarianism",
@@ -8371,7 +9441,66 @@
     ]
    },
    "decode_keep_special": "<s> supercalifragilisticexpialidocious antidisestablishmentarianism",
-   "decode_skip_special": "<s> supercalifragilisticexpialidocious antidisestablishmentarianism"
+   "decode_skip_special": "<s> supercalifragilisticexpialidocious antidisestablishmentarianism",
+   "stream_keep_special": [
+    "<s>",
+    " super",
+    "cal",
+    "if",
+    "rag",
+    "il",
+    "ist",
+    "ice",
+    "xp",
+    "ial",
+    "ido",
+    "cious",
+    " ant",
+    "id",
+    "is",
+    "est",
+    "ab",
+    "lish",
+    "ment",
+    "arian",
+    "ism"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " super",
+    "cal",
+    "if",
+    "rag",
+    "il",
+    "ist",
+    "ice",
+    "xp",
+    "ial",
+    "ido",
+    "cious",
+    " ant",
+    "id",
+    "is",
+    "est",
+    "ab",
+    "lish",
+    "ment",
+    "arian",
+    "ism"
+   ],
+   "stream_prefill_half": [
+    "ido",
+    "cious",
+    " ant",
+    "id",
+    "is",
+    "est",
+    "ab",
+    "lish",
+    "ment",
+    "arian",
+    "ism"
+   ]
   },
   {
    "input": "unaffable",
@@ -8478,7 +9607,23 @@
     ]
    },
    "decode_keep_special": "<s> unaffable",
-   "decode_skip_special": "<s> unaffable"
+   "decode_skip_special": "<s> unaffable",
+   "stream_keep_special": [
+    "<s>",
+    " una",
+    "ff",
+    "able"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " una",
+    "ff",
+    "able"
+   ],
+   "stream_prefill_half": [
+    "ff",
+    "able"
+   ]
   },
   {
    "input": "<s>special</s> [CLS] tokens [SEP] <|endoftext|> <unk> <pad> [MASK] <mask>",
@@ -9165,7 +10310,96 @@
     ]
    },
    "decode_keep_special": "<s> <s>special</s> [CLS] tokens [SEP] <|endoftext|> <unk> <pad> [MASK] <mask>",
-   "decode_skip_special": "<s> <s>special</s> [CLS] tokens [SEP] <|endoftext|> <unk> <pad> [MASK] <mask>"
+   "decode_skip_special": "<s> <s>special</s> [CLS] tokens [SEP] <|endoftext|> <unk> <pad> [MASK] <mask>",
+   "stream_keep_special": [
+    "<s>",
+    " <s>",
+    "special",
+    "</",
+    "s",
+    ">",
+    " [",
+    "CL",
+    "S",
+    "]",
+    " tokens",
+    " [",
+    "SE",
+    "P",
+    "]",
+    " <",
+    "|",
+    "end",
+    "of",
+    "text",
+    "|",
+    ">",
+    " <unk>",
+    " <",
+    "pad",
+    ">",
+    " [",
+    "MA",
+    "SK",
+    "]",
+    " <",
+    "mask",
+    ">"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " <s>",
+    "special",
+    "</",
+    "s",
+    ">",
+    " [",
+    "CL",
+    "S",
+    "]",
+    " tokens",
+    " [",
+    "SE",
+    "P",
+    "]",
+    " <",
+    "|",
+    "end",
+    "of",
+    "text",
+    "|",
+    ">",
+    " <unk>",
+    " <",
+    "pad",
+    ">",
+    " [",
+    "MA",
+    "SK",
+    "]",
+    " <",
+    "mask",
+    ">"
+   ],
+   "stream_prefill_half": [
+    "|",
+    "end",
+    "of",
+    "text",
+    "|",
+    ">",
+    " <unk>",
+    " <",
+    "pad",
+    ">",
+    " [",
+    "MA",
+    "SK",
+    "]",
+    " <",
+    "mask",
+    ">"
+   ]
   },
   {
    "input": "Ġ Ċ ▁ ## </w>",
@@ -9412,7 +10646,41 @@
     ]
    },
    "decode_keep_special": "<s> Ġ Ċ   ## </w>",
-   "decode_skip_special": "<s> Ġ Ċ   ## </w>"
+   "decode_skip_special": "<s> Ġ Ċ   ## </w>",
+   "stream_keep_special": [
+    "<s>",
+    " ",
+    "Ġ",
+    " ",
+    null,
+    "Ċ",
+    "  ",
+    " ##",
+    " </",
+    "w",
+    ">"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " ",
+    "Ġ",
+    " ",
+    null,
+    "Ċ",
+    "  ",
+    " ##",
+    " </",
+    "w",
+    ">"
+   ],
+   "stream_prefill_half": [
+    "<s> Ġ Ċ",
+    "  ",
+    " ##",
+    " </",
+    "w",
+    ">"
+   ]
   },
   {
    "input": "†Р Ġbyte-lookalikes",
@@ -9639,7 +10907,38 @@
     ]
    },
    "decode_keep_special": "<s> †Р Ġbyte-lookalikes",
-   "decode_skip_special": "<s> †Р Ġbyte-lookalikes"
+   "decode_skip_special": "<s> †Р Ġbyte-lookalikes",
+   "stream_keep_special": [
+    "<s>",
+    " †",
+    "Р",
+    " ",
+    "Ġ",
+    "byte",
+    "-",
+    "look",
+    "al",
+    "ikes"
+   ],
+   "stream_skip_special": [
+    "<s>",
+    " †",
+    "Р",
+    " ",
+    "Ġ",
+    "byte",
+    "-",
+    "look",
+    "al",
+    "ikes"
+   ],
+   "stream_prefill_half": [
+    "byte",
+    "-",
+    "look",
+    "al",
+    "ikes"
+   ]
   }
  ],
  "pairs": [

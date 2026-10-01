@@ -42,6 +42,10 @@ format, and is now verified against the reference implementation.
   sequence pairs, pre-tokenized input, truncation (strategies, stride,
   overflowing encodings), padding (batch-longest, fixed, multiple-of,
   left/right), parallel `encode_batch` / `decode_batch`.
+- Streaming decode (`Tokenizer::decode_stream` → `DecodeStream`, with
+  `step`, `step_many` and `prefill`) for token-by-token generation;
+  matches Python `tokenizers`' `DecodeStream` step for step, checked in
+  the golden tests.
 - Trainers: `BpeTrainer` (vocabulary and merges identical to Hugging
   Face), `WordPieceTrainer`, `WordLevelTrainer`, `UnigramTrainer`
   (pure-Rust suffix array seeding, EM, likelihood-based pruning;

@@ -112,7 +112,7 @@ any command lists its options.
 | Post-processors | `TemplateProcessing`, `BertProcessing`, `RobertaProcessing`, `ByteLevel`, `Sequence` |
 | Decoders | `ByteLevel`, `WordPiece`, `Metaspace`, `BPEDecoder`, `ByteFallback`, `Fuse`, `Strip`, `Replace`, `CTC`, `Sequence` |
 | Trainers | `BpeTrainer` (output identical to HF), `WordPieceTrainer`, `WordLevelTrainer`, `UnigramTrainer` |
-| Tokenizer | added/special tokens, pairs, pre-tokenized input, truncation (with stride/overflow), padding, batch encode/decode |
+| Tokenizer | added/special tokens, pairs, pre-tokenized input, truncation (with stride/overflow), padding, batch encode/decode, streaming decode |
 
 Known differences from Hugging Face are listed in
 [`docs/interop.md`](./docs/interop.md).

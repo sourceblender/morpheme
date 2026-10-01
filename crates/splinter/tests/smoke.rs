@@ -42,6 +42,29 @@ fn byte_level_bpe_round_trips_any_text() {
     let enc = tok.encode("hello<|endoftext|>", true).unwrap();
     assert_eq!(enc.tokens().last().unwrap(), "<|endoftext|>");
     assert_eq!(tok.decode(enc.ids(), true).unwrap(), "hello");
+
+    // Streaming: chunks concatenate to the full decode, and a multi-byte
+    // character split across byte tokens is held back until complete.
+    let text = "Streaming 😀 and 中文 text";
+    let ids = tok.encode(text, false).unwrap().ids().to_vec();
+    let mut stream = tok.decode_stream(false);
+    let mut out = String::new();
+    let mut pending = 0;
+    for &id in &ids {
+        match stream.step(id).unwrap() {
+            Some(chunk) => out.push_str(&chunk),
+            None => pending += 1,
+        }
+    }
+    assert_eq!(out, text);
+    assert!(pending > 0, "the emoji's bytes should span several tokens");
+
+    // Prefill with ids already shown (here: the first token, a complete
+    // word); only the new text is returned.
+    let (head, tail) = ids.split_at(1);
+    let mut stream = tok.decode_stream(false).prefill(head);
+    let rest = stream.step_many(tail).unwrap().unwrap();
+    assert_eq!(format!("{}{rest}", tok.decode(head, false).unwrap()), text);
 }
 
 #[test]

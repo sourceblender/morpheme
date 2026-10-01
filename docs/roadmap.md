@@ -13,6 +13,7 @@
       0.23, legacy forms accepted.
 - [x] Truncation (with overflow), padding, pairs, pre-tokenized input,
       parallel batch encode/decode.
+- [x] Streaming decode (`DecodeStream`) for token-by-token generation.
 - [x] CLI: `train` (presets), `encode`, `decode`, `inspect`.
 - [x] Golden tests against 11 real tokenizers; reverse interop check
       with Python; property and regression tests; MSRV 1.85 in CI.
@@ -28,7 +29,6 @@
 
 ## Then
 
-- [ ] Streaming decode (`DecodeStream`) for token-by-token generation.
 - [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
 - [ ] Progress reporting for trainers (`show_progress`).
 - [ ] Criterion benchmark suite with regression tracking in CI; decode
