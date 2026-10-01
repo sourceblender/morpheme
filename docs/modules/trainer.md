@@ -25,8 +25,11 @@ the corpus's distinct words. Feeding again replaces previously fed words.
 
 Retraining preserves existing added-token flags and rebuilds their ids
 against the new model. Trainer special tokens use the newly trained ids.
-Explicit post-processor and padding ids must be updated if retraining
-changes the ids they reference.
+Post-processor and padding ids are rebound automatically by token text,
+including nested processor sequences and multi-token template expansions.
+If a configured token is absent from the new vocabulary, training fails
+without changing the tokenizer. Include required tokens in the trainer's
+special tokens or register them as added tokens before training.
 
 ## Trainers and options
 

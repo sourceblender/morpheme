@@ -139,8 +139,10 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
 - **Retraining rebinds added tokens.** Existing added tokens retain their
   flags and are assigned ids against the newly trained model. Trainer
   special tokens use the new model's ids instead of retaining stale ids
-  that can shadow ordinary tokens. Explicit post-processor and padding
-  ids still belong to their configuration and must match the new vocabulary.
+  that can shadow ordinary tokens. Post-processor and padding ids are also
+  rebound by token text. If a required configured token is absent from the
+  new vocabulary, training fails without changing the tokenizer; include
+  it in the trainer's special tokens or register it as an added token first.
 - **BPE fallback keeps input order.** An unknown-token run is emitted
   before a following successful byte fallback. HF can emit the fallback
   first, reordering tokens and assigning their offsets to the wrong chars.

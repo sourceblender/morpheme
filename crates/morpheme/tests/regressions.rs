@@ -38,7 +38,11 @@ fn word_level_trainer() -> morpheme::trainers::WordLevelTrainer {
 fn retraining_reassigns_added_tokens_without_corrupting_model_ids() {
     use morpheme::AddedToken;
     let mut tok = word_level_tokenizer(&[("[UNK]", 0), ("a", 1), ("[SEP]", 2)]);
-    tok.add_special_tokens(&[AddedToken::new("[SEP]", true)])
+    tok.add_tokens(&[AddedToken::new("[SEP]", false)
+        .lstrip(true)
+        .rstrip(true)
+        .single_word(true)
+        .normalized(false)])
         .unwrap();
     tok.add_tokens(&[AddedToken::new("extra", false).single_word(true)])
         .unwrap();
@@ -56,11 +60,155 @@ fn retraining_reassigns_added_tokens_without_corrupting_model_ids() {
     );
     assert_eq!(tok.decode(&[2, 1, 4], true).unwrap(), "a extra");
     assert!(tok.added_vocabulary().added_tokens_decoder()[&4].single_word);
+    let sep = &tok.added_vocabulary().added_tokens_decoder()[&1];
+    assert!(sep.special && sep.lstrip && sep.rstrip && sep.single_word);
+    assert!(!sep.normalized);
     let reloaded = Tokenizer::from_json(&tok.to_json(false).unwrap()).unwrap();
     assert_eq!(
         reloaded.encode("a [SEP] extra", false).unwrap(),
         tok.encode("a [SEP] extra", false).unwrap()
     );
+}
+
+#[test]
+fn failed_token_addition_preserves_vocabulary_and_matchers() {
+    use morpheme::{AddedToken, AddedVocabulary};
+    let mut tok = word_level_tokenizer(&[("[UNK]", 0), ("last", u32::MAX - 1)]);
+    let before = tok.to_json(false).unwrap();
+    assert!(
+        tok.add_tokens(&[
+            AddedToken::new("extra", false),
+            AddedToken::new("overflow", false),
+        ])
+        .is_err()
+    );
+    assert_eq!(tok.to_json(false).unwrap(), before);
+    assert_eq!(tok.token_to_id("extra"), None);
+    tok.add_tokens(&[AddedToken::new("extra", false)]).unwrap();
+    assert_eq!(tok.encode("extra", false).unwrap().ids(), &[u32::MAX]);
+
+    struct FailingNormalizer;
+    impl Normalizer for FailingNormalizer {
+        fn normalize(&self, _: &mut NormalizedString) -> morpheme::Result<()> {
+            Err(morpheme::Error::Config("normalization failed".into()))
+        }
+    }
+    let model = word_level_tokenizer(&[("[UNK]", 0)]);
+    let mut added = AddedVocabulary::new();
+    added
+        .add_tokens(&[AddedToken::new("existing", false)], model.model(), None)
+        .unwrap();
+    let before = serde_json::to_value(added.tokens_with_ids()).unwrap();
+    assert!(
+        added
+            .add_tokens(
+                &[AddedToken::new("new", false)],
+                model.model(),
+                Some(&FailingNormalizer)
+            )
+            .is_err()
+    );
+    assert_eq!(
+        serde_json::to_value(added.tokens_with_ids()).unwrap(),
+        before
+    );
+    assert_eq!(added.token_to_id("new", model.model()), None);
+}
+
+#[test]
+fn retraining_rebinds_processors_and_padding_by_token_text() {
+    use morpheme::processors::{
+        BertProcessing, RobertaProcessing, Sequence, SpecialToken, TemplateProcessing,
+    };
+    let template = TemplateProcessing::builder()
+        .try_single("prefix $A [SEP]")
+        .unwrap()
+        .try_pair("prefix $A [SEP] $B:1 [SEP]:1")
+        .unwrap()
+        .special_tokens(vec![
+            SpecialToken::new(
+                "prefix".into(),
+                vec![11, 12],
+                vec!["[CLS]".into(), "[PAD]".into()],
+            )
+            .unwrap(),
+            SpecialToken::from(("[SEP]", 10)),
+        ])
+        .build()
+        .unwrap();
+    let processors = [
+        BertProcessing::new(("[SEP]", 10), ("[CLS]", 11)).into(),
+        RobertaProcessing::new(("[SEP]", 10), ("[CLS]", 11)).into(),
+        Sequence::new(vec![
+            Sequence::new(vec![
+                morpheme::pre_tokenizers::ByteLevel::default().into(),
+                template.into(),
+            ])
+            .into(),
+        ])
+        .into(),
+    ];
+    for processor in processors {
+        let mut tok = word_level_tokenizer(&[
+            ("[UNK]", 0),
+            ("[SEP]", 10),
+            ("[CLS]", 11),
+            ("[PAD]", 12),
+            ("a", 13),
+        ]);
+        tok.set_post_processor(Some(processor));
+        tok.set_padding(Some(morpheme::PaddingParams {
+            strategy: morpheme::PaddingStrategy::Fixed(8),
+            pad_id: 12,
+            ..Default::default()
+        }));
+        let trainer = morpheme::trainers::WordLevelTrainer::builder()
+            .show_progress(false)
+            .special_tokens(
+                ["[UNK]", "[CLS]", "[PAD]", "[SEP]"]
+                    .map(|s| morpheme::AddedToken::new(s, true))
+                    .to_vec(),
+            )
+            .build()
+            .unwrap();
+        tok.train(trainer, ["a b a"].into_iter()).unwrap();
+        assert_eq!(tok.padding().unwrap().pad_id, 2);
+        let encoded = tok.encode(("a", "b"), true).unwrap();
+        for (token, id) in encoded.tokens().iter().zip(encoded.ids()) {
+            assert_eq!(tok.token_to_id(token), Some(*id));
+        }
+        assert_eq!(encoded.len(), 8);
+        assert_eq!(tok.decode(encoded.ids(), true).unwrap(), "a b");
+        let loaded = Tokenizer::from_json(&tok.to_json(false).unwrap()).unwrap();
+        assert_eq!(loaded.encode(("a", "b"), true).unwrap(), encoded);
+    }
+}
+
+#[test]
+fn retraining_missing_configured_tokens_leaves_tokenizer_unchanged() {
+    for padding in [false, true] {
+        let mut tok = word_level_tokenizer(&[("[UNK]", 0), ("a", 1), ("[CLS]", 2), ("[PAD]", 3)]);
+        if padding {
+            tok.set_padding(Some(morpheme::PaddingParams {
+                pad_id: 3,
+                ..Default::default()
+            }));
+        } else {
+            tok.set_post_processor(Some(
+                morpheme::processors::BertProcessing::new(("[SEP]", 4), ("[CLS]", 2)).into(),
+            ));
+        }
+        let before = tok.to_json(false).unwrap();
+        let error = tok
+            .train(word_level_trainer(), ["a b a"].into_iter())
+            .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains(if padding { "[PAD]" } else { "[CLS]" })
+        );
+        assert_eq!(tok.to_json(false).unwrap(), before);
+    }
 }
 
 #[test]

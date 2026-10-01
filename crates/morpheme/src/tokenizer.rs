@@ -936,8 +936,9 @@ impl Tokenizer {
     /// The trainer's special tokens are registered as added tokens. If
     /// the trainer is for a different kind of model, the model is
     /// replaced. Existing added tokens retain their options and are
-    /// assigned ids against the new vocabulary. Explicit post-processor
-    /// and padding ids must be updated by the caller when ids change.
+    /// assigned ids against the new vocabulary. Post-processor and padding
+    /// ids are rebound by token text. If a configured token is missing,
+    /// training fails without changing this tokenizer.
     pub fn train<T, I, S>(&mut self, trainer: T, sequences: I) -> Result<&mut Self>
     where
         T: Into<TrainerWrapper>,
@@ -986,14 +987,37 @@ impl Tokenizer {
             .into_iter()
             .map(|t| t.token)
             .collect();
-        tokens.extend(special.into_iter().map(|t| t.special(true)));
+        for token in special {
+            if let Some(existing) = tokens.iter_mut().find(|t| t.content == token.content) {
+                existing.special = true;
+            } else {
+                tokens.push(token.special(true));
+            }
+        }
         added_vocabulary.add_tokens(
             &tokens,
             &model,
             self.normalizer.as_ref().map(|n| n as &dyn Normalizer),
         )?;
+        let lookup = |token: &str| {
+            added_vocabulary.token_to_id(token, &model).ok_or_else(|| {
+                Error::Training(format!(
+                    "configured token {token:?} is missing from the trained vocabulary; include it in the trainer's special tokens"
+                ))
+            })
+        };
+        let mut post_processor = self.post_processor.clone();
+        if let Some(processor) = &mut post_processor {
+            processor.rebind_token_ids(&lookup)?;
+        }
+        let mut padding = self.padding.clone();
+        if let Some(padding) = &mut padding {
+            padding.pad_id = lookup(&padding.pad_token)?;
+        }
         self.model = model;
         self.added_vocabulary = added_vocabulary;
+        self.post_processor = post_processor;
+        self.padding = padding;
         Ok(self)
     }
 

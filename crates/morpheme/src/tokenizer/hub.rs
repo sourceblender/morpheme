@@ -486,9 +486,26 @@ fn download(
             tempfile::NamedTempFile::new_in(ref_path.parent().expect("ref has a parent"))?;
         file.write_all(commit.as_bytes())?;
         file.as_file().sync_all()?;
-        file.persist(ref_path).map_err(|e| e.error)?;
+        publish_revision_ref(file, &ref_path, &commit)?;
     }
     Ok(snapshot)
+}
+
+/// Refs must remain replaceable when a branch moves to another commit.
+/// Accept an identical concurrent publication even if replacement fails.
+fn publish_revision_ref(
+    file: tempfile::NamedTempFile,
+    path: &Path,
+    commit: &str,
+) -> std::io::Result<()> {
+    if std::fs::read_to_string(path).is_ok_and(|existing| existing == commit) {
+        return Ok(());
+    }
+    match file.persist(path) {
+        Ok(_) => Ok(()),
+        Err(_) if std::fs::read_to_string(path).is_ok_and(|existing| existing == commit) => Ok(()),
+        Err(e) => Err(e.error),
+    }
 }
 
 /// Publish a complete file without replacing an entry another caller
@@ -807,6 +824,19 @@ mod tests {
         publish_cached_file(file, &path).unwrap();
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "winner");
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn revision_refs_accept_identical_publications_and_follow_branch_updates() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("main");
+        for commit in ["old", "old", "new", "new"] {
+            let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+            file.write_all(commit.as_bytes()).unwrap();
+            publish_revision_ref(file, &path, commit).unwrap();
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), commit);
+            assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        }
     }
 
     #[test]

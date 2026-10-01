@@ -262,7 +262,20 @@ impl AddedVocabulary {
     /// Add tokens, assigning ids: a token already in the model keeps the
     /// model's id; new tokens get ids after the model's vocabulary.
     /// Returns how many tokens were actually added.
+    /// On error, the vocabulary and its matchers remain unchanged.
     pub fn add_tokens(
+        &mut self,
+        tokens: &[AddedToken],
+        model: &dyn Model,
+        normalizer: Option<&dyn Normalizer>,
+    ) -> Result<usize> {
+        let mut updated = self.clone();
+        let added = updated.add_tokens_in_place(tokens, model, normalizer)?;
+        *self = updated;
+        Ok(added)
+    }
+
+    fn add_tokens_in_place(
         &mut self,
         tokens: &[AddedToken],
         model: &dyn Model,

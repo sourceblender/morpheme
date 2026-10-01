@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rebind existing added/special tokens after training and allocate new ids
   above sparse vocabulary ids; report id exhaustion instead of overflowing.
+- Make added-token batches atomic on allocation or normalization errors,
+  and retain existing token options when trainers promote them to specials.
+- Rebind post-processor and padding ids by token text after training;
+  reject missing configured tokens without changing the tokenizer.
 - Keep BPE unknown-token runs before subsequent byte fallback, preserving
   input order and offsets.
 - Publish Hub cache blobs, snapshots and refs atomically using unique

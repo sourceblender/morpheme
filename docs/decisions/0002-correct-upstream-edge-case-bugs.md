@@ -32,8 +32,11 @@ ownership rather than changing reference goldens to accommodate fixes.
   `tokenizers` 0.23.2, or return an error instead of producing invalid output.
 - Loading and saving existing vocabulary ids remains lossless. Retraining
   creates a new vocabulary and can therefore reassign added-token ids.
-- Explicit post-processor and padding ids remain user configuration;
-  callers must update them if retraining changes their vocabulary ids.
+- Retraining rebinds post-processor and padding ids by token text,
+  including nested processors and multi-token template expansions. If a
+  configured token is absent from the new vocabulary, training returns an
+  error without changing the tokenizer. Required tokens must be retained
+  as added tokens or supplied in the trainer's special tokens.
 
 ## Alternatives considered
 

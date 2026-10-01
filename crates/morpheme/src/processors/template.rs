@@ -348,6 +348,17 @@ impl Default for TemplateProcessing {
 }
 
 impl TemplateProcessing {
+    pub(crate) fn rebind_token_ids(&mut self, lookup: &impl Fn(&str) -> Result<u32>) -> Result<()> {
+        for token in self.special_tokens.0.values_mut() {
+            token.ids = token
+                .tokens
+                .iter()
+                .map(|text| lookup(text))
+                .collect::<Result<_>>()?;
+        }
+        Ok(())
+    }
+
     /// Start building a template processor.
     pub fn builder() -> TemplateProcessingBuilder {
         TemplateProcessingBuilder::default()
