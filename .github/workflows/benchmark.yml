@@ -16,7 +16,13 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: ./scripts/fetch-hf-fixtures.sh
+      - name: Cache HF tokenizer fixtures
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: crates/morpheme/tests/data/hf
+          key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
+      - name: Fetch HF tokenizer fixtures
+        run: ./scripts/fetch-hf-fixtures.sh
       - run: python3 scripts/benchmark_baseline.py --output baseline.json
       # Shared runners produce evidence, not an enforced performance threshold.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
