@@ -34,3 +34,5 @@ uv run --with maturin --with pytest sh -c 'maturin develop && pytest'
 
 The Rust crate is `publish = false` (it is not on crates.io); wheels are built
 with `maturin build --release`.
+
+Prebuilt wheels cover Linux (x86_64, aarch64), macOS (Apple silicon) and Windows (x64); other platforms, including Intel macOS, install from the sdist and need a Rust toolchain.

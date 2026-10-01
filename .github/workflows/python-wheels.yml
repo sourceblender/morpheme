@@ -32,7 +32,9 @@ jobs:
           # manylinux2014's cross gcc is too old for `ring`'s aarch64 assembly
           # ("ARM assembler must define __ARM_ARCH"); 2_28 ships a modern one.
           - { os: linux, runner: ubuntu-latest, target: aarch64, manylinux: "2_28" }
-          - { os: macos, runner: macos-13, target: x86_64, manylinux: "" }
+          # No Intel macOS wheel: Apple stopped shipping Intel hardware in
+          # 2023 and the macos-13 runners are scarce; Intel users build from
+          # the sdist.
           - { os: macos, runner: macos-latest, target: aarch64, manylinux: "" }
           - { os: windows, runner: windows-latest, target: x64, manylinux: "" }
     steps:
