@@ -251,6 +251,21 @@ purpose. Text output is identical.
   split on any whitespace run (`"[CLS]  $A\t[SEP]"` is accepted); HF
   splits on single spaces and rejects the empty pieces. Well-formed
   templates behave identically.
+- **Overflow windows are complete.** With truncation enabled, morpheme
+  tokenizes the whole input and computes `overflowing` from the full
+  token list, which equals HF's documented `Encoding.truncate(max_len,
+  stride, direction)` + `post_process` on the full encoding. Since the
+  `tokenize_with_limit` early exit in `tokenizers` 0.23, HF stops
+  tokenizing a single sequence once `max_length` tokens exist (before the
+  special-token budget is subtracted), so its overflow is computed on a
+  truncated list and the tail of the input is silently dropped; with no
+  post-processor it reports no overflow at all. Pairs whose sequences
+  each fit in `max_length` match. Example (`WordLevel`, `[CLS]`/`[SEP]`
+  post-processor, `max_length=5`, `only_first`, input `a b c d e f`):
+  main ids are identical, overflow is `[[1,6,7,8,2]]` here and
+  `[[1,6,7,2]]` in HF. Pinned by `only_first_truncation_through_tokenizer`
+  and `left_truncation_through_tokenizer_with_specials_pairs_and_stride`
+  in `crates/morpheme/tests/core.rs`.
 
 ### Parity quirks kept on purpose
 
