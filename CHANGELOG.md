@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sequentially. The library now compiles for `wasm32-unknown-unknown`
   (`Tokenizer::save` is compiled out there, as `tempfile` is a non-wasm
   dependency), and CI checks that target (#51).
+- Benchmark regression tracking on a dedicated host: the `Benchmark
+  tracking` workflow (daily, on `v*` tags, and on dispatch; never on pull
+  requests) runs `scripts/benchmark_baseline.py` on the self-hosted
+  `bench-9800x3d` runner, stores every report on the `benchmarks` branch
+  under `results/<host>/`, compares with the previous result and fails
+  after storing when a workload regresses by more than 20%.
+  `scripts/bench_host_setup.sh` prepares the host (runner, systemd
+  services, CPU governor and boost tuning; `--check` reports its state).
+  `benchmark_baseline.py` gained `--host-label`, `--summary` (Markdown
+  comparison table) and exit status 2 for a non-comparable baseline (#49).
 
 ## [0.3.0] - 2026-10-01
 

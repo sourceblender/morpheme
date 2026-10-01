@@ -181,5 +181,66 @@ older Python comparison above):
 | llama | 29.2 | 9.6 | 21.9 | 12.0 | 28.9 |
 | t5-small | 23.3 | 9.7 | 18.4 | 9.3 | 17.9 |
 
-Dedicated-hardware trend tracking remains future work. The baseline runner and
-Criterion provide the repeatable measurements needed to start that tracking.
+`--host-label NAME` records a machine name in the report (`host_label`,
+informational, not compared). With `--compare`, `--summary FILE` also writes
+the per-workload medians as a Markdown table, marking rows over the threshold
+with `(!)`. The exit status is 0 when nothing regressed, 1 on a regression, and
+2 when the baseline is not comparable (a fingerprint differs), so a caller can
+record all three outcomes.
+
+## Dedicated host tracking
+
+Trend tracking runs on one fixed machine so that runs are comparable with each
+other: `bench-9800x3d`, an AMD Ryzen 7 9800X3D (8 cores / 16 threads), 64 GB,
+Ubuntu 26.04, registered as a self-hosted GitHub Actions runner with the labels
+`self-hosted, linux, x64, bench`. `scripts/bench_host_setup.sh` prepares it
+(run with `sudo`; idempotent): build dependencies, `rustup` for a dedicated
+`bench` user, the latest `actions/runner` tarball in `/opt/actions-runner`
+(sha256-verified against the release metadata), its systemd service, and
+`bench-cpu-tuning.service`, which at boot sets the `performance` governor on
+every core and turns boost off where the kernel exposes a control (`cpufreq/boost`,
+per-cpu `boost`, or `energy_performance_preference` for amd-pstate in active
+mode; it reports what it skipped). The script prints the one-off `config.sh`
+registration command instead of embedding a token. `--check` reports the
+governor, boost state, both services, and whether the runner is online.
+
+The `Benchmark tracking` workflow (`.github/workflows/benchmark-tracking.yml`)
+runs daily at 03:17 UTC, on every `v*` tag, and on `workflow_dispatch`. Each run:
+
+1. builds the probe on all cores, then measures with
+   `taskset -c 2-5 python3 scripts/benchmark_baseline.py --repeats 5 --host-label bench-9800x3d`
+   (four workers on four logical CPUs; HF fixtures come from a host cache
+   under `/var/cache/morpheme/hf-fixtures`, keyed by `scripts/hf-fixtures.txt`);
+2. compares with the previous result for the same host at the 20% threshold;
+3. publishes the report from a hosted runner (the self-hosted machine never
+   holds a write token) to the `benchmarks` branch, created as an orphan on
+   the first run, as `results/<host>/<utc timestamp>-<sha>.json` plus a copy
+   at `results/<host>/latest.json`;
+4. fails the `gate` job on a regression, after the result is stored, so the
+   history is complete even for bad runs.
+
+The job summary of the `measure` job lists the commit, the result path, the
+baseline it compared with, the verdict, and a table with the baseline and
+current median time and peak RSS per workload with the change in percent;
+rows over the threshold are marked `(!)`. A "not comparable" verdict means a
+fingerprint changed (rustc, `Cargo.lock`, manifests, probe source, fixtures,
+inputs): the run is stored and becomes the new reference, and the gate only
+warns. Investigate a flagged workload with more repetitions and Criterion
+before calling it a regression; both measurements are on the same branch.
+
+Re-baselining is implicit: every run, including a regressed one, becomes
+`latest.json`, so a regression is flagged on the run that introduces it rather
+than on every run after. To compare against an older result, dispatch the
+workflow with `compare_to` set to a result file name under `results/<host>/`
+(without `.json`) or a unique part of it, such as the commit SHA. To rebuild
+the history from scratch, delete the `benchmarks` branch and dispatch once.
+
+Security: a self-hosted runner must never execute code from fork pull
+requests. This workflow has no `pull_request` trigger and only runs on
+`schedule`, `workflow_dispatch`, and `v*` tag pushes, all of which run code
+from this repository. Keep the repository setting "Require approval for all
+outside collaborators" (Settings > Actions > General > Fork pull request
+workflows) on, and never add the `bench` label to another workflow that can
+be triggered by a pull request. If the organization plan supports runner
+groups, put the runner in a group restricted to this workflow (Settings >
+Actions > Runner groups, "Selected workflows").

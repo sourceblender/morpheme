@@ -3,7 +3,7 @@
 import copy
 import unittest
 
-from benchmark_baseline import compare
+from benchmark_baseline import compare, summarize
 
 
 class ComparisonTests(unittest.TestCase):
@@ -54,6 +54,41 @@ class ComparisonTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compare(current, self.baseline, 20)
         self.assertEqual(compare(current, current, 20), [])
+
+
+class SummaryTests(unittest.TestCase):
+    setUp = ComparisonTests.setUp
+
+    def test_identical_rows_are_unflagged(self):
+        table = summarize(self.baseline, self.baseline, 20)
+        lines = table.strip().splitlines()
+        self.assertEqual(len(lines), 3)
+        self.assertTrue(lines[0].startswith("| Workload |"))
+        self.assertIn("| encode | 1 s | 1 s | +0.0% | ", lines[2])
+        self.assertNotIn("(!)", table)
+
+    def test_regressions_are_flagged_consistently_with_compare(self):
+        current = copy.deepcopy(self.baseline)
+        for row in current["results"]["encode"]["samples"]:
+            row["seconds"] = 2
+        table = summarize(current, self.baseline, 20)
+        self.assertIn("| 1 s | 2 s | +100.0% **(!)** |", table)
+        self.assertEqual(table.count("(!)"), len(compare(current, self.baseline, 20)))
+        self.assertNotIn("(!)", summarize(current, self.baseline, 100))
+
+    def test_missing_rss_is_reported_not_compared(self):
+        current = copy.deepcopy(self.baseline)
+        for row in current["results"]["encode"]["samples"]:
+            row["peak_rss_bytes"] = None
+        self.assertIn("| n/a | n/a | n/a |", summarize(current, current, 20))
+        with self.assertRaises(ValueError):
+            summarize(current, self.baseline, 20)
+
+    def test_incompatible_baseline_rejected(self):
+        current = copy.deepcopy(self.baseline)
+        current["probe_sha256"] = "probe-b"
+        with self.assertRaisesRegex(ValueError, "probe_sha256 differs"):
+            summarize(current, self.baseline, 20)
 
 
 if __name__ == "__main__":

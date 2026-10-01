@@ -1,0 +1,5 @@
+# actionlint configuration: custom labels of the self-hosted benchmark runner
+# (see docs/benchmarks.md, "Dedicated host tracking").
+self-hosted-runner:
+  labels:
+    - bench
