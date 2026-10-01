@@ -1,6 +1,6 @@
 [package]
 name = "morpheme-cli"
-version = "0.1.1"
+version = "0.2.0"
 description = "Command-line tool to train, inspect and run Hugging Face-compatible tokenizers with morpheme."
 edition.workspace = true
 rust-version.workspace = true
@@ -25,7 +25,7 @@ default = ["hub"]
 hub = ["morpheme/hub"]
 
 [dependencies]
-morpheme = { path = "../../crates/morpheme", version = "0.1.1" }
+morpheme = { path = "../../crates/morpheme", version = "0.2.0" }
 anyhow = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 serde = { workspace = true }

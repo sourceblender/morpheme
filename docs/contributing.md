@@ -187,5 +187,5 @@ for 5 minutes and uploads any crash as an artifact.
 - After publication, dispatch `release-smoke.yml` with the published
   version. It verifies archive checksums and exercises fresh binaries on
   macOS, Linux and Windows, plus fresh crates.io library and CLI installs.
-  Locally: `python3 scripts/release_smoke.py --version 0.1.1 --target
+  Locally: `python3 scripts/release_smoke.py --version 0.2.0 --target
   aarch64-apple-darwin` (requires `gh`), or use `--cli /path/to/morpheme`.
