@@ -7,10 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Accept the legacy untagged normalizer and decoder JSON forms that older
+  `tokenizers` wrote (`BertNormalizer`, `Strip`, `Sequence`, `Precompiled`,
+  `Replace`, `Prepend`; `BPEDecoder`, `WordPiece`, `CTC`, `Replace`,
+  `Strip`); files are still written in the tagged format (#48).
+- `FromPretrainedParameters::anonymous()` to skip the `HF_TOKEN` and token
+  file lookup (#38).
+- Fuzz targets for the SentencePiece `Precompiled` charsmap parser and for
+  `decode` / `DecodeStream` over arbitrary ids (#46).
+- CLI: a directory passed as a tokenizer path loads its `tokenizer.json`;
+  batch failures report the exact record; help text for every automation
+  flag; a warning when a trained vocabulary exceeds `--vocab-size` (#43).
+
+### Fixed
+
+- Zero-width `Split` regex matches after a length-changing normalizer no
+  longer panic; off-boundary pattern matches are reported as errors (#26).
+- Added tokens with `rstrip` no longer overlap the following match, and an
+  `lstrip` token after them no longer panics (#27).
+- `DecodeStream::prefill` ending inside a byte-fallback character no longer
+  re-emits the whole prompt (#30).
+- Reusing an added-token id unmaps the previous content; `tokenizer.json`
+  files with duplicate added-token ids are rejected on load (#35).
+- `set_normalizer` is transactional; `Encoding::new` checks vector lengths
+  in debug builds; empty `TemplateProcessing` templates are rejected (#40).
+- `Precompiled` charsmap deletions at the start of the input keep offsets
+  aligned (an upstream bug, documented in the compatibility guide); blobs
+  with a misaligned trie size are rejected (#31).
+- `UnigramTrainer` treats `vocab_size` as a hard cap including special
+  tokens and reports an error when it cannot fit them; special and unk
+  tokens that also appear as corpus pieces are no longer duplicated
+  (#32, #34).
+- `WordPieceTrainer::default()` uses the `##` continuation prefix (#33).
+- `BPE` applies `ignore_merges` only when dropout is off, and duplicate
+  merge pairs are deduplicated on save, both matching HF (#41).
+- Parameterless normalizers ignore unknown JSON keys like every other
+  component (#42).
+- Hub cache blobs, refs and newly saved `tokenizer.json` files are created
+  readable (`0644`) instead of inheriting the temp file's `0600` (#29).
+- Hub: repo ids containing `--` are rejected so cache directories cannot
+  collide (#36); the bearer token is only re-sent to the same `https`
+  origin and query strings are redacted from error messages (#37);
+  requests have a 10 s read timeout, `429`/`5xx` responses are retried
+  once and then served from a valid cached snapshot, and a pinned commit
+  must match the served commit (#38).
+- Atomic file replacement retries briefly on Windows sharing errors so
+  concurrent readers no longer make `save` fail (#56).
+- Trainer progress bars are finished when training errors out (#44).
+- CLI `train` rejects a `--special-token` list that omits the preset's
+  unknown token (or `[CLS]`/`[SEP]` for the bert preset) before training
+  instead of writing an unusable tokenizer; a closed stdout pipe exits
+  quietly (#28, #43).
+
 ### Changed
 
 - Bump `sha1` and `sha2` to 0.11 (RustCrypto `digest` 0.11) together, since
   both share the `digest` API; Hub hash verification is unchanged.
+- BPE models built with `dropout(0.0)` normalize it to `None` (#45).
+- CI pins every GitHub Action to a commit SHA, runs the library tests with
+  `--no-default-features`, and skips crate versions already on crates.io
+  when publishing (#39, #44).
+
+### Performance
+
+- ByteLevel pre-tokenization uses the byte table directly, char-offset
+  conversion uses a dense table, the Unigram sentence cache is sharded like
+  the BPE cache, and BPE byte fallback uses a precomputed id table; encode
+  benchmarks improve 5–40% depending on the tokenizer (#45).
+
+### Documentation
+
+- The compatibility guide lists the newly documented divergences and parity
+  quirks, including HF 0.23's early-exit truncation dropping overflow
+  tokens (#41, #65).
 
 ## [0.2.0] - 2026-10-01
 
