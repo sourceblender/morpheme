@@ -1,10 +1,27 @@
 name: CI
 
+# Changes that touch only these paths skip CI (a run is skipped only if
+# *every* changed file matches). Nothing here is compiled or tested: no
+# Markdown is included into rustdoc/doctests. Keep the two lists in sync.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/CODEOWNERS"
+      - ".github/dependabot.yml"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/CODEOWNERS"
+      - ".github/dependabot.yml"
   workflow_dispatch:
 
 permissions:

@@ -61,6 +61,18 @@ means morpheme disagrees with the reference implementation.
 `just interop` checks the reverse direction (Python loading
 morpheme-trained files).
 
+## CI and docs-only changes
+
+`.github/workflows/ci.yml` skips pull requests and pushes that change
+only documentation (`*.md`, `docs/`, `LICENSE`, issue templates,
+`CODEOWNERS`, `dependabot.yml`). Anything else, including a PR that
+mixes docs and code, runs the full suite. Run it by hand from the
+Actions tab (`workflow_dispatch`) if you want a docs PR checked anyway.
+
+If CI checks are ever made *required* in the branch ruleset, a skipped
+workflow would leave them pending; add an always-running summary job
+that the ruleset requires instead.
+
 ## Local gate
 
 Before opening a PR, run:
