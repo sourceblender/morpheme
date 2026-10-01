@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "truncation": null,
+  "padding": null,
+  "added_tokens": [
+    {"id": 0, "content": "<unk>", "special": true}
+  ],
+  "normalizer": null,
+  "pre_tokenizer": {"type": "ByteLevel", "add_prefix_space": false},
+  "post_processor": null,
+  "decoder": {"type": "ByteLevel"},
+  "model": {
+    "type": "BPE",
+    "dropout": 0.1,
+    "unk_token": null,
+    "end_of_word_suffix": "</w>",
+    "continuing_subword_suffix": null,
+    "fuse_unk": false,
+    "byte_fallback": true,
+    "vocab": {
+      "<unk>": 0,
+      "a</w>": 1,
+      "d</w>": 2,
+      "e</w>": 3,
+      "h</w>": 4,
+      "l</w>": 5,
+      "o</w>": 6,
+      "r</w>": 7,
+      "w</w>": 8,
+      "he</w>": 9,
+      "hel</w>": 10,
+      "hell</w>": 11,
+      "hello</w>": 12,
+      "wo</w>": 13,
+      "wor</w>": 14,
+      "worl</w>": 15,
+      "world</w>": 16
+    },
+    "merges": [
+      "h</w> e</w>",
+      "he</w> l</w>",
+      "hel</w> l</w>",
+      "hell</w> o</w>",
+      "w</w> o</w>",
+      "wo</w> r</w>",
+      "wor</w> l</w>",
+      "worl</w> d</w>"
+    ]
+  }
+}

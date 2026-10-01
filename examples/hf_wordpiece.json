@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "truncation": null,
+  "padding": null,
+  "added_tokens": [
+    {"id": 0, "content": "<unk>", "special": true},
+    {"id": 1, "content": "<pad>", "special": true}
+  ],
+  "normalizer": {
+    "type": "BertNormalizer",
+    "clean_text": true,
+    "handle_chinese_chars": true,
+    "strip_accents": true,
+    "lowercase": true
+  },
+  "pre_tokenizer": {"type": "BertPreTokenizer"},
+  "post_processor": null,
+  "decoder": {"type": "WordPiece", "prefix": "##", "cleanup": true},
+  "model": {
+    "type": "WordPiece",
+    "unk_token": "<unk>",
+    "continuing_subword_prefix": "##",
+    "max_input_chars_per_word": 100,
+    "vocab": {
+      "<unk>": 0,
+      "<pad>": 1,
+      "the</w>": 2,
+      "quick</w>": 3,
+      "brown</w>": 4,
+      "fox</w>": 5,
+      "jumps</w>": 6,
+      "over</w>": 7,
+      "lazy</w>": 8,
+      "dog</w>": 9,
+      "hello</w>": 10,
+      "world</w>": 11,
+      "##s</w>": 12,
+      "##ed</w>": 13
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Per-repo cargo config. Kept minimal.
+
+[net]
+git-fetch-with-cli = true

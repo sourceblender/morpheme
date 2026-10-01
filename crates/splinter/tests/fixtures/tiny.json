@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "model": {
+    "type": "bpe",
+    "dropout": null,
+    "unk_token": null,
+    "end_of_word_suffix": "</w>",
+    "continuing_subword_suffix": null,
+    "fuse_unk": false,
+    "byte_fallback": false
+  },
+  "vocab": [
+    "<unk>",
+    "a</w>", "b</w>", "c</w>", "d</w>", "e</w>", "f</w>", "g</w>", "h</w>", "i</w>", "j</w>", "k</w>", "l</w>", "m</w>", "n</w>", "o</w>", "p</w>", "q</w>", "r</w>", "s</w>", "t</w>", "u</w>", "v</w>", "w</w>", "x</w>", "y</w>", "z</w>",
+    "aa</w>", "bb</w>", "he</w>", "hel</w>", "hell</w>", "hello</w>"
+  ],
+  "merges": [
+    ["a</w>", "a</w>"],
+    ["b</w>", "b</w>"],
+    ["h</w>", "e</w>"],
+    ["he</w>", "l</w>"],
+    ["hel</w>", "l</w>"],
+    ["hell</w>", "o</w>"]
+  ]
+}

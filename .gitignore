@@ -12,3 +12,6 @@ Cargo.lock.bak
 # Tooling caches
 .prettier-cache/
 .bun/
+
+# Generated trainer outputs
+examples/tokenizer.json
