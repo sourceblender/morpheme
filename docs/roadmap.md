@@ -50,7 +50,10 @@
 
 ## Ecosystem
 
-- [ ] Python bindings via PyO3.
+- [x] Python bindings via PyO3 (partial): `bindings/python` builds a `morpheme`
+      module with maturin (load from file / string / Hub, encode, decode, batch
+      variants, count, vocab lookups, save). Platform wheels in CI and a
+      published package are still to do.
 - [ ] WASM target via `wasm-bindgen`. Partial: the library compiles for
       `wasm32-unknown-unknown` (`parallel` feature gates rayon with a
       sequential fallback; `save` is compiled out there) and CI checks it.
