@@ -21,6 +21,8 @@ use morpheme::trainers::{
 };
 use morpheme::{AddedToken, Model, Tokenizer};
 
+mod automation;
+
 #[derive(Parser)]
 #[command(
     name = "morpheme",
@@ -34,6 +36,41 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Count tokens for budgeting (ignores padding/truncation by default).
+    Count {
+        #[command(flatten)]
+        source: Source,
+        #[arg(long)]
+        pair: Option<String>,
+        #[arg(long)]
+        no_special_tokens: bool,
+        /// Apply the tokenizer's configured padding and truncation.
+        #[arg(long)]
+        use_tokenizer_settings: bool,
+        #[arg(long)]
+        json: bool,
+        /// Text to count; `-` reads standard input.
+        text: String,
+    },
+    /// Encode JSONL records in bounded, parallel batches.
+    EncodeBatch {
+        #[command(flatten)]
+        options: automation::BatchOptions,
+        #[arg(long)]
+        no_special_tokens: bool,
+        #[arg(long)]
+        char_offsets: bool,
+        /// Ignore configured padding and truncation.
+        #[arg(long)]
+        ignore_tokenizer_settings: bool,
+    },
+    /// Decode JSONL records in bounded, parallel batches.
+    DecodeBatch {
+        #[command(flatten)]
+        options: automation::BatchOptions,
+        #[arg(long)]
+        skip_special_tokens: bool,
+    },
     /// Encode text into tokens and ids.
     Encode {
         #[command(flatten)]
@@ -68,6 +105,9 @@ enum Command {
     Inspect {
         #[command(flatten)]
         source: Source,
+        /// Print a machine-readable summary.
+        #[arg(long)]
+        json: bool,
     },
     /// Train a new tokenizer from text files.
     Train {
@@ -134,6 +174,36 @@ enum Preset {
 
 fn main() -> Result<()> {
     match Cli::parse().command {
+        Command::Count {
+            source,
+            pair,
+            no_special_tokens,
+            use_tokenizer_settings,
+            json,
+            text,
+        } => automation::count(
+            &source,
+            text,
+            pair,
+            !no_special_tokens,
+            use_tokenizer_settings,
+            json,
+        ),
+        Command::EncodeBatch {
+            options,
+            no_special_tokens,
+            char_offsets,
+            ignore_tokenizer_settings,
+        } => automation::encode_batch(
+            &options,
+            !no_special_tokens,
+            char_offsets,
+            ignore_tokenizer_settings,
+        ),
+        Command::DecodeBatch {
+            options,
+            skip_special_tokens,
+        } => automation::decode_batch(&options, skip_special_tokens),
         Command::Encode {
             source,
             pair,
@@ -147,7 +217,13 @@ fn main() -> Result<()> {
             skip_special_tokens,
             ids,
         } => decode(&source, &ids, skip_special_tokens),
-        Command::Inspect { source } => inspect(&source),
+        Command::Inspect { source, json } => {
+            if json {
+                automation::inspect(&source)
+            } else {
+                inspect(&source)
+            }
+        }
         Command::Train {
             model,
             preset,
