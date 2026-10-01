@@ -170,6 +170,41 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
 - **Sequence ownership is preserved.** Pair overflow retains sequence
   ranges even without a post-processor. Sequence lookups use the actual
   ids (including nonzero ids), and a missing sequence yields no match.
+- **Added-token matches never overlap.** When an `rstrip` added token
+  swallows whitespace that the next added token also starts with (for
+  example `<x>` with `rstrip` and ` <y>` on `"<x> <y>"`), the second match
+  starts where the first ends, so every byte belongs to exactly one
+  token and offsets are `[(0,4),(4,7)]`. HF reports overlapping offsets
+  (`[(0,4),(3,7)]`), and panics when the second token also has `lstrip`.
+- **Zero-width `Split` patterns are safe.** A `Split` regex that matches
+  the empty string (`$`, `^`, `\b`, lookarounds) after a normalizer that
+  changes the byte length (`NFD`, `Lowercase`, `Prepend`, …) produces the
+  same tokens as without the pattern; HF panics (`NormalizedString bad
+  split`). A custom `Pattern` reporting offsets inside a character is an
+  error, not a panic.
+- **Duplicate added-token ids are rejected.** A `tokenizer.json` whose
+  `added_tokens` list the same id for two contents fails to load with an
+  error naming both; HF keeps the last one but leaves the first content
+  mapped to the id. Reusing an id through the API (for example after
+  `set_model`) unmaps the previous content.
+- **Template strings tolerate repeated spaces, but not emptiness.**
+  `Template::try_from("[CLS]  $A")` (two spaces) parses here; HF's
+  `try_from` splits on single spaces and fails. An empty template (`""`
+  or an empty piece list) is an error in both the parser and the
+  `TemplateProcessing` builder, where HF's builder would accept an empty
+  `single` and produce empty encodings. Files are unaffected:
+  `tokenizer.json` stores templates as piece lists.
+- **`DecodeStream::prefill` never re-emits the prompt.** When the
+  prefilled ids end inside a character (byte fallback), the step that
+  completes the character emits just that character; the text before it
+  is treated as already shown. HF emits the entire prompt again with that
+  first chunk. Later chunks are identical. `tests/hf_golden.rs` strips
+  the re-emitted prompt from HF's recorded first chunk for this case.
+  Both libraries recognise an incomplete character by the trailing
+  U+FFFD it decodes to. morpheme tells a real U+FFFD apart when it is
+  made of several byte-fallback tokens (`<0xEF><0xBF><0xBD>`); a single
+  id whose text is just U+FFFD remains ambiguous and is emitted again
+  with the next chunk (HF re-emits the whole prompt in both cases).
 
 Kept on purpose because HF does it:
 
