@@ -5,6 +5,7 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -329,34 +330,42 @@ impl BpeTrainer {
         words: &[Word],
         counts: &[u64],
     ) -> (FxHashMap<Pair, i64>, FxHashMap<Pair, FxHashSet<usize>>) {
-        words
-            .par_iter()
-            .enumerate()
-            .fold(
-                || (FxHashMap::default(), FxHashMap::default()),
-                |(mut pc, mut wtu): (FxHashMap<Pair, i64>, FxHashMap<Pair, FxHashSet<usize>>),
-                 (i, word)| {
-                    let ids = word.id_vec();
-                    for w in ids.windows(2) {
-                        let pair = (w[0], w[1]);
-                        *pc.entry(pair).or_default() += counts[i] as i64;
-                        wtu.entry(pair).or_default().insert(i);
-                    }
-                    (pc, wtu)
-                },
-            )
-            .reduce(
-                || (FxHashMap::default(), FxHashMap::default()),
-                |(mut pc, mut wtu), (pc2, wtu2)| {
-                    for (k, v) in pc2 {
-                        *pc.entry(k).or_default() += v;
-                    }
-                    for (k, v) in wtu2 {
-                        wtu.entry(k).or_default().extend(v);
-                    }
-                    (pc, wtu)
-                },
-            )
+        type Acc = (FxHashMap<Pair, i64>, FxHashMap<Pair, FxHashSet<usize>>);
+        let count = |(mut pc, mut wtu): Acc, (i, word): (usize, &Word)| -> Acc {
+            let ids = word.id_vec();
+            for w in ids.windows(2) {
+                let pair = (w[0], w[1]);
+                *pc.entry(pair).or_default() += counts[i] as i64;
+                wtu.entry(pair).or_default().insert(i);
+            }
+            (pc, wtu)
+        };
+        #[cfg(feature = "parallel")]
+        {
+            words
+                .par_iter()
+                .enumerate()
+                .fold(|| (FxHashMap::default(), FxHashMap::default()), count)
+                .reduce(
+                    || (FxHashMap::default(), FxHashMap::default()),
+                    |(mut pc, mut wtu), (pc2, wtu2)| {
+                        for (k, v) in pc2 {
+                            *pc.entry(k).or_default() += v;
+                        }
+                        for (k, v) in wtu2 {
+                            wtu.entry(k).or_default().extend(v);
+                        }
+                        (pc, wtu)
+                    },
+                )
+        }
+        #[cfg(not(feature = "parallel"))]
+        {
+            words
+                .iter()
+                .enumerate()
+                .fold((FxHashMap::default(), FxHashMap::default()), count)
+        }
     }
 
     /// Train `model` from explicit word counts.
@@ -488,22 +497,31 @@ where
     F: Fn(&str) -> Result<Vec<String>> + Sync,
 {
     let progress = Progress::new(show_progress, "Pre-processing sequences", None);
+    let count = |sequence: S| -> Result<HashMap<String, u64>> {
+        progress.inc(1);
+        let mut map = HashMap::new();
+        for word in process(sequence.as_ref())? {
+            *map.entry(word).or_default() += 1;
+        }
+        Ok(map)
+    };
+    let merge = |mut acc: HashMap<String, u64>,
+                 other: HashMap<String, u64>|
+     -> Result<HashMap<String, u64>> {
+        for (k, v) in other {
+            *acc.entry(k).or_default() += v;
+        }
+        Ok(acc)
+    };
+    #[cfg(feature = "parallel")]
     let counts = iterator
         .par_bridge()
-        .map(|sequence| -> Result<HashMap<String, u64>> {
-            progress.inc(1);
-            let mut map = HashMap::new();
-            for word in process(sequence.as_ref())? {
-                *map.entry(word).or_default() += 1;
-            }
-            Ok(map)
-        })
-        .try_reduce(HashMap::new, |mut acc, other| {
-            for (k, v) in other {
-                *acc.entry(k).or_default() += v;
-            }
-            Ok(acc)
-        });
+        .map(count)
+        .try_reduce(HashMap::new, merge);
+    #[cfg(not(feature = "parallel"))]
+    let counts = iterator
+        .map(count)
+        .try_fold(HashMap::new(), |acc, other| merge(acc, other?));
     progress.finish();
     counts
 }
