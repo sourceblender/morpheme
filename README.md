@@ -28,7 +28,7 @@ forms are documented in [the compatibility guide](./docs/interop.md).
 
 ## Status
 
-**v0.2.0** — token budgeting, JSONL automation, and verified Hub cache integrity. The library API may still change before 1.0.
+**v0.3.0** — correctness fixes from a full code review (no panics on loadable files, complete truncation overflow, hardened Hub cache), legacy JSON forms, and faster encoding. The library API may still change before 1.0.
 
 ```sh
 cargo add morpheme                    # the library

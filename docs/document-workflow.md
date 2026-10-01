@@ -55,14 +55,14 @@ default = ["hub"]
 hub = ["morpheme/hub"]
 
 [dependencies]
-morpheme = "=0.2.0"
+morpheme = "=0.3.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 tempfile = "3"
 ```
 
-The consumer uses the morpheme 0.2.0 API, including verification of Hub
+The consumer uses the morpheme 0.3.0 API, including verification of Hub
 downloads and cached files. Pin the library version and Hub revision for
 repeatable preparation.
 
