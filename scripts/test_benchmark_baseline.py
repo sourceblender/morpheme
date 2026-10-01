@@ -9,8 +9,8 @@ from benchmark_baseline import compare
 class ComparisonTests(unittest.TestCase):
     def setUp(self):
         self.baseline = {
-            "schema_version": 1, "machine": {"cpu": "test"},
-            "settings": {"threads": 4}, "inputs": {"sha256": "abc"},
+            "schema_version": 1, "machine": {"cpu": "test"}, "probe_sha256": "probe-a",
+            "settings": {"threads": 4, "package_manifest_sha256": "package-a"}, "inputs": {"sha256": "abc"},
             "results": {"encode": {"samples": [
                 {"seconds": 1, "peak_rss_bytes": 100},
                 {"seconds": 1, "peak_rss_bytes": 100},
@@ -31,7 +31,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(len(compare(current, self.baseline, 20)), 2)
 
     def test_incompatible_measurements_rejected(self):
-        for field in ("schema_version", "machine", "settings", "inputs"):
+        for field in ("schema_version", "machine", "settings", "inputs", "probe_sha256"):
             current = copy.deepcopy(self.baseline)
             current[field] = None
             with self.subTest(field=field), self.assertRaises(ValueError):
@@ -39,6 +39,12 @@ class ComparisonTests(unittest.TestCase):
         current = copy.deepcopy(self.baseline)
         current["results"]["extra"] = current["results"]["encode"]
         with self.assertRaises(ValueError):
+            compare(current, self.baseline, 20)
+
+    def test_package_manifest_mismatch(self):
+        current = copy.deepcopy(self.baseline)
+        current["settings"]["package_manifest_sha256"] = "package-b"
+        with self.assertRaisesRegex(ValueError, "settings differs"):
             compare(current, self.baseline, 20)
 
     def test_missing_rss(self):

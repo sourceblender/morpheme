@@ -28,7 +28,7 @@ def fingerprint(path):
 
 def compare(current, baseline, limit):
     # Revision is deliberately excluded: comparing different commits is the purpose.
-    for field in ("schema_version", "machine", "settings", "inputs"):
+    for field in ("schema_version", "machine", "settings", "inputs", "probe_sha256"):
         if current[field] != baseline[field]:
             raise ValueError(f"incompatible baseline: {field} differs")
     if current["results"].keys() != baseline["results"].keys():
@@ -102,7 +102,7 @@ def main():
     report = {
         "schema_version": 1,
         "machine": {"system": platform.system(), "release": platform.release(), "arch": platform.machine(), "cpu": cpu, "cores": os.cpu_count()},
-        "settings": {"rustc": command("rustc", "-Vv"), "workspace_manifest_sha256": fingerprint(ROOT / "Cargo.toml"), "cargo_config_sha256": fingerprint(ROOT / ".cargo/config.toml"), "lock_sha256": fingerprint(ROOT / "Cargo.lock"), "lines": args.lines, "batch_size": args.batch_size, "threads": args.threads, "corpus_generator": 1, "seed": 42, "profile": "release", "padding": False, "truncation": False, "special_tokens": True, "train_vocab": 4000},
+        "settings": {"rustc": command("rustc", "-Vv"), "workspace_manifest_sha256": fingerprint(ROOT / "Cargo.toml"), "package_manifest_sha256": fingerprint(ROOT / "crates/morpheme/Cargo.toml"), "cargo_config_sha256": fingerprint(ROOT / ".cargo/config.toml"), "lock_sha256": fingerprint(ROOT / "Cargo.lock"), "lines": args.lines, "batch_size": args.batch_size, "threads": args.threads, "corpus_generator": 1, "seed": 42, "profile": "release", "padding": False, "truncation": False, "special_tokens": True, "train_vocab": 4000},
         "revision": command("git", "rev-parse", "HEAD"),
         "probe_sha256": fingerprint(ROOT / "crates/morpheme/examples/benchmark_probe.rs"),
         "dirty": bool(command("git", "status", "--porcelain")),

@@ -143,8 +143,8 @@ python3 scripts/benchmark_baseline.py --output baseline-branch.json \
 
 Comparison uses median duration and peak RSS and exits with status 1 if either
 increases by more than the selected threshold. It rejects comparisons with
-different machine/OS/compiler, lockfile or build configuration fingerprints,
-fixture/corpus hashes, workload keys, or settings. Revision and dirty state are
+different machine/OS/compiler, lockfile, workspace/package manifest or Cargo configuration fingerprints,
+probe source, fixture/corpus hashes, workload keys, or settings. Revision and dirty state are
 recorded but allowed to differ. Investigate a flagged change with more repetitions
 (`--repeats 7`) and Criterion before calling it a regression; laptop load and
 thermal state still affect measurements. This is an opt-in local check. The manual

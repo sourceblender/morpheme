@@ -57,6 +57,7 @@ progressbar = ["dep:indicatif"]
 hub = ["dep:ureq", "dep:sha1", "dep:sha2"]
 
 [dev-dependencies]
+sha2 = "0.10"
 criterion = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
