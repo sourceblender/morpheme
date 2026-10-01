@@ -1,9 +1,8 @@
 //! Unicode normalization forms and the NMT cleanup normalizer.
 
-use serde::{Deserialize, Serialize};
-
 use crate::error::Result;
 use crate::normalized_string::NormalizedString;
+use crate::pre_tokenizers::impl_unit_serde;
 use crate::traits::Normalizer;
 
 /// Unicode canonical decomposition (NFD).
@@ -24,8 +23,10 @@ use crate::traits::Normalizer;
 /// // "é" (1 char) decomposes into "e" + U+0301 (2 chars).
 /// assert_eq!(normalize(&Nfd, "é").chars().count(), 2);
 /// ```
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Nfd;
+
+impl_unit_serde!(Nfd);
 
 impl Normalizer for Nfd {
     fn normalize(&self, normalized: &mut NormalizedString) -> Result<()> {
@@ -35,8 +36,10 @@ impl Normalizer for Nfd {
 }
 
 /// Unicode compatibility decomposition (NFKD).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Nfkd;
+
+impl_unit_serde!(Nfkd);
 
 impl Normalizer for Nfkd {
     fn normalize(&self, normalized: &mut NormalizedString) -> Result<()> {
@@ -46,8 +49,10 @@ impl Normalizer for Nfkd {
 }
 
 /// Unicode canonical composition (NFC).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Nfc;
+
+impl_unit_serde!(Nfc);
 
 impl Normalizer for Nfc {
     fn normalize(&self, normalized: &mut NormalizedString) -> Result<()> {
@@ -74,8 +79,10 @@ impl Normalizer for Nfc {
 /// // Compatibility forms fold into their plain equivalents.
 /// assert_eq!(normalize(&Nfkc, "ﬁne ①"), "fine 1");
 /// ```
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Nfkc;
+
+impl_unit_serde!(Nfkc);
 
 impl Normalizer for Nfkc {
     fn normalize(&self, normalized: &mut NormalizedString) -> Result<()> {
@@ -87,8 +94,10 @@ impl Normalizer for Nfkc {
 /// The cleanup SentencePiece's `nmt_nfkc` rules apply before NFKC:
 /// drop most C0 control chars and map assorted spaces/separators
 /// (including `▁` itself) to a plain space.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Nmt;
+
+impl_unit_serde!(Nmt);
 
 impl Normalizer for Nmt {
     fn normalize(&self, normalized: &mut NormalizedString) -> Result<()> {

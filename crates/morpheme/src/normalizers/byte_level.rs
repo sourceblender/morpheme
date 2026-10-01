@@ -4,10 +4,9 @@
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
-use serde::{Deserialize, Serialize};
-
 use crate::error::Result;
 use crate::normalized_string::NormalizedString;
+use crate::pre_tokenizers::impl_unit_serde;
 use crate::traits::Normalizer;
 
 /// The GPT-2 byte → char table: printable Latin-1 bytes map to
@@ -50,8 +49,10 @@ pub(crate) fn bytes_to_chars() -> &'static [char; 256] {
 /// // Every byte maps to a printable char (GPT-2's byte-to-unicode table).
 /// assert_eq!(normalize(&ByteLevel::new(), "hé!"), "hÃ©!");
 /// ```
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ByteLevel;
+
+impl_unit_serde!(ByteLevel);
 
 impl ByteLevel {
     /// Build a byte-level normalizer.

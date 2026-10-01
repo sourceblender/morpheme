@@ -190,8 +190,13 @@ impl BpeBuilder {
         let vocab_r: FxHashMap<u32, String> = reverse_vocab(&self.vocab);
         let prefix = self.continuing_subword_prefix.as_deref().unwrap_or("");
 
+        // A pair listed more than once gets the rank of its last
+        // occurrence, as in HF (whose merges are a map keyed by pair), and
+        // is written once when re-serialized.
+        let merge_list = dedup_merges(self.merges);
+
         let mut merges = MergeMap::default();
-        for (rank, (a, b)) in self.merges.iter().enumerate() {
+        for (rank, (a, b)) in merge_list.iter().enumerate() {
             let missing =
                 |t: &str| Error::Config(format!("merge token {t:?} is not in the vocabulary"));
             let a_id = *self.vocab.get(a).ok_or_else(|| missing(a))?;
@@ -206,7 +211,7 @@ impl BpeBuilder {
             vocab: self.vocab,
             vocab_r,
             merges,
-            merge_list: self.merges,
+            merge_list,
             cache: (self.cache_capacity > 0).then(|| WordCache::new(self.cache_capacity)),
             byte_ids: OnceLock::new(),
             dropout,
@@ -218,6 +223,23 @@ impl BpeBuilder {
             ignore_merges: self.ignore_merges,
         })
     }
+}
+
+/// Drop every occurrence of a pair but the last, keeping order.
+fn dedup_merges(merges: Merges) -> Merges {
+    let mut seen: rustc_hash::FxHashSet<(&str, &str)> = rustc_hash::FxHashSet::default();
+    let mut keep = vec![false; merges.len()];
+    for (i, (a, b)) in merges.iter().enumerate().rev() {
+        keep[i] = seen.insert((a, b));
+    }
+    if keep.iter().all(|&k| k) {
+        return merges;
+    }
+    merges
+        .into_iter()
+        .zip(keep)
+        .filter_map(|(m, k)| k.then_some(m))
+        .collect()
 }
 
 /// Byte-Pair Encoding model.
@@ -534,17 +556,20 @@ impl Model for Bpe {
         if sequence.is_empty() {
             return Ok(Vec::new());
         }
-        if self.ignore_merges {
-            if let Some(&id) = self.vocab.get(sequence) {
-                return Ok(vec![Token::new(
-                    id,
-                    sequence.to_owned(),
-                    (0, sequence.len()),
-                )]);
-            }
-        }
         let deterministic = matches!(self.dropout, None | Some(0.0));
         if deterministic {
+            // Like HF, `ignore_merges` only short-circuits on the
+            // deterministic path: with dropout active, a word is always
+            // merged (and may come out in pieces).
+            if self.ignore_merges {
+                if let Some(&id) = self.vocab.get(sequence) {
+                    return Ok(vec![Token::new(
+                        id,
+                        sequence.to_owned(),
+                        (0, sequence.len()),
+                    )]);
+                }
+            }
             if let Some(cache) = &self.cache {
                 if let Some(word) = cache.get(sequence) {
                     return self.word_to_tokens(&word);
@@ -739,6 +764,60 @@ mod tests {
         assert_eq!(
             values(&bpe.tokenize("aab").unwrap()),
             vec![("aab", 3, (0, 3))]
+        );
+    }
+
+    /// HF consults `ignore_merges` only on the non-dropout path.
+    #[test]
+    fn ignore_merges_is_not_applied_under_dropout() {
+        let v = vocab(&[("a", 0), ("b", 1), ("ab", 2)]);
+        let bpe = Bpe::builder()
+            .vocab_and_merges(v, vec![("a".into(), "b".into())])
+            .ignore_merges(true)
+            .dropout(1.0)
+            .build()
+            .unwrap();
+        // Every merge is dropped, and the whole-word shortcut is off.
+        assert_eq!(
+            values(&bpe.tokenize("ab").unwrap()),
+            vec![("a", 0, (0, 1)), ("b", 1, (1, 2))]
+        );
+        // `dropout(0.0)` is the deterministic path: the shortcut applies.
+        let v = vocab(&[("a", 0), ("b", 1), ("ab", 2)]);
+        let bpe = Bpe::builder()
+            .vocab_and_merges(v, vec![("a".into(), "b".into())])
+            .ignore_merges(true)
+            .dropout(0.0)
+            .build()
+            .unwrap();
+        assert_eq!(
+            values(&bpe.tokenize("ab").unwrap()),
+            vec![("ab", 2, (0, 2))]
+        );
+    }
+
+    /// HF keeps merges in a map keyed by pair, so a duplicated pair takes
+    /// the rank of its last occurrence and is written once on re-save.
+    #[test]
+    fn duplicate_merges_keep_the_last_occurrence() {
+        let v = vocab(&[("a", 0), ("b", 1), ("c", 2), ("ab", 3), ("bc", 4)]);
+        let merges = vec![
+            ("a".to_string(), "b".to_string()),
+            ("b".to_string(), "c".to_string()),
+            ("a".to_string(), "b".to_string()),
+        ];
+        let bpe = Bpe::new(v, merges).unwrap();
+        assert_eq!(
+            bpe.merges(),
+            vec![
+                ("b".to_string(), "c".to_string()),
+                ("a".to_string(), "b".to_string())
+            ]
+        );
+        // `b c` now outranks `a b`.
+        assert_eq!(
+            values(&bpe.tokenize("abc").unwrap()),
+            vec![("a", 0, (0, 1)), ("bc", 4, (1, 3))]
         );
     }
 
