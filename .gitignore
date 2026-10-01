@@ -18,3 +18,4 @@ __pycache__/
 /tokenizer.json
 # Downloaded HF tokenizer fixtures (scripts/fetch-hf-fixtures.sh)
 crates/morpheme/tests/data/
+.pytest_cache/
