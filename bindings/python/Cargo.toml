@@ -15,6 +15,9 @@ crate-type = ["cdylib"]
 test = false
 doctest = false
 bench = false
+# The lib is named `morpheme` (the Python module name), which collides with
+# the library crate's rustdoc output path; its docs are for Python anyway.
+doc = false
 
 [dependencies]
 morpheme = { path = "../../crates/morpheme", features = ["hub"] }

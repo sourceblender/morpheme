@@ -101,6 +101,22 @@ fallback.
 - BPE memoizes merged words in a sharded cache; Unigram builds its trie
   once at load.
 
+## Feature flags
+
+- `progressbar` (default): trainer progress bars via `indicatif`.
+- `parallel` (default): `rayon` for `encode_batch`, `decode_batch`, batch
+  padding and the trainers. Without it the same code paths run
+  sequentially on the calling thread (`#[cfg(feature = "parallel")]` picks
+  `par_iter`/`par_chunks`/`par_bridge` or their `std` counterparts at each
+  site), which is what single-threaded targets want.
+- `hub`: see below.
+
+The library compiles for `wasm32-unknown-unknown`. `tempfile` is a
+non-wasm dependency there, so `Tokenizer::save` (atomic replace through a
+temporary file) is compiled out on wasm32; `from_bytes`/`to_json` cover
+the browser. CI checks `--no-default-features --target
+wasm32-unknown-unknown`.
+
 ## Hub downloads
 
 The optional `hub` feature adds `Tokenizer::from_pretrained`
