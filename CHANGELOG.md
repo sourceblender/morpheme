@@ -257,6 +257,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - BPE trainer: 200k words, 300 vocab target → ~4 ms.
   - Unigram trainer: 50k words, 60 vocab target → ~3 ms.
 
+### Deferred items (tracked as GitHub issues)
+
+The following items are intentionally deferred from v0.1 and tracked
+in the GitHub issue tracker so they don't get lost:
+
+- HF BPE `continuing_subword_suffix` (rare) — issue #2.
+- Post-processor round-trip via splinter's own JSON schema — issue #4.
+- Unigram Viterbi: cache the subword trie across `apply()` calls —
+  issue #8.
+- BPE trainer: re-enable the `matches_naive_reference` cross-validation
+  test (currently `#[ignore]`) — issue #9.
+- `TemplatePostProcessor`: support type-id pieces (`$0`/`$1`) —
+  issue #10.
+- Validate against real HF tokenizers (gpt2, bert-base-uncased,
+  xlm-roberta-base) — issue #11.
+- Release v0.1.0: tag, publish `splinter` to crates.io, cut binaries
+  via the existing release workflow — issue #12.
+
 ### Changed
 
 - License clarified to MIT-only.
