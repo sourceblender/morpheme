@@ -80,6 +80,9 @@ format, and is now verified against the reference implementation.
   publishes both crates to crates.io.
 - The published library crate excludes tests, benchmarks and test data
   (~3 MB → 128 KB).
+- Fuzzing: cargo-fuzz targets for `tokenizer.json` loading, encoding
+  through real tokenizers, `NormalizedString` operations and component
+  JSON (`fuzz/`), with a weekly CI workflow.
 
 ### Changed
 
@@ -124,3 +127,12 @@ format, and is now verified against the reference implementation.
   unk.
 - The CLI replaced every loaded tokenizer's pipeline with defaults.
 - Training from a missing or non-UTF-8 file silently trained on nothing.
+- Found by fuzzing:
+  - Saving a model whose vocabulary has several tokens with the same id
+    (valid in Hugging Face files) dropped all but one of them, and BPE
+    rewrote its merges from ids; the reloaded tokenizer encoded
+    differently or failed to load. Vocabularies and merges are now
+    written exactly as loaded.
+  - A whole-string normalization (e.g. NFD) after text was inserted
+    before the first character (`prepend("")`, an empty-pattern
+    `replace`) indexed out of bounds and panicked.

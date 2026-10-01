@@ -12,6 +12,7 @@ splinter/
 ├── docs/                   # markdown documentation (this folder)
 ├── examples/               # sample corpus + trained tokenizers
 ├── scripts/                # HF fixtures, golden generation, interop check
+├── fuzz/                   # cargo-fuzz targets (separate nightly workspace)
 └── .github/                # CI + issue / PR templates
 ```
 
@@ -107,6 +108,34 @@ cargo llvm-cov --workspace --all-features --html   # target/llvm-cov/html
 
 New code should come with tests; look at the uncovered lines of the
 files you touched rather than chasing the total.
+
+## Fuzzing
+
+`fuzz/` holds [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz)
+targets. It is a separate workspace (excluded from the main one) because
+it needs nightly Rust:
+
+| Target | What it checks |
+| --- | --- |
+| `load_json` | Arbitrary bytes as `tokenizer.json`: loading never panics; anything that loads can encode/decode and survives save → load unchanged. |
+| `encode` | Arbitrary text through real tokenizers (BERT, GPT-2, Llama, T5, Qwen2.5): encoding never fails, offsets are valid slices, GPT-2 round-trips losslessly. |
+| `normalized_string` | Random sequences of normalization ops: alignments always map back into the original text. |
+| `components_json` | Arbitrary JSON for each component type: loading never panics; loaded components run and re-serialize. |
+
+```sh
+rustup toolchain install nightly
+cargo install cargo-fuzz
+./scripts/fetch-hf-fixtures.sh     # real tokenizers for `encode` and the seeds
+./fuzz/run-all.sh 300              # all targets in parallel, 5 minutes each
+cargo +nightly fuzz run encode     # or one target, until Ctrl-C
+```
+
+Seed corpora come from `fuzz/make_corpus.py` (real component configs
+and the golden inputs). Crashes land in `fuzz/artifacts/<target>/`;
+`cargo +nightly fuzz fmt <target> <file>` prints the input. Fix the root
+cause and add a regression test that reproduces it. A weekly CI workflow
+(`.github/workflows/fuzz.yml`, also runnable by hand) fuzzes every target
+for 5 minutes and uploads any crash as an artifact.
 
 ## Benchmarking
 

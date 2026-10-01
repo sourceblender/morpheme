@@ -1,0 +1,50 @@
+[package]
+name = "splinter-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+serde_json = "1"
+splinter = { path = "../crates/splinter" }
+
+# Standalone workspace: cargo-fuzz needs nightly and sanitizer flags, so
+# this crate is excluded from the main workspace.
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "load_json"
+path = "fuzz_targets/load_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encode"
+path = "fuzz_targets/encode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "normalized_string"
+path = "fuzz_targets/normalized_string.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "components_json"
+path = "fuzz_targets/components_json.rs"
+test = false
+doc = false
+bench = false

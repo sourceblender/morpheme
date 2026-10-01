@@ -4,6 +4,8 @@ members = [
     "crates/splinter",
     "apps/splinter-cli",
 ]
+# cargo-fuzz targets build on nightly in their own workspace.
+exclude = ["fuzz"]
 
 [workspace.package]
 edition = "2024"
