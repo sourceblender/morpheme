@@ -616,9 +616,98 @@ impl Tokenizer {
         self.pre_tokenizer = pre_tokenizer;
     }
 
-    /// Replace the model.
-    pub fn set_model(&mut self, model: impl Into<ModelWrapper>) {
-        self.model = model.into();
+    /// Replace the model, rebinding every id that depends on its
+    /// vocabulary.
+    ///
+    /// Added tokens keep their options and are assigned ids against the
+    /// new vocabulary: a token whose text the new model already has takes
+    /// the model's id, and the others get ids after the new vocabulary
+    /// (in their previous order). Post-processor special-token ids and the
+    /// padding id are then rebound by token text.
+    ///
+    /// # Errors
+    ///
+    /// Fails if a token the post-processor or padding is configured with
+    /// is neither an added token nor in the new vocabulary. On error the
+    /// tokenizer is left unchanged (including its model).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use morpheme::models::WordLevel;
+    /// use morpheme::{AddedToken, Tokenizer};
+    ///
+    /// let wordlevel = |pairs: &[(&str, u32)]| {
+    ///     let vocab: HashMap<String, u32> = pairs.iter().map(|(t, i)| (t.to_string(), *i)).collect();
+    ///     WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()
+    /// };
+    /// let mut tokenizer = Tokenizer::new(wordlevel(&[("[UNK]", 0), ("a", 1)])?);
+    /// tokenizer.add_special_tokens(&[AddedToken::new("<special>", true)])?;
+    /// assert_eq!(tokenizer.token_to_id("<special>"), Some(2));
+    ///
+    /// tokenizer.set_model(wordlevel(&[("[UNK]", 0), ("a", 1), ("new", 2)])?)?;
+    /// assert_eq!(tokenizer.token_to_id("<special>"), Some(3)); // moved past the new vocabulary
+    /// assert_eq!(tokenizer.decode(&[2], false)?, "new");
+    /// # Ok::<(), morpheme::Error>(())
+    /// ```
+    pub fn set_model(&mut self, model: impl Into<ModelWrapper>) -> Result<()> {
+        let model = model.into();
+        let tokens: Vec<AddedToken> = self
+            .added_vocabulary
+            .tokens_with_ids()
+            .into_iter()
+            .map(|t| t.token)
+            .collect();
+        let (added_vocabulary, post_processor, padding) =
+            self.rebind_to_model(&model, &tokens, |token| {
+                Error::Config(format!(
+                    "configured token {token:?} is missing from the new model's vocabulary; \
+                     add it to the model or as an added token first"
+                ))
+            })?;
+        self.model = model;
+        self.added_vocabulary = added_vocabulary;
+        self.post_processor = post_processor;
+        self.padding = padding;
+        Ok(())
+    }
+
+    /// Resolve `tokens` against `model` into a fresh added vocabulary and
+    /// rebind clones of the post-processor and padding by token text,
+    /// without touching `self`. `missing` builds the error for a
+    /// configured token that resolves to nothing.
+    fn rebind_to_model(
+        &self,
+        model: &ModelWrapper,
+        tokens: &[AddedToken],
+        missing: impl Fn(&str) -> Error,
+    ) -> Result<(
+        AddedVocabulary,
+        Option<PostProcessorWrapper>,
+        Option<PaddingParams>,
+    )> {
+        let mut added_vocabulary = AddedVocabulary::new();
+        added_vocabulary.set_encode_special_tokens(self.added_vocabulary.encode_special_tokens());
+        added_vocabulary.add_tokens(
+            tokens,
+            model,
+            self.normalizer.as_ref().map(|n| n as &dyn Normalizer),
+        )?;
+        let lookup = |token: &str| {
+            added_vocabulary
+                .token_to_id(token, model)
+                .ok_or_else(|| missing(token))
+        };
+        let mut post_processor = self.post_processor.clone();
+        if let Some(processor) = &mut post_processor {
+            processor.rebind_token_ids(&lookup)?;
+        }
+        let mut padding = self.padding.clone();
+        if let Some(padding) = &mut padding {
+            padding.pad_id = lookup(&padding.pad_token)?;
+        }
+        Ok((added_vocabulary, post_processor, padding))
     }
 
     /// Replace the post-processor.
@@ -697,12 +786,11 @@ impl Tokenizer {
     /// sampling (`Unigram::set_sampling` / `set_seed`) or BPE dropout
     /// (`Bpe::set_dropout`).
     ///
-    /// Do not change the vocabulary through this accessor: added tokens
-    /// that already existed in the model are resolved against the model's
-    /// vocabulary at lookup time, and the post-processor's special-token
-    /// ids were bound when the tokenizer was built, so swapping or
-    /// retraining the vocabulary in place can leave those ids stale. Use
-    /// [`set_model`](Self::set_model) (or rebuild the tokenizer) for that.
+    /// Do not change the vocabulary through this accessor: added-token,
+    /// post-processor and padding ids are bound to the current vocabulary,
+    /// and swapping or retraining it in place leaves them stale. Use
+    /// [`set_model`](Self::set_model), which rebinds them by token text, or
+    /// [`train`](Self::train) for that.
     /// Model-internal caches (the BPE word cache, the Unigram sentence
     /// cache) are managed by the models' own setters.
     ///
@@ -1166,8 +1254,6 @@ impl Tokenizer {
         }
         let mut model = self.model.clone();
         let special = trainer.train(&mut model)?;
-        let mut added_vocabulary = AddedVocabulary::new();
-        added_vocabulary.set_encode_special_tokens(self.added_vocabulary.encode_special_tokens());
         let mut tokens: Vec<AddedToken> = self
             .added_vocabulary
             .tokens_with_ids()
@@ -1181,26 +1267,12 @@ impl Tokenizer {
                 tokens.push(token.special(true));
             }
         }
-        added_vocabulary.add_tokens(
-            &tokens,
-            &model,
-            self.normalizer.as_ref().map(|n| n as &dyn Normalizer),
-        )?;
-        let lookup = |token: &str| {
-            added_vocabulary.token_to_id(token, &model).ok_or_else(|| {
+        let (added_vocabulary, post_processor, padding) =
+            self.rebind_to_model(&model, &tokens, |token| {
                 Error::Training(format!(
                     "configured token {token:?} is missing from the trained vocabulary; include it in the trainer's special tokens"
                 ))
-            })
-        };
-        let mut post_processor = self.post_processor.clone();
-        if let Some(processor) = &mut post_processor {
-            processor.rebind_token_ids(&lookup)?;
-        }
-        let mut padding = self.padding.clone();
-        if let Some(padding) = &mut padding {
-            padding.pad_id = lookup(&padding.pad_token)?;
-        }
+            })?;
         self.model = model;
         self.added_vocabulary = added_vocabulary;
         self.post_processor = post_processor;

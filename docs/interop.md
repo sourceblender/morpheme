@@ -139,8 +139,15 @@ Inputs that avoid these edge cases produce identical results.
 - **Duplicate added-token ids are rejected.** A `tokenizer.json` whose
   `added_tokens` list the same id for two contents fails to load with an
   error naming both; HF keeps the last one but leaves the first content
-  mapped to the id. Reusing an id through the API (for example after
-  `set_model`) unmaps the previous content.
+  mapped to the id. Reusing an id through the API unmaps the previous
+  content.
+- **Added tokens cannot shadow model tokens.** A `tokenizer.json` whose
+  added token uses an id the model already has for a different token
+  (special `x` at id 1 when the vocabulary maps `a` to 1) fails to load
+  with an error naming both tokens and the id, since encode and decode
+  would disagree about that id. HF re-adds such a token under a fresh id
+  with a warning. An added token at its own model id (BERT's `[CLS]`)
+  loads as before; all golden fixtures are unaffected.
 - **Template strings tolerate repeated whitespace, but not emptiness.**
   `TemplateProcessing` templates are split on any whitespace run, so
   `"[CLS]  $A\t[SEP]"` parses here; HF's `try_from` splits on single
@@ -228,6 +235,13 @@ Inputs that avoid these edge cases produce identical results.
   rebound by token text. If a required configured token is absent from the
   new vocabulary, training fails without changing the tokenizer; include
   it in the trainer's special tokens or register it as an added token first.
+- **Replacing the model rebinds added tokens.** `set_model` reassigns
+  added-token ids against the new model the same way (its id when it has
+  the text, else above the new vocabulary) and rebinds post-processor and
+  padding ids by token text, returning an error and leaving the tokenizer
+  unchanged when a configured token cannot be resolved. HF's `with_model`
+  replaces only the model, so ids bound to the old vocabulary can then
+  decode to different text than they encode.
 
 ### Trainers
 
