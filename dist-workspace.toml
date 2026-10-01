@@ -24,8 +24,10 @@ publish-jobs = ["./publish-crates"]
 # A reusable workflow may only use permissions its caller grants; the
 # publish job just needs to read the repository.
 github-custom-job-permissions = { "publish-crates" = { contents = "read" } }
-# Run the release plan on PRs that touch release config, without building.
+# Run the release plan on PRs, without building. The PR trigger in
+# release.yml is path-filtered by hand to PRs that touch release config.
 pr-run-mode = "plan"
-# release.yml is hand-edited after generation to pin actions to commit
-# SHAs (see the note at its top); don't fail the plan over that.
+# release.yml is hand-edited after generation (SHA-pinned actions, the PR
+# path filter, concurrency, per-job permissions and timeouts; see the note
+# at its top); don't fail the plan over that.
 allow-dirty = ["ci"]
