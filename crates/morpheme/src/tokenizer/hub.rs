@@ -318,10 +318,10 @@ fn publish_verified_file(
         return Ok(());
     }
     prepare_permissions(file.as_file(), path)?;
-    match file.persist(path) {
-        Ok(_) => Ok(()),
+    match super::persist_with_retry(file, path) {
+        Ok(()) => Ok(()),
         Err(_) if verify_file(path, etag).unwrap_or(false) => Ok(()),
-        Err(e) => Err(e.error),
+        Err(e) => Err(e),
     }
 }
 
@@ -713,10 +713,10 @@ fn publish_revision_ref(
         return Ok(());
     }
     prepare_permissions(file.as_file(), path)?;
-    match file.persist(path) {
-        Ok(_) => Ok(()),
+    match super::persist_with_retry(file, path) {
+        Ok(()) => Ok(()),
         Err(_) if std::fs::read_to_string(path).is_ok_and(|existing| existing == commit) => Ok(()),
-        Err(e) => Err(e.error),
+        Err(e) => Err(e),
     }
 }
 
