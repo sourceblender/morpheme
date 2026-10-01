@@ -187,6 +187,8 @@ morpheme/
 - [`docs/modules/`](./docs/modules) — per-component reference.
 - [`docs/interop.md`](./docs/interop.md) — format compatibility and known differences.
 - [`docs/benchmarks.md`](./docs/benchmarks.md) — performance and methodology.
+- [`docs/document-workflow.md`](./docs/document-workflow.md) — executable
+  dataset preparation with exact budgets and atomic publication.
 - [`docs/roadmap.md`](./docs/roadmap.md) — what's next.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md), [`CHANGELOG.md`](./CHANGELOG.md).
 

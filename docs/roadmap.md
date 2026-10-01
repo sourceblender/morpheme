@@ -35,6 +35,8 @@
 
 - [x] CLI token budgeting, bounded JSONL batches, and JSON inspection.
 - [x] Exercise all four fuzz targets for five minutes in CI (2026-10-01).
+- [x] Executable document-budget consumer with atomic dataset publication,
+      pinned/offline Hub replay, and a 10,000-record stress check.
 
 - [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
 - [ ] Benchmark regression tracking on dedicated hardware.

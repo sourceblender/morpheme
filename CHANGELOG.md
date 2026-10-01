@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- An executable Rust document-preparation consumer with token budgets,
+  tokenizer provenance, bounded records, and atomic dataset publication.
+
 - CLI token counting with explicit special-token and padding/truncation
   behavior, bounded JSONL batch encoding/decoding, and JSON inspection.
 
