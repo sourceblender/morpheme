@@ -234,6 +234,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "morpheme"
+version = "0.1.0"
+dependencies = [
+ "aho-corasick",
+ "fancy-regex",
+ "indicatif",
+ "rayon",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "unicode-normalization-alignments",
+ "unicode-segmentation",
+ "unicode_categories",
+]
+
+[[package]]
+name = "morpheme-fuzz"
+version = "0.0.0"
+dependencies = [
+ "arbitrary",
+ "libfuzzer-sys",
+ "morpheme",
+ "serde_json",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -384,33 +411,6 @@ name = "smallvec"
 version = "1.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e"
-
-[[package]]
-name = "splinter"
-version = "0.0.0"
-dependencies = [
- "aho-corasick",
- "fancy-regex",
- "indicatif",
- "rayon",
- "rustc-hash",
- "serde",
- "serde_json",
- "thiserror",
- "unicode-normalization-alignments",
- "unicode-segmentation",
- "unicode_categories",
-]
-
-[[package]]
-name = "splinter-fuzz"
-version = "0.0.0"
-dependencies = [
- "arbitrary",
- "libfuzzer-sys",
- "serde_json",
- "splinter",
-]
 
 [[package]]
 name = "syn"

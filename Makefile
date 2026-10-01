@@ -14,7 +14,7 @@ build:
 	cargo build --workspace
 
 run:
-	cargo run -p splinter-cli
+	cargo run -p morpheme-cli
 
 fmt:
 	cargo fmt --all
@@ -33,7 +33,7 @@ interop:
 	uv run --with tokenizers==0.23.2 scripts/check_python_interop.py
 
 bench: fixtures
-	cargo bench -p splinter
+	cargo bench -p morpheme
 
 coverage: fixtures
 	cargo llvm-cov --workspace --all-features --summary-only

@@ -7,7 +7,7 @@
 mod common;
 
 use libfuzzer_sys::fuzz_target;
-use splinter::Tokenizer;
+use morpheme::Tokenizer;
 
 const TEXTS: [&str; 4] = ["Hello, world!", "  ünïcödé 你好 😀 ", "", "[CLS] a<mask>b"];
 

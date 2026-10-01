@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Check that Hugging Face `tokenizers` loads splinter-trained files and
-encodes exactly like splinter does.
+"""Check that Hugging Face `tokenizers` loads morpheme-trained files and
+encodes exactly like morpheme does.
 
-Trains one tokenizer per model type with the splinter CLI, then compares
+Trains one tokenizer per model type with the morpheme CLI, then compares
 ids, tokens, char offsets and decoded text between the CLI and Python.
 
     uv run --with tokenizers==0.23.2 scripts/check_python_interop.py
@@ -28,9 +28,9 @@ TEXTS = [
 
 def main() -> int:
     subprocess.run(
-        ["cargo", "build", "--quiet", "--release", "-p", "splinter-cli"], cwd=ROOT, check=True
+        ["cargo", "build", "--quiet", "--release", "-p", "morpheme-cli"], cwd=ROOT, check=True
     )
-    cli = ROOT / "target/release/splinter"
+    cli = ROOT / "target/release/morpheme"
     failures = 0
     with tempfile.TemporaryDirectory() as tmp:
         for model in ["bpe", "wordpiece", "unigram", "wordlevel"]:

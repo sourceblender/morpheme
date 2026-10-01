@@ -4,7 +4,7 @@
     python3 fuzz/make_corpus.py
 
 Reads the example tokenizers (examples/*.json), the fetched Hugging Face
-fixtures (crates/splinter/tests/data/hf/*.json, if present) and the
+fixtures (crates/morpheme/tests/data/hf/*.json, if present) and the
 golden inputs, and writes fuzz/corpus/<target>/. The corpus directory is
 gitignored; regenerate it whenever you like.
 """
@@ -47,7 +47,7 @@ def shrink_model(model: dict) -> dict:
 
 def main() -> None:
     sources = sorted((ROOT / "examples").glob("*.json"))
-    sources += sorted((ROOT / "crates/splinter/tests/data/hf").glob("*.json"))
+    sources += sorted((ROOT / "crates/morpheme/tests/data/hf").glob("*.json"))
     for path in sources:
         doc = json.loads(path.read_text(encoding="utf-8"))
         small = dict(doc)
@@ -61,7 +61,7 @@ def main() -> None:
             if value is not None:
                 write("components_json", bytes([i]) + json.dumps(value, ensure_ascii=False).encode())
 
-    for golden in sorted((ROOT / "crates/splinter/tests/golden").glob("*.json")):
+    for golden in sorted((ROOT / "crates/morpheme/tests/golden").glob("*.json")):
         for case in json.loads(golden.read_text(encoding="utf-8"))["cases"]:
             text = case["input"].encode()
             write("encode", text)

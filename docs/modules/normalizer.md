@@ -39,10 +39,10 @@ A malformed charsmap is an error, never a panic.
 ## Example
 
 ```rust
-use splinter::normalizers::{BertNormalizer, Lowercase, Nfd, Prepend, Replace, Sequence, StripAccents};
-use splinter::{NormalizedString, Normalizer, NormalizerWrapper, OffsetRange};
+use morpheme::normalizers::{BertNormalizer, Lowercase, Nfd, Prepend, Replace, Sequence, StripAccents};
+use morpheme::{NormalizedString, Normalizer, NormalizerWrapper, OffsetRange};
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     // BERT: clean control chars, space out CJK, strip accents, lowercase.
     let mut n = NormalizedString::from("Héllo\u{0}  世界");
     BertNormalizer::default().normalize(&mut n)?;

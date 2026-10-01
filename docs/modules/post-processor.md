@@ -47,13 +47,13 @@ every special token used must be provided — otherwise you get an error.
 ## Example
 
 ```rust
-use splinter::models::WordLevel;
-use splinter::pre_tokenizers::Whitespace;
-use splinter::processors::{BertProcessing, RobertaProcessing, TemplateProcessing};
-use splinter::Tokenizer;
+use morpheme::models::WordLevel;
+use morpheme::pre_tokenizers::Whitespace;
+use morpheme::processors::{BertProcessing, RobertaProcessing, TemplateProcessing};
+use morpheme::Tokenizer;
 use std::collections::HashMap;
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     let vocab: HashMap<String, u32> = [("[UNK]", 0), ("[CLS]", 1), ("[SEP]", 2), ("hello", 3), ("world", 4)]
         .iter().map(|(t, i)| (t.to_string(), *i)).collect();
     let model = WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?;

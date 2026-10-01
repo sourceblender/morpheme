@@ -40,7 +40,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: clippy (library, no default features)
-        run: cargo clippy -p splinter --all-targets --no-default-features --locked -- -D warnings
+        run: cargo clippy -p morpheme --all-targets --no-default-features --locked -- -D warnings
 
   test:
     name: test (stable)
@@ -56,7 +56,7 @@ jobs:
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@v6
         with:
-          path: crates/splinter/tests/data
+          path: crates/morpheme/tests/data
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         shell: bash
@@ -79,7 +79,7 @@ jobs:
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@v6
         with:
-          path: crates/splinter/tests/data
+          path: crates/morpheme/tests/data
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         shell: bash
@@ -112,7 +112,7 @@ jobs:
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@v6
         with:
-          path: crates/splinter/tests/data
+          path: crates/morpheme/tests/data
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         shell: bash
@@ -148,11 +148,11 @@ jobs:
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@v6
         with:
-          path: crates/splinter/tests/data
+          path: crates/morpheme/tests/data
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         run: ./scripts/fetch-hf-fixtures.sh
-      - run: cargo test -p splinter --features hub --test hub --locked -- --ignored
+      - run: cargo test -p morpheme --features hub --test hub --locked -- --ignored
 
   python-interop:
     name: interop with Python tokenizers

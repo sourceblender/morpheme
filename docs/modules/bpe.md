@@ -44,15 +44,15 @@ Options:
 ## Construction
 
 ```rust
-use splinter::models::Bpe;
-use splinter::Model;
+use morpheme::models::Bpe;
+use morpheme::Model;
 use std::collections::HashMap;
 
 fn vocab(items: &[(&str, u32)]) -> HashMap<String, u32> {
     items.iter().map(|(t, i)| (t.to_string(), *i)).collect()
 }
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     let bpe = Bpe::builder()
         .vocab_and_merges(
             vocab(&[("<unk>", 0), ("l", 1), ("o", 2), ("w", 3), ("lo", 4), ("low", 5)]),

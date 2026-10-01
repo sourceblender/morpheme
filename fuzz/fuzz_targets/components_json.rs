@@ -8,7 +8,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use splinter::{
+use morpheme::{
     Decoder, DecoderWrapper, Encoding, Model, ModelWrapper, NormalizedString, Normalizer,
     NormalizerWrapper, PostProcessor, PostProcessorWrapper, PreTokenizedString, PreTokenizer,
     PreTokenizerWrapper, Token,
@@ -42,7 +42,7 @@ fuzz_target!(|data: &[u8]| {
                 let mut s = NormalizedString::from(text);
                 if n.normalize(&mut s).is_ok() {
                     for (b, c) in s.get().char_indices() {
-                        let r = s.convert_offsets(splinter::OffsetRange::Normalized(
+                        let r = s.convert_offsets(morpheme::OffsetRange::Normalized(
                             b..b + c.len_utf8(),
                         ));
                         if let Some(r) = r {
@@ -63,7 +63,7 @@ fuzz_target!(|data: &[u8]| {
             for text in TEXTS {
                 let mut pts = PreTokenizedString::from(text);
                 if p.pre_tokenize(&mut pts).is_ok() {
-                    for (_, (start, end), _) in pts.get_splits(splinter::OffsetType::Byte) {
+                    for (_, (start, end), _) in pts.get_splits(morpheme::OffsetType::Byte) {
                         assert!(
                             text.get(start..end).is_some(),
                             "pre-tokenizer split {start}..{end} invalid"

@@ -1,11 +1,13 @@
 # Changelog
 
-All notable changes to `splinter` will be documented in this file.
+All notable changes to `morpheme` will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.1.0] - Unreleased
 
 The first implementation (BPE/WordPiece/Unigram with a custom JSON
 schema) was found in review to be incompatible with real Hugging Face
@@ -17,7 +19,7 @@ format, and is now verified against the reference implementation.
 
 - **Hugging Face compatibility.** `tokenizer.json` is the on-disk format
   (read and write, byte-compatible with `tokenizers` 0.23, legacy forms
-  accepted). Files saved by splinter load in Python `tokenizers` and
+  accepted). Files saved by morpheme load in Python `tokenizers` and
   encode identically.
 - Offset tracking through every normalization step (`NormalizedString`
   alignments), so offsets always point into the original input; byte
@@ -86,6 +88,10 @@ format, and is now verified against the reference implementation.
 
 ### Changed
 
+- **Renamed from `splinter` to `morpheme`.** The `splinter` crate name
+  belongs to an unrelated project on crates.io, and `splintr` is a
+  different Rust tokenizer. Crates: `morpheme` and `morpheme-cli`;
+  binary: `morpheme`; repository: `sourceblender/morpheme`.
 - **Breaking — public API cleanup for 0.1** (Rust API guidelines):
   - Constructors: `AddedToken::from` → `AddedToken::new`,
     `Unigram::from` → `Unigram::new`, `Precompiled::from` →
@@ -124,7 +130,7 @@ format, and is now verified against the reference implementation.
     `EncodeInput`, and on configuration components with public fields
     (construct them with `new`).
   - Implementation modules are private; every type is reachable from its
-    module (`splinter::normalizers::BertNormalizer`, …).
+    module (`morpheme::normalizers::BertNormalizer`, …).
     `pre_tokenizers::byte_level` (byte tables, `process_offsets`) and
     `processors::template` stay public. The Unigram lattice, pattern
     `Invert`, the BPE trainer's `do_train` and the WordPiece trainer's

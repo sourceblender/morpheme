@@ -12,7 +12,7 @@ What is the user-facing problem?
 
 ## Proposed solution
 
-What do you want `splinter` to do?
+What do you want `morpheme` to do?
 
 ## Alternatives
 

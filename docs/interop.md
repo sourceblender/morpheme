@@ -1,13 +1,13 @@
 # Interop with Hugging Face `tokenizers`
 
-splinter's on-disk format **is** the Hugging Face `tokenizer.json`
-format (`"version": "1.0"`). There is no separate splinter schema:
+morpheme's on-disk format **is** the Hugging Face `tokenizer.json`
+format (`"version": "1.0"`). There is no separate morpheme schema:
 `Tokenizer::from_file` reads files produced by `tokenizers` /
 `transformers`, and `Tokenizer::save` writes files they can load.
 
 ## What "compatible" means here
 
-- **Same output.** For the same file and input, splinter produces the
+- **Same output.** For the same file and input, morpheme produces the
   same ids, tokens, offsets, type ids, attention mask, special-tokens
   mask, word ids and decoded text as `tokenizers` 0.23.2.
 - **Same JSON.** Every component serializes with HF's field names, field
@@ -53,7 +53,7 @@ Python exactly. The CLI has `--char-offsets`.
 
 ## How it is verified
 
-- **`crates/splinter/tests/hf_golden.rs`** loads 11 real tokenizers,
+- **`crates/morpheme/tests/hf_golden.rs`** loads 11 real tokenizers,
   pinned by revision in `scripts/hf-fixtures.txt` (BERT uncased/cased,
   MiniLM with truncation+padding, GPT-2, RoBERTa, GPT-NeoX, Qwen2.5,
   Llama, T5, ALBERT, XLM-RoBERTa). For 32 tricky inputs each (empty and
@@ -66,9 +66,9 @@ Python exactly. The CLI has `--char-offsets`.
   component — and its field order — equals HF's re-serialization, and
   repeats everything after a save → load round trip. Fetch the files
   with `scripts/fetch-hf-fixtures.sh` (CI does this; set
-  `SPLINTER_SKIP_HF_GOLDEN=1` to skip locally).
+  `MORPHEME_SKIP_HF_GOLDEN=1` to skip locally).
 - **`scripts/check_python_interop.py`** checks the other direction:
-  tokenizers trained by the splinter CLI (BPE, WordPiece, Unigram,
+  tokenizers trained by the morpheme CLI (BPE, WordPiece, Unigram,
   WordLevel) are loaded by Python `tokenizers` and must encode and decode
   identically. Runs in CI.
 - Component-level unit tests compare against hardcoded Python outputs,
@@ -80,7 +80,7 @@ The file format and behavior follow Hugging Face exactly; the Rust API
 follows the [Rust API guidelines](https://rust-lang.github.io/api-guidelines/)
 where they differ from the `tokenizers` crate's names:
 
-| Hugging Face (`tokenizers` crate) | splinter |
+| Hugging Face (`tokenizers` crate) | morpheme |
 | --- | --- |
 | `get_vocab()` / `get_vocab_size()` (models and `Tokenizer`) | `vocab()` / `vocab_size()` |
 | `Encoding::get_ids()`, `get_tokens()`, `get_offsets()`, … | `ids()`, `tokens()`, `offsets()`, … |
@@ -103,7 +103,7 @@ Deliberate differences, all in the direction of *accepting more* or
 - **Errors instead of panics.** Malformed input (merges referencing
   missing tokens, bad regexes, invalid `unk_id`, malformed Precompiled
   charsmaps, templates naming undefined special tokens, `Strip` decoder
-  bounds, …) returns `splinter::Error`; HF panics in several of these
+  bounds, …) returns `morpheme::Error`; HF panics in several of these
   cases.
 - **Lenient defaults.** Some fields HF requires fall back to their
   defaults when missing (BertNormalizer flags, ByteLevel
@@ -114,7 +114,7 @@ Deliberate differences, all in the direction of *accepting more* or
   without a `"type"` key.
 - **Deterministic trainers.** Where HF's trainers depend on hash-map
   iteration order (BPE symbol ids with a prefix/suffix, `limit_alphabet`
-  ties, Unigram), splinter uses a fixed order, so results are
+  ties, Unigram), morpheme uses a fixed order, so results are
   reproducible but can differ from a particular HF run in those cases.
 - **Unigram subword-regularization sampling** (`alpha`, `nbest_size`) is
   not implemented; it is not part of `tokenizer.json`.

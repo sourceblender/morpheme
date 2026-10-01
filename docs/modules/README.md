@@ -1,6 +1,6 @@
 # Module deep dives
 
-How each part of the `splinter` pipeline works, what it accepts in
+How each part of the `morpheme` pipeline works, what it accepts in
 `tokenizer.json`, and how it maps to Hugging Face `tokenizers`.
 
 | Doc | Covers |
@@ -32,7 +32,7 @@ input ─┬─▶ added tokens   split out [CLS], <|endoftext|>, … (never spl
 ids ─▶ id → token ─▶ (skip special tokens) ─▶ Decoder ─▶ text
 ```
 
-Every component is a trait in `splinter::traits` (`Normalizer`,
+Every component is a trait in `morpheme::traits` (`Normalizer`,
 `PreTokenizer`, `Model`, `PostProcessor`, `Decoder`, `Trainer`), and every
 built-in implementation is also a variant of a serde wrapper enum
 (`NormalizerWrapper`, `PreTokenizerWrapper`, `ModelWrapper`,
@@ -45,7 +45,7 @@ in code can be saved and any `tokenizer.json` can be loaded.
 Normalizers change text — `"Héllo"` may become `"hello"`, a space may
 become `▁`. To still report where each token came from in the
 *original* input, all text flows through
-[`NormalizedString`](../../crates/splinter/src/normalized_string.rs),
+[`NormalizedString`](../../crates/morpheme/src/normalized_string.rs),
 which stores, for every byte of the normalized text, the byte range of
 the original text that produced it. Normalizers edit text only through
 its alignment-preserving operations (`transform`, `replace`, `split`,

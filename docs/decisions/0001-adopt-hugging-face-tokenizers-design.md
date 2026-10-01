@@ -16,7 +16,7 @@ the reference implementation".
 
 ## Decision
 
-Rebuild splinter on the Hugging Face `tokenizers` design: the same
+Rebuild morpheme on the Hugging Face `tokenizers` design: the same
 pipeline stages and component semantics, offsets tracked through
 `NormalizedString` alignments, and `tokenizer.json` (version `1.0`) as
 the only on-disk format, byte-compatible on write. Compatibility is
@@ -37,7 +37,7 @@ Within that design:
 ## Consequences
 
 - Real tokenizers load and produce reference-identical output; files
-  trained with splinter work in the Python ecosystem.
+  trained with morpheme work in the Python ecosystem.
 - "Correct" is testable: any behavioral difference shows up as a golden
   mismatch, and intentional differences are listed in
   [`docs/interop.md`](../interop.md).
@@ -59,5 +59,5 @@ Within that design:
 - **Generic `TokenizerImpl<M, N, PT, PP, D>` like Hugging Face's Rust
   crate.** Rejected for now: the wrappers cover every built-in, keep the
   type simple, and match what the Python library exposes.
-- **Bind to the `tokenizers` crate.** Rejected: splinter exists to be an
+- **Bind to the `tokenizers` crate.** Rejected: morpheme exists to be an
   independent, pure-Rust implementation.

@@ -2,43 +2,41 @@
 
 > Living document. Phases, not dates.
 
-## Done (v0.1, unreleased)
+## Done (v0.1.0)
 
 - [x] Hugging Face-compatible pipeline: added tokens, normalizers,
       pre-tokenizers, models, post-processors, decoders, with offset
       tracking into the original input.
 - [x] BPE, WordPiece, WordLevel, Unigram models; matching trainers
-      (BPE output identical to Hugging Face).
+      (BPE output identical to Hugging Face), with progress bars
+      (`progressbar` feature).
 - [x] `tokenizer.json` read/write, byte-compatible with `tokenizers`
       0.23, legacy forms accepted.
 - [x] Truncation (with overflow), padding, pairs, pre-tokenized input,
-      parallel batch encode/decode.
-- [x] Streaming decode (`DecodeStream`) for token-by-token generation.
-- [x] CLI: `train` (presets), `encode`, `decode`, `inspect`.
-- [x] Hub download (`from_pretrained`, feature `hub`) with the shared
-      Hugging Face cache; the CLI accepts model ids.
+      parallel batch encode/decode, streaming decode (`DecodeStream`).
+- [x] Hugging Face Hub download (`from_pretrained`, `hub` feature) using
+      the cache shared with Python.
+- [x] CLI: `train` (presets), `encode`, `decode`, `inspect`; accepts Hub
+      model ids.
 - [x] Golden tests against 11 real tokenizers; reverse interop check
-      with Python; property and regression tests; MSRV 1.85 in CI.
+      with Python; property, regression and fuzz testing; coverage in CI;
+      MSRV 1.85.
+- [x] Criterion benchmark suite (compiled in CI); encode, decode,
+      training and memory comparisons with Python.
+- [x] Public API review (`pub(crate)`, `#[non_exhaustive]`, Rust API
+      Guidelines naming) and rustdoc examples.
+- [x] Release pipeline (`dist`): CLI binaries for six targets, checksums,
+      installers; crates.io publishing.
 
-## Next: v0.1.0 release
+## Next
 
-- [ ] Review the public API surface for 1.0-readiness (naming, what is
-      `pub` vs `pub(crate)`), and add `#[non_exhaustive]` where enums
-      may grow.
-- [ ] Publish `splinter` and `splinter-cli` to crates.io; pre-built CLI
-      binaries (release workflow exists).
-- [ ] rustdoc examples on every public type; docs.rs build.
-
-## Then
-
+- [ ] Tag `v0.1.0`: publishes `morpheme` and `morpheme-cli` to crates.io
+      and attaches binaries to the GitHub Release.
 - [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
-- [x] Progress reporting for trainers (`show_progress`, `progressbar`
-      feature).
-- [x] Criterion benchmark suite (compiled in CI); decode and memory
-      measurements; coverage reporting in CI.
 - [ ] Benchmark regression tracking on dedicated hardware.
 - [ ] Accept the legacy untagged normalizer/decoder JSON forms (no file
       in the fixture set needs them today).
+- [ ] Hash-check Hub downloads against their ETag.
 
 ## Ecosystem
 

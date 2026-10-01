@@ -3,7 +3,7 @@
 Rough comparisons with Python `tokenizers` 0.23.2 (whose core is
 Rust), run on the same `tokenizer.json` files and inputs. Treat these
 as indicative, not definitive: one machine, single runs. For
-repeatable measurements of splinter itself, use the
+repeatable measurements of morpheme itself, use the
 [Criterion suite](#criterion-suite).
 
 **Machine:** Apple M5, 10 cores, 16 GB · rustc 1.98.1, `--release`
@@ -16,7 +16,7 @@ sampled from the words of `examples/corpus.txt`. Sequential = one
 `encode` call per line; batch = one `encode_batch` call (parallel). Both
 libraries produced the **same token count** for every model (checked).
 
-| Tokenizer | splinter sequential | Python sequential | splinter batch | Python batch |
+| Tokenizer | morpheme sequential | Python sequential | morpheme batch | Python batch |
 | --- | --- | --- | --- | --- |
 | bert-base-uncased (WordPiece) | 10.1 MB/s | 5.8 MB/s | 40.4 MB/s | 24.4 MB/s |
 | gpt2 (byte-level BPE) | 11.5 MB/s | 7.6 MB/s | 40.0 MB/s | 32.7 MB/s |
@@ -38,7 +38,7 @@ Same corpus: the ids produced by `encode_batch` above, decoded with
 `skip_special_tokens` on. Sequential = one `decode` call per sequence;
 batch = one `decode_batch` call.
 
-| Tokenizer | splinter sequential | Python sequential | splinter batch | Python batch |
+| Tokenizer | morpheme sequential | Python sequential | morpheme batch | Python batch |
 | --- | --- | --- | --- | --- |
 | bert-base-uncased | 3.1 M tok/s | 2.9 M tok/s | 17.3 M tok/s | 4.9 M tok/s |
 | gpt2 | 11.7 M tok/s | 11.1 M tok/s | 62.9 M tok/s | 3.1 M tok/s |
@@ -48,7 +48,7 @@ batch = one `decode_batch` call.
 Python's `decode_batch` is slower than its own sequential loop here,
 probably because of the cost of passing 100,000 id lists across the
 Python boundary; the sequential columns are the closer comparison.
-splinter's `decode_batch` decodes in parallel.
+morpheme's `decode_batch` decodes in parallel.
 
 ## Memory
 
@@ -57,7 +57,7 @@ loads the tokenizer, encodes the 13.8 MB corpus sequentially and as a
 batch, keeps all 100,000 encodings, and decodes them — i.e. the
 `bench_encode` example vs. the equivalent Python script.
 
-| Tokenizer | splinter | Python `tokenizers` |
+| Tokenizer | morpheme | Python `tokenizers` |
 | --- | --- | --- |
 | bert-base-uncased | 611 MiB | 917 MiB |
 | gpt2 | 389 MiB | 666 MiB |
@@ -75,7 +75,7 @@ words; target vocabulary 8,000; presets as in the CLI (byte-level BPE,
 BERT WordPiece, SentencePiece-style Unigram). Wall-clock time including
 file reading.
 
-| Trainer | splinter | Python `tokenizers` |
+| Trainer | morpheme | Python `tokenizers` |
 | --- | --- | --- |
 | BPE | 0.54 s | 0.81 s |
 | WordPiece | 0.50 s | 0.89 s |
@@ -87,7 +87,7 @@ merges** as Python on this corpus.
 ## Criterion suite
 
 Statistically sound, repeatable measurements live in
-`crates/splinter/benches/` ([Criterion](https://github.com/bheisler/criterion.rs)):
+`crates/morpheme/benches/` ([Criterion](https://github.com/bheisler/criterion.rs)):
 
 | Bench | What it measures |
 | --- | --- |
@@ -97,10 +97,10 @@ Statistically sound, repeatable measurements live in
 
 ```sh
 ./scripts/fetch-hf-fixtures.sh          # the encode bench needs the fixtures
-cargo bench -p splinter                 # everything (~3 minutes)
-cargo bench -p splinter --bench train   # one bench
-cargo bench -p splinter -- --save-baseline main   # then compare a branch:
-cargo bench -p splinter -- --baseline main
+cargo bench -p morpheme                 # everything (~3 minutes)
+cargo bench -p morpheme --bench train   # one bench
+cargo bench -p morpheme -- --save-baseline main   # then compare a branch:
+cargo bench -p morpheme -- --baseline main
 ```
 
 Inputs are generated deterministically, so runs are comparable across
@@ -113,7 +113,7 @@ it: shared CI runners are too noisy for regression thresholds.
 ```sh
 ./scripts/fetch-hf-fixtures.sh
 cargo run --release --example bench_encode -- \
-    crates/splinter/tests/data/hf/gpt2.json my-corpus.txt
+    crates/morpheme/tests/data/hf/gpt2.json my-corpus.txt
 ```
 
 `bench_encode` reports sequential and batch encode and decode

@@ -20,9 +20,9 @@
 ## Crate layout
 
 ```
-splinter/
-├── crates/splinter      # the library
-└── apps/splinter-cli    # `splinter` binary: train / encode / decode / inspect
+morpheme/
+├── crates/morpheme      # the library
+└── apps/morpheme-cli    # `morpheme` binary: train / encode / decode / inspect
 ```
 
 ## Pipeline
@@ -63,7 +63,7 @@ exactly, including for normalizers that expand or delete characters.
 
 ## Components
 
-Each stage is a trait in `splinter::traits` — `Normalizer`,
+Each stage is a trait in `morpheme::traits` — `Normalizer`,
 `PreTokenizer`, `Model`, `PostProcessor`, `Decoder`, `Trainer` — and
 each module has a wrapper enum (`NormalizerWrapper`,
 `PreTokenizerWrapper`, `ModelWrapper`, `PostProcessorWrapper`,
@@ -86,7 +86,7 @@ Details: [`interop.md`](./interop.md).
 
 ## Error model
 
-One `splinter::Error` enum (`thiserror`). Malformed input — bad JSON,
+One `morpheme::Error` enum (`thiserror`). Malformed input — bad JSON,
 unknown types, merges that reference missing tokens, invalid regexes,
 out-of-range ids — is always an `Err`, never a panic. Encoding never
 fails for lack of vocabulary when the model has an `unk_token` or byte
@@ -113,9 +113,9 @@ the CLI enables it.
 
 | Layer | Where |
 | --- | --- |
-| Golden interop vs 11 real tokenizers | `crates/splinter/tests/hf_golden.rs`, fixtures pinned in `scripts/hf-fixtures.txt`, outputs from `scripts/gen_golden.py` |
-| Reverse interop (Python loads splinter files) | `scripts/check_python_interop.py` (CI job) |
+| Golden interop vs 11 real tokenizers | `crates/morpheme/tests/hf_golden.rs`, fixtures pinned in `scripts/hf-fixtures.txt`, outputs from `scripts/gen_golden.py` |
+| Reverse interop (Python loads morpheme files) | `scripts/check_python_interop.py` (CI job) |
 | Per-component ground truth | unit tests next to each component |
-| Properties (lossless round-trip, valid offsets) | `crates/splinter/tests/roundtrip.rs` |
-| Regressions for past defects | `crates/splinter/tests/regressions.rs` |
-| CLI | `apps/splinter-cli/tests/cli.rs` |
+| Properties (lossless round-trip, valid offsets) | `crates/morpheme/tests/roundtrip.rs` |
+| Regressions for past defects | `crates/morpheme/tests/regressions.rs` |
+| CLI | `apps/morpheme-cli/tests/cli.rs` |

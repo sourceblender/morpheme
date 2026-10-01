@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Something in splinter is broken
+about: Something in morpheme is broken
 title: "[bug] "
 labels: bug
 assignees: ""
@@ -33,7 +33,7 @@ What actually happened. Include the full error message.
 
 ## Environment
 
-- `splinter` version / commit: <!-- e.g. v0.1.0, or `git rev-parse HEAD` -->
+- `morpheme` version / commit: <!-- e.g. v0.1.0, or `git rev-parse HEAD` -->
 - Rust version (`rustc --version`):
 - OS:
 - Backtrace (if applicable): paste `RUST_BACKTRACE=full cargo run ...`

@@ -1,8 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/splinter",
-    "apps/splinter-cli",
+    "crates/morpheme",
+    "apps/morpheme-cli",
 ]
 # cargo-fuzz targets build on nightly in their own workspace.
 exclude = ["fuzz"]
@@ -11,8 +11,8 @@ exclude = ["fuzz"]
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
-repository = "https://github.com/sourceblender/splinter"
-authors = ["The splinter authors"]
+repository = "https://github.com/sourceblender/morpheme"
+authors = ["The morpheme authors"]
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

@@ -1,4 +1,4 @@
-# Contributing to splinter
+# Contributing to morpheme
 
 Thanks for your interest in contributing! This document covers the day-to-day workflow. The deeper design discussion lives in [`docs/contributing.md`](./docs/contributing.md).
 

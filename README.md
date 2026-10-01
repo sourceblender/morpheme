@@ -1,6 +1,6 @@
 <div align="center">
 
-# splinter
+# morpheme
 
 **Fast, pure-Rust subword tokenization, compatible with Hugging Face [`tokenizers`](https://huggingface.co/docs/tokenizers/en/index).**
 
@@ -10,13 +10,13 @@
 
 </div>
 
-`splinter` loads, runs, trains and saves tokenizers in the Hugging Face
+`morpheme` loads, runs, trains and saves tokenizers in the Hugging Face
 `tokenizer.json` format — BPE, WordPiece, WordLevel and Unigram — and
 produces **the same ids, tokens, offsets and decoded text** as the
 reference implementation.
 
 - **Compatible** — reads and writes `tokenizer.json`; files trained with
-  splinter load in Python `tokenizers` and encode identically, and vice
+  morpheme load in Python `tokenizers` and encode identically, and vice
   versa.
 - **Verified** — every release is checked against 11 real, pinned
   tokenizers (BERT, GPT-2, RoBERTa, GPT-NeoX, Qwen2.5, Llama, T5,
@@ -32,9 +32,9 @@ Not yet published to crates.io; depend on it from git:
 
 ```toml
 [dependencies]
-splinter = { git = "https://github.com/sourceblender/splinter" }
+morpheme = { git = "https://github.com/sourceblender/morpheme" }
 # or, to download tokenizers from the Hugging Face Hub:
-splinter = { git = "https://github.com/sourceblender/splinter", features = ["hub"] }
+morpheme = { git = "https://github.com/sourceblender/morpheme", features = ["hub"] }
 ```
 
 ## Library
@@ -42,7 +42,7 @@ splinter = { git = "https://github.com/sourceblender/splinter", features = ["hub
 Load any `tokenizer.json` and encode:
 
 ```rust
-use splinter::Tokenizer;
+use morpheme::Tokenizer;
 
 let tokenizer = Tokenizer::from_file("bert-base-uncased/tokenizer.json")?;
 
@@ -63,7 +63,7 @@ go to the standard Hugging Face cache (shared with Python) and
 `HF_TOKEN`, `HF_HOME`, `HF_ENDPOINT` and `HF_HUB_OFFLINE` work as usual:
 
 ```rust
-use splinter::{FromPretrainedParameters, Tokenizer};
+use morpheme::{FromPretrainedParameters, Tokenizer};
 
 let tokenizer = Tokenizer::from_pretrained("google-bert/bert-base-uncased", None)?;
 let pinned = Tokenizer::from_pretrained(
@@ -79,10 +79,10 @@ applies the file's padding/truncation settings.
 Train a GPT-2-style byte-level BPE tokenizer:
 
 ```rust
-use splinter::models::Bpe;
-use splinter::pre_tokenizers::ByteLevel;
-use splinter::trainers::BpeTrainer;
-use splinter::{AddedToken, Tokenizer};
+use morpheme::models::Bpe;
+use morpheme::pre_tokenizers::ByteLevel;
+use morpheme::trainers::BpeTrainer;
+use morpheme::{AddedToken, Tokenizer};
 
 let mut tokenizer = Tokenizer::new(Bpe::default())
     .with_pre_tokenizer(ByteLevel::new(false, true, true))
@@ -103,20 +103,20 @@ assert_eq!(tokenizer.decode(&ids, false)?, "Any text — even 😀 — round-tri
 ## CLI
 
 ```sh
-cargo install --path apps/splinter-cli
+cargo install --path apps/morpheme-cli
 
 # Train (presets: byte-level for bpe, bert for wordpiece,
 # sentencepiece for unigram, whitespace for wordlevel)
-splinter train --model bpe --vocab-size 5000 --out tokenizer.json examples/corpus.txt
+morpheme train --model bpe --vocab-size 5000 --out tokenizer.json examples/corpus.txt
 
-splinter encode -t tokenizer.json "the quick brown fox"
-splinter encode -t tokenizer.json --json --pair "second" "first"
-splinter decode -t tokenizer.json 84,259,420,1209,513   # → "the quick brown fox"
-splinter inspect -t tokenizer.json
+morpheme encode -t tokenizer.json "the quick brown fox"
+morpheme encode -t tokenizer.json --json --pair "second" "first"
+morpheme decode -t tokenizer.json 84,259,420,1209,513   # → "the quick brown fox"
+morpheme inspect -t tokenizer.json
 
 # Any Hugging Face Hub model id works in place of a path (cached locally)
-splinter encode -t google-bert/bert-base-uncased "Hello, world!"
-splinter inspect -t meta-llama/Llama-3.2-1B --revision main   # gated: set HF_TOKEN
+morpheme encode -t google-bert/bert-base-uncased "Hello, world!"
+morpheme inspect -t meta-llama/Llama-3.2-1B --revision main   # gated: set HF_TOKEN
 ```
 
 Every command uses the full pipeline stored in the file; `--help` on
@@ -145,7 +145,7 @@ Known differences from Hugging Face are listed in
   JSON must match outputs recorded from `tokenizers` 0.23.2
   ([`scripts/gen_golden.py`](./scripts/gen_golden.py)).
 - [`scripts/check_python_interop.py`](./scripts/check_python_interop.py) —
-  the reverse direction: splinter-trained files loaded by Python.
+  the reverse direction: morpheme-trained files loaded by Python.
 - Property tests (lossless byte-level round-trips, valid offsets),
   per-component ground-truth tests, and regression tests for past bugs.
 
@@ -157,9 +157,9 @@ cargo test --workspace
 ## Project layout
 
 ```
-splinter/
-├── crates/splinter/     # the library
-├── apps/splinter-cli/   # the `splinter` binary
+morpheme/
+├── crates/morpheme/     # the library
+├── apps/morpheme-cli/   # the `morpheme` binary
 ├── docs/                # design and module documentation
 ├── examples/            # sample corpus and trained tokenizers
 └── scripts/             # fixture download, golden generation, interop check
@@ -176,10 +176,10 @@ splinter/
 
 ## Acknowledgements
 
-splinter's file format and component semantics follow Hugging Face
+morpheme's file format and component semantics follow Hugging Face
 [`tokenizers`](https://github.com/huggingface/tokenizers) (Apache-2.0),
 which served as the behavioral reference.
 
 ## License
 
-[MIT](./LICENSE) © 2026 The splinter authors.
+[MIT](./LICENSE) © 2026 The morpheme authors.

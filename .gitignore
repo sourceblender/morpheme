@@ -16,4 +16,4 @@ Cargo.lock.bak
 # Generated trainer outputs (see scripts/regenerate-examples.sh for the tracked ones)
 /tokenizer.json
 # Downloaded HF tokenizer fixtures (scripts/fetch-hf-fixtures.sh)
-crates/splinter/tests/data/
+crates/morpheme/tests/data/

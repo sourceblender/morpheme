@@ -1,6 +1,6 @@
 # `Tokenizer` — the full pipeline
 
-`splinter::Tokenizer` holds an optional normalizer, pre-tokenizer,
+`morpheme::Tokenizer` holds an optional normalizer, pre-tokenizer,
 post-processor and decoder, a model, the added tokens, and optional
 truncation and padding settings. It is `Clone`, `Send` and `Sync`, so one
 instance can serve many threads.
@@ -25,7 +25,7 @@ sets the `revision` (branch, tag or commit; default `main`), `token`,
 - **Cache.** Files are stored in the standard `huggingface_hub` layout
   (`models--org--name/{blobs,refs,snapshots}`) under `HF_HUB_CACHE`,
   else `$HF_HOME/hub`, else `~/.cache/huggingface/hub`, so Python and
-  splinter share downloads. A pinned commit that is already cached is
+  morpheme share downloads. A pinned commit that is already cached is
   served without any network request.
 - **Auth.** `params.token`, else `HF_TOKEN`, else the token saved by
   `huggingface-cli login` (`$HF_HOME/token`). The token is only sent to
@@ -38,7 +38,7 @@ sets the `revision` (branch, tag or commit; default `main`), `token`,
 - `HF_ENDPOINT` points at a mirror or private Hub.
 
 ```rust,ignore
-use splinter::{FromPretrainedParameters, Tokenizer};
+use morpheme::{FromPretrainedParameters, Tokenizer};
 
 let params = FromPretrainedParameters::default().revision("v1.0").token("hf_...");
 let tokenizer = Tokenizer::from_pretrained("my-org/my-model", Some(params))?;
@@ -140,13 +140,13 @@ PaddingParams { strategy: BatchLongest | Fixed(n), direction: Right, pad_to_mult
 ## Example
 
 ```rust
-use splinter::models::WordLevel;
-use splinter::pre_tokenizers::Whitespace;
-use splinter::processors::BertProcessing;
-use splinter::{AddedToken, PaddingParams, PaddingStrategy, Tokenizer, TruncationParams};
+use morpheme::models::WordLevel;
+use morpheme::pre_tokenizers::Whitespace;
+use morpheme::processors::BertProcessing;
+use morpheme::{AddedToken, PaddingParams, PaddingStrategy, Tokenizer, TruncationParams};
 use std::collections::HashMap;
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     let vocab: HashMap<String, u32> = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "héllo", "world", "a", "b", "c"]
         .iter().enumerate().map(|(i, t)| (t.to_string(), i as u32)).collect();
     let model = WordLevel::builder().vocab(vocab).unk_token("[UNK]").build()?;

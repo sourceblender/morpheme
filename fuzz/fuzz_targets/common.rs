@@ -5,14 +5,14 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use splinter::{Encoding, PaddingStrategy, Tokenizer};
+use morpheme::{Encoding, PaddingStrategy, Tokenizer};
 
-/// Real tokenizers from `crates/splinter/tests/data/hf` (fetched by
+/// Real tokenizers from `crates/morpheme/tests/data/hf` (fetched by
 /// `scripts/fetch-hf-fixtures.sh`); missing files are skipped.
 pub fn fixtures() -> &'static [(&'static str, Tokenizer)] {
     static FIXTURES: OnceLock<Vec<(&'static str, Tokenizer)>> = OnceLock::new();
     FIXTURES.get_or_init(|| {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates/splinter/tests/data/hf");
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates/morpheme/tests/data/hf");
         ["bert-base-uncased", "gpt2", "llama", "t5-small", "qwen2.5"]
             .into_iter()
             .filter_map(|name| {

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate golden encode/decode outputs from Hugging Face `tokenizers`.
 
-The goldens are the ground truth for `crates/splinter/tests/hf_golden.rs`:
-splinter must produce byte-identical ids, tokens, offsets, type ids,
+The goldens are the ground truth for `crates/morpheme/tests/hf_golden.rs`:
+morpheme must produce byte-identical ids, tokens, offsets, type ids,
 masks, and decoded strings for every fixture in `scripts/hf-fixtures.txt`.
 
 Usage (needs the fixtures from scripts/fetch-hf-fixtures.sh):
@@ -10,7 +10,7 @@ Usage (needs the fixtures from scripts/fetch-hf-fixtures.sh):
     uv run --with tokenizers==0.23.2 scripts/gen_golden.py
 
 Re-run whenever the sentence list or fixture set changes, and commit the
-resulting `crates/splinter/tests/golden/*.json`.
+resulting `crates/morpheme/tests/golden/*.json`.
 """
 
 import json
@@ -21,8 +21,8 @@ from tokenizers import Tokenizer
 from tokenizers.decoders import DecodeStream
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DATA = ROOT / "crates/splinter/tests/data/hf"
-OUT = ROOT / "crates/splinter/tests/golden"
+DATA = ROOT / "crates/morpheme/tests/data/hf"
+OUT = ROOT / "crates/morpheme/tests/golden"
 
 SENTENCES = [
     "",

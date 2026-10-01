@@ -5,7 +5,7 @@
 
 use arbitrary::Arbitrary;
 use libfuzzer_sys::fuzz_target;
-use splinter::{NormalizedString, OffsetRange, SplitDelimiterBehavior};
+use morpheme::{NormalizedString, OffsetRange, SplitDelimiterBehavior};
 
 #[derive(Arbitrary, Debug)]
 enum Behavior {

@@ -6,9 +6,9 @@
 ## Workspace layout
 
 ```
-splinter/
-├── crates/splinter/        # library — public API lives here
-├── apps/splinter-cli/      # CLI binary
+morpheme/
+├── crates/morpheme/        # library — public API lives here
+├── apps/morpheme-cli/      # CLI binary
 ├── docs/                   # markdown documentation (this folder)
 ├── examples/               # sample corpus + trained tokenizers
 ├── scripts/                # HF fixtures, golden generation, interop check
@@ -34,12 +34,12 @@ First run:
 ```sh
 cargo build --workspace
 cargo test --workspace
-cargo run -p splinter-cli -- --help
+cargo run -p morpheme-cli -- --help
 ```
 
 ## Golden tests and Hugging Face fixtures
 
-`crates/splinter/tests/hf_golden.rs` compares splinter with Python
+`crates/morpheme/tests/hf_golden.rs` compares morpheme with Python
 `tokenizers` on real tokenizer files. The files are pinned in
 `scripts/hf-fixtures.txt` and downloaded (not committed) by:
 
@@ -47,7 +47,7 @@ cargo run -p splinter-cli -- --help
 ./scripts/fetch-hf-fixtures.sh      # or: just fixtures
 ```
 
-The expected outputs in `crates/splinter/tests/golden/` are generated
+The expected outputs in `crates/morpheme/tests/golden/` are generated
 from Python and committed. Regenerate them after changing the input
 sentences or the fixture list (needs [`uv`](https://docs.astral.sh/uv/)):
 
@@ -56,10 +56,10 @@ just golden    # uv run --with tokenizers==0.23.2 scripts/gen_golden.py
 ```
 
 Never hand-edit golden files to make a test pass: a golden mismatch
-means splinter disagrees with the reference implementation.
+means morpheme disagrees with the reference implementation.
 
 `just interop` checks the reverse direction (Python loading
-splinter-trained files).
+morpheme-trained files).
 
 ## Local gate
 
@@ -87,11 +87,11 @@ When you start work on a module:
 ## Testing
 
 - **Unit tests** live next to the code (`#[cfg(test)] mod tests`).
-- **Integration tests** live in `crates/splinter/tests/`.
+- **Integration tests** live in `crates/morpheme/tests/`.
 - **Property tests** use `proptest` for round-trip and offset
-  invariants (`crates/splinter/tests/roundtrip.rs`).
+  invariants (`crates/morpheme/tests/roundtrip.rs`).
 - **Regression tests** for fixed bugs go in
-  `crates/splinter/tests/regressions.rs`, one test per bug, named after it.
+  `crates/morpheme/tests/regressions.rs`, one test per bug, named after it.
 
 ### Coverage
 
@@ -139,7 +139,7 @@ for 5 minutes and uploads any crash as an artifact.
 
 ## Benchmarking
 
-- `cargo bench -p splinter` runs the Criterion suite (`encode`, `train`,
+- `cargo bench -p morpheme` runs the Criterion suite (`encode`, `train`,
   `normalize`); use `--save-baseline` / `--baseline` to compare a change
   against `main`. CI only compiles it.
 - `cargo run --release --example bench_encode -- <tokenizer.json> <text>`

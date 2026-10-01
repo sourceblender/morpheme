@@ -26,10 +26,10 @@ the `Metaspace` pre-tokenizer (or a `Prepend`/`Replace` normalizer), as in
 HF.
 
 ```rust
-use splinter::models::Unigram;
-use splinter::Model;
+use morpheme::models::Unigram;
+use morpheme::Model;
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     let model = Unigram::new(
         vec![
             ("<unk>".into(), 0.0),

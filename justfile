@@ -18,7 +18,7 @@ build:
 
 # Run the CLI.
 run *ARGS:
-    cargo run -p splinter-cli -- {{ ARGS }}
+    cargo run -p morpheme-cli -- {{ ARGS }}
 
 # Apply formatting.
 fmt:
@@ -37,13 +37,13 @@ fixtures:
 golden: fixtures
     uv run --with tokenizers==0.23.2 scripts/gen_golden.py
 
-# Check that Python `tokenizers` loads splinter-trained files identically.
+# Check that Python `tokenizers` loads morpheme-trained files identically.
 interop:
     uv run --with tokenizers==0.23.2 scripts/check_python_interop.py
 
 # Run the Criterion benchmark suite (extra args go to Criterion).
 bench *ARGS: fixtures
-    cargo bench -p splinter -- {{ ARGS }}
+    cargo bench -p morpheme -- {{ ARGS }}
 
 # Line coverage summary (needs cargo-llvm-cov).
 coverage: fixtures

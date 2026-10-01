@@ -21,11 +21,11 @@ For each pre-token (word):
 Real BERT vocabularies have no end-of-word marker; none is added.
 
 ```rust
-use splinter::models::{WordLevel, WordPiece};
-use splinter::Model;
+use morpheme::models::{WordLevel, WordPiece};
+use morpheme::Model;
 use std::collections::HashMap;
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     let vocab: HashMap<String, u32> = [("[UNK]", 0), ("un", 1), ("##aff", 2), ("##able", 3), ("hello", 4)]
         .iter().map(|(t, i)| (t.to_string(), *i)).collect();
     let wp = WordPiece::builder().vocab(vocab.clone()).build()?;

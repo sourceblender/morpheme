@@ -35,7 +35,7 @@ jobs:
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@v6
         with:
-          path: crates/splinter/tests/data
+          path: crates/morpheme/tests/data
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         run: ./scripts/fetch-hf-fixtures.sh

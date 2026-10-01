@@ -48,7 +48,7 @@ for Unigram. Bars are hidden automatically when stderr is not a
 terminal, so logs and CI output stay clean. Pass `show_progress(false)`
 to silence them, or build with `default-features = false` to drop the
 `indicatif` dependency entirely. The CLI shows progress only when
-stderr is a terminal; `splinter train --quiet` turns it off.
+stderr is a terminal; `morpheme train --quiet` turns it off.
 
 ## How they work
 
@@ -72,11 +72,11 @@ stderr is a terminal; `splinter train --quiet` turns it off.
 ## Example
 
 ```rust
-use splinter::models::{Bpe, Unigram, WordPiece};
-use splinter::normalizers::{BertNormalizer, Nfkc};
-use splinter::pre_tokenizers::{BertPreTokenizer, ByteLevel, Metaspace};
-use splinter::trainers::{BpeTrainer, UnigramTrainer, WordPieceTrainer};
-use splinter::{AddedToken, Tokenizer};
+use morpheme::models::{Bpe, Unigram, WordPiece};
+use morpheme::normalizers::{BertNormalizer, Nfkc};
+use morpheme::pre_tokenizers::{BertPreTokenizer, ByteLevel, Metaspace};
+use morpheme::trainers::{BpeTrainer, UnigramTrainer, WordPieceTrainer};
+use morpheme::{AddedToken, Tokenizer};
 
 const CORPUS: &[&str] = &[
     "the quick brown fox jumps over the lazy dog",
@@ -84,7 +84,7 @@ const CORPUS: &[&str] = &[
     "pack my box with five dozen liquor jugs",
 ];
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     // GPT-2 style byte-level BPE.
     let mut gpt = Tokenizer::new(Bpe::default())
         .with_pre_tokenizer(ByteLevel::new(false, true, true))
@@ -137,7 +137,7 @@ fn main() -> splinter::Result<()> {
   identical vocab). Training is deterministic.
 - Where HF itself is nondeterministic — symbol ids assigned in hash-map
   order when a prefix/suffix is set, `limit_alphabet` ties, Unigram's
-  word iteration and required-char penalties — splinter uses a fixed
+  word iteration and required-char penalties — morpheme uses a fixed
   order (sorted words, code-point tie-breaks, fixed-size parallel
   chunks), so its results are reproducible across runs and machines.
 - **Unigram** is deterministic and close to HF: on test corpora the

@@ -34,13 +34,13 @@ output of the previous one.
 ## Example
 
 ```rust
-use splinter::decoders::{ByteFallback, Fuse, Replace, Sequence, Strip, WordPiece};
-use splinter::pre_tokenizers::{ByteLevel, Metaspace};
-use splinter::Decoder;
+use morpheme::decoders::{ByteFallback, Fuse, Replace, Sequence, Strip, WordPiece};
+use morpheme::pre_tokenizers::{ByteLevel, Metaspace};
+use morpheme::Decoder;
 
 fn s(v: &[&str]) -> Vec<String> { v.iter().map(|x| x.to_string()).collect() }
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     assert_eq!(WordPiece::default().decode(s(&["hello", "world", "##s", "!"]))?, "hello worlds!");
     assert_eq!(ByteLevel::default().decode(s(&["Hello", "Ġw", "Ã¶", "rld"]))?, "Hello wörld");
     assert_eq!(Metaspace::default().decode(s(&["▁Hello", "▁world"]))?, "Hello world");

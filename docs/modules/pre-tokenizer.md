@@ -41,8 +41,8 @@ tables. Regexes are compiled once, when the component is built or loaded.
 ## Example
 
 ```rust
-use splinter::pre_tokenizers::{BertPreTokenizer, ByteLevel, Digits, Metaspace, PrependScheme, Sequence, Split, Whitespace, WhitespaceSplit};
-use splinter::{OffsetType, PreTokenizedString, PreTokenizer, SplitDelimiterBehavior};
+use morpheme::pre_tokenizers::{BertPreTokenizer, ByteLevel, Digits, Metaspace, PrependScheme, Sequence, Split, Whitespace, WhitespaceSplit};
+use morpheme::{OffsetType, PreTokenizedString, PreTokenizer, SplitDelimiterBehavior};
 
 fn pieces(pt: &impl PreTokenizer, s: &str) -> Vec<(String, (usize, usize))> {
     let mut pts = PreTokenizedString::from(s);
@@ -53,7 +53,7 @@ fn pieces(pt: &impl PreTokenizer, s: &str) -> Vec<(String, (usize, usize))> {
         .collect()
 }
 
-fn main() -> splinter::Result<()> {
+fn main() -> morpheme::Result<()> {
     let p = pieces(&Whitespace, "Hey man!");
     assert_eq!(p, [("Hey".into(), (0, 3)), ("man".into(), (4, 7)), ("!".into(), (7, 8))]);
     let p = pieces(&WhitespaceSplit, "Hey man!");
@@ -73,7 +73,7 @@ fn main() -> splinter::Result<()> {
 
     // Llama-3 / Qwen style: a regex Split followed by other pre-tokenizers.
     let seq = Sequence::new(vec![
-        Split::new(splinter::pattern::SplitPattern::Regex(r"\p{N}{1,3}".into()), SplitDelimiterBehavior::Isolated, false)?.into(),
+        Split::new(morpheme::pattern::SplitPattern::Regex(r"\p{N}{1,3}".into()), SplitDelimiterBehavior::Isolated, false)?.into(),
         Digits::new(true).into(),
     ]);
     let words: Vec<String> = pieces(&seq, "abc12345").into_iter().map(|p| p.0).collect();
