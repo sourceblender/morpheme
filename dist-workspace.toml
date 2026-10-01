@@ -24,3 +24,6 @@ publish-jobs = ["./publish-crates"]
 github-custom-job-permissions = { "publish-crates" = { contents = "read" } }
 # Run the release plan on PRs that touch release config, without building.
 pr-run-mode = "plan"
+# release.yml is hand-edited after generation to pin actions to commit
+# SHAs (see the note at its top); don't fail the plan over that.
+allow-dirty = ["ci"]

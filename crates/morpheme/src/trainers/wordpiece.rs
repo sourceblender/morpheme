@@ -118,9 +118,21 @@ impl WordPieceTrainerBuilder {
 /// assert!(tokens.iter().skip(1).all(|t| t.starts_with("##")), "{tokens:?}");
 /// # Ok::<(), morpheme::Error>(())
 /// ```
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct WordPieceTrainer {
     bpe: BpeTrainer,
+}
+
+/// The same trainer as `WordPieceTrainer::builder().build()`: HF defaults
+/// with the `##` continuation prefix. (Deriving `Default` would wrap
+/// `BpeTrainer::default()`, which has no prefix and would train a
+/// vocabulary without any `##` tokens.)
+impl Default for WordPieceTrainer {
+    fn default() -> Self {
+        WordPieceTrainerBuilder::default()
+            .build()
+            .expect("the default configuration is valid")
+    }
 }
 
 impl WordPieceTrainer {
@@ -190,6 +202,37 @@ mod tests {
             assert_eq!(rebuilt, w);
         }
         assert_eq!(m.tokenize("xyz").unwrap()[0].value, "[UNK]");
+    }
+
+    #[test]
+    fn default_equals_builder_and_trains_continuation_tokens() {
+        let mut t = WordPieceTrainer::default();
+        assert_eq!(
+            t.bpe.continuing_subword_prefix.as_deref(),
+            Some("##"),
+            "Default must equal builder().build()"
+        );
+        t.feed(
+            ["playing played player plays"].into_iter(),
+            whitespace_words,
+        )
+        .unwrap();
+        let mut m = WordPiece::default();
+        t.train(&mut m).unwrap();
+        assert!(
+            m.vocab().keys().any(|k| k.starts_with("##")),
+            "no ## tokens in {:?}",
+            m.vocab().keys().collect::<Vec<_>>()
+        );
+        // Every corpus word tokenizes (no [UNK] needed) and rebuilds.
+        for w in ["playing", "played", "player", "plays"] {
+            let toks = m.tokenize(w).unwrap();
+            let rebuilt: String = toks
+                .iter()
+                .map(|t| t.value.trim_start_matches("##"))
+                .collect();
+            assert_eq!(rebuilt, w, "{toks:?}");
+        }
     }
 
     #[test]

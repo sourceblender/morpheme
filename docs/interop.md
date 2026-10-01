@@ -136,6 +136,18 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
 - **No id gaps from `WordLevelTrainer`.** A special token that is
   listed twice or also occurs in the corpus gets a single id; HF assigns
   it again, leaving unused ids.
+- **No duplicate pieces from `UnigramTrainer`.** A special token or
+  `unk_token` that also occurs as a corpus piece (or a special token
+  listed twice) gets a single id, the special one. HF emits the piece a
+  second time, and the duplicate shadows the special id on lookup.
+- **`UnigramTrainer` enforces `vocab_size`.** The special tokens and the
+  `unk_token` count toward `vocab_size`, the trained model never exceeds
+  it, and a `vocab_size` too small for them plus the required chars is an
+  `Error::Training`. HF only checks the required chars against
+  `vocab_size` and can return more pieces than requested.
+- **`WordPieceTrainer::default()` uses the `##` prefix**, the same as
+  `WordPieceTrainer::builder().build()`. HF's derived `Default` has no
+  continuation prefix, so it trains a vocabulary without `##` tokens.
 - **Safe added-token ids.** New added tokens receive ids above the
   highest occupied model or added-token id, including sparse vocabularies.
   Exhausting the `u32` id range returns an error. HF starts allocation
@@ -189,6 +201,11 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
   first chunk. Later chunks are identical. `tests/hf_golden.rs` strips
   the re-emitted prompt from HF's recorded first chunk for this case.
 
-Kept on purpose because HF does it: a BPE model with neither
-`unk_token` nor `byte_fallback` silently drops characters it cannot
-represent.
+Kept on purpose because HF does it:
+
+- A BPE model with neither `unk_token` nor `byte_fallback` silently
+  drops characters it cannot represent.
+- `BpeTrainer` and `WordPieceTrainer` do not error when the special
+  tokens and the alphabet alone exceed `vocab_size`; they learn no merges
+  and return the larger vocabulary (see
+  [`docs/modules/trainer.md`](modules/trainer.md#vocab_size)).

@@ -44,8 +44,36 @@ All are built with `X::builder()...build()`, which returns a `Result`:
 every trainer rejects `vocab_size` 0; BPE and WordPiece also reject
 `limit_alphabet` 0 and `max_token_length` 0; Unigram also rejects
 `shrinking_factor` outside `(0, 1)`, `n_sub_iterations` 0 and
-`max_piece_length` 0. Options are set only through the builders.
-Special tokens always get the first ids, in the order given.
+`max_piece_length` 0. Options are set only through the builders;
+`X::default()` is exactly `X::builder().build()` (so
+`WordPieceTrainer::default()` has the `##` prefix). Special tokens
+always get the first ids, in the order given; a special token listed
+twice, or one that also occurs in the corpus (Unigram, WordLevel), gets
+a single id.
+
+## `vocab_size`
+
+`vocab_size` counts every token of the trained model: the special
+tokens (and, for Unigram, the `unk_token`) plus the learned tokens.
+
+- **Unigram** treats it as a hard cap. The trained model never has more
+  than `vocab_size` pieces, and `train` returns `Error::Training` — without
+  changing the tokenizer — when `vocab_size` cannot hold the unknown
+  token, the special tokens and every required char (each char of the
+  corpus plus `initial_alphabet`). The model can have *fewer* pieces when
+  the corpus does not support `vocab_size` distinct pieces.
+- **WordLevel** keeps at most `vocab_size` tokens, special tokens
+  included.
+- **BPE and WordPiece** merge until the vocabulary reaches `vocab_size`
+  (special tokens and alphabet included) or no pair is frequent enough.
+  Like HF, they do *not* error when the special tokens and the alphabet
+  alone already exceed `vocab_size`: the alphabet is kept whole, no merge
+  is learned, and the model is larger than requested. With
+  `ByteLevel::alphabet()` (256 chars) that happens for any `vocab_size`
+  below 257 + specials — check `vocab_size()` after training if the exact
+  size matters. (This keeps morpheme byte-for-byte identical to HF's
+  `BpeTrainer`, which the parity tests verify, and keeps commands such as
+  `morpheme train --model bpe --vocab-size 100` working as in HF.)
 
 ## Progress
 
@@ -55,7 +83,9 @@ feature (on by default), trainers draw progress bars on stderr:
 "Count pairs" and "Compute merges" for BPE and WordPiece, or "Suffix
 array seeds" and "EM training" (with the current/target piece count)
 for Unigram. Bars are hidden automatically when stderr is not a
-terminal, so logs and CI output stay clean. Pass `show_progress(false)`
+terminal, so logs and CI output stay clean. A bar that is still running
+when training fails is finished on the way out, so the error message
+starts on its own line. Pass `show_progress(false)`
 to silence them, or build with `default-features = false` to drop the
 `indicatif` dependency entirely. The CLI shows progress only when
 stderr is a terminal; `morpheme train --quiet` turns it off.
@@ -76,8 +106,9 @@ stderr is a terminal; `morpheme train --quiet` turns it off.
   found with a pure-Rust suffix array), runs EM with a digamma prior,
   prunes the pieces whose removal costs the least likelihood (shrinking
   by `shrinking_factor` per round), keeps every required char, then adds
-  special tokens and cuts to `vocab_size`. It fails if `vocab_size` is
-  smaller than the number of required chars.
+  the unknown and special tokens and cuts to `vocab_size`. It fails if
+  `vocab_size` is smaller than the number of required chars plus those
+  tokens (see [`vocab_size`](#vocab_size)).
 
 ## Example
 
