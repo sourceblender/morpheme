@@ -37,6 +37,8 @@
 - [x] Exercise all four fuzz targets for five minutes in CI (2026-10-01).
 
 - [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
+- [x] Repeatable local performance baselines with input fingerprints, diverse
+      text, isolated load memory, and opt-in timing/RSS regression thresholds.
 - [ ] Benchmark regression tracking on dedicated hardware.
 - [ ] Accept the legacy untagged normalizer/decoder JSON forms (no file
       in the fixture set needs them today).

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Repeatable isolated performance probes, diverse/repeated corpora, peak RSS,
+  compatible-baseline regression checks, and a manual artifact workflow.
+
 - CLI token counting with explicit special-token and padding/truncation
   behavior, bounded JSONL batch encoding/decoding, and JSON inspection.
 
