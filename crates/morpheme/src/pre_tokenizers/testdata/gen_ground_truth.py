@@ -33,6 +33,8 @@ CONFIGS = [
     {"type": "Split", "pattern": {"Regex": QWEN}, "behavior": "Isolated", "invert": False},
     {"type": "Split", "pattern": {"String": " "}, "behavior": "MergedWithNext", "invert": False},
     {"type": "Split", "pattern": {"Regex": "\\w+"}, "behavior": "Removed", "invert": True},
+    {"type": "Split", "pattern": {"String": " "}, "behavior": "Contiguous", "invert": False},
+    {"type": "Split", "pattern": {"Regex": "\\s+"}, "behavior": "MergedWithPrevious", "invert": False},
     {"type": "Sequence", "pretokenizers": [{"type": "WhitespaceSplit"}, {"type": "Metaspace", "replacement": "▁", "prepend_scheme": "always", "split": True}]},
     {"type": "Sequence", "pretokenizers": [{"type": "Split", "pattern": {"Regex": QWEN}, "behavior": "Isolated", "invert": False}, {"type": "ByteLevel", "add_prefix_space": False, "trim_offsets": False, "use_regex": False}]},
 ]
