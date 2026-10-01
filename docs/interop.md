@@ -136,7 +136,11 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
   ties, Unigram), morpheme uses a fixed order, so results are
   reproducible but can differ from a particular HF run in those cases.
 - **Unigram subword-regularization sampling** (`alpha`, `nbest_size`) is
-  not implemented; it is not part of `tokenizer.json`.
+  a runtime setting (`Unigram::set_sampling` / `with_seed`), as in HF
+  and SentencePiece; it is never read from or written to
+  `tokenizer.json`, so a sampling model serializes exactly like a
+  Viterbi one and loads back deterministic. See
+  [`docs/modules/unigram.md`](modules/unigram.md).
 - **Hub downloads** (`from_pretrained`, feature `hub`) fetch only
   `tokenizer.json`, not the other files of a repository, and use the
   same cache layout as `huggingface_hub`.

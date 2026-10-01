@@ -9,6 +9,7 @@ use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::lattice::Lattice;
+use super::prng::Prng;
 use super::trie::Trie;
 use crate::Token;
 use crate::error::{Error, Result};
@@ -115,6 +116,10 @@ pub struct Unigram {
     fuse_unk: bool,
     is_optimized: bool,
     byte_fallback: bool,
+    /// `(alpha, nbest_size)` when subword-regularization sampling is on.
+    sampling: Option<(f64, i32)>,
+    /// Seed for reproducible sampling; `None` draws from entropy.
+    seed: Option<u64>,
     cache: SentenceCache,
 }
 
@@ -132,6 +137,8 @@ impl Clone for Unigram {
             fuse_unk: self.fuse_unk,
             is_optimized: self.is_optimized,
             byte_fallback: self.byte_fallback,
+            sampling: self.sampling,
+            seed: self.seed,
             cache: SentenceCache::new(),
         }
     }
@@ -215,8 +222,69 @@ impl Unigram {
             fuse_unk: true,
             is_optimized: true,
             byte_fallback,
+            sampling: None,
+            seed: None,
             cache: SentenceCache::new(),
         })
+    }
+
+    /// Turn subword-regularization sampling on (or off) for `encode` /
+    /// `tokenize`, as SentencePiece's `SampleEncode` and HF's
+    /// `Unigram(alpha, nbest_size)`:
+    ///
+    /// - `nbest_size > 1`: sample one of the `nbest_size` best
+    ///   segmentations with probability proportional to
+    ///   `exp(alpha * score)`;
+    /// - `nbest_size < 0`: sample from the whole lattice with the piece
+    ///   scores scaled by `alpha` (forward-filtering backward-sampling);
+    /// - `nbest_size` of `0` or `1`, or `alpha == 0`: plain Viterbi,
+    ///   identical to not sampling.
+    ///
+    /// `alpha` must be finite and non-negative. Sampled encodings bypass
+    /// the sentence cache. The setting is runtime-only and is not
+    /// written to `tokenizer.json`.
+    pub fn set_sampling(&mut self, alpha: f64, nbest_size: i32) -> Result<()> {
+        if !alpha.is_finite() || alpha < 0.0 {
+            return Err(Error::Config(format!(
+                "Unigram: sampling alpha must be finite and >= 0, got {alpha}"
+            )));
+        }
+        self.sampling = if alpha == 0.0 || (0..=1).contains(&nbest_size) {
+            None
+        } else {
+            Some((alpha, nbest_size))
+        };
+        Ok(())
+    }
+
+    /// Builder form of [`set_sampling`](Self::set_sampling).
+    pub fn with_sampling(mut self, alpha: f64, nbest_size: i32) -> Result<Self> {
+        self.set_sampling(alpha, nbest_size)?;
+        Ok(self)
+    }
+
+    /// The active `(alpha, nbest_size)`, or `None` when encoding is
+    /// deterministic Viterbi.
+    pub fn sampling(&self) -> Option<(f64, i32)> {
+        self.sampling
+    }
+
+    /// Seed the sampler so that every call on a given sentence draws the
+    /// same segmentation (independent of thread or batch order). `None`
+    /// restores entropy-seeded sampling.
+    pub fn set_seed(&mut self, seed: Option<u64>) {
+        self.seed = seed;
+    }
+
+    /// Builder form of [`set_seed`](Self::set_seed).
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
+    /// The sampling seed, if any.
+    pub fn seed(&self) -> Option<u64> {
+        self.seed
     }
 
     /// Whether unknown text falls back to `<0xNN>` byte pieces.
@@ -290,6 +358,10 @@ impl Unigram {
     pub fn encode(&self, sentence: &str) -> Result<Vec<String>> {
         if sentence.is_empty() {
             return Ok(vec![]);
+        }
+        if let Some((alpha, nbest_size)) = self.sampling {
+            // Sampled encodings are not memoized.
+            return self.encode_sampled(sentence, alpha, nbest_size);
         }
         if let Some(hit) = self.cache.get(sentence) {
             return Ok(hit);
@@ -389,12 +461,56 @@ impl Unigram {
         let mut lattice = Lattice::new(sentence, self.bos_id, self.eos_id);
         self.populate_nodes(&mut lattice);
         let path = lattice.viterbi();
+        self.pieces_for_path(&lattice, &path)
+    }
+
+    /// One sampled segmentation (see [`set_sampling`](Self::set_sampling)).
+    fn encode_sampled(&self, sentence: &str, alpha: f64, nbest_size: i32) -> Result<Vec<String>> {
+        let mut rng = match self.seed {
+            Some(seed) => {
+                let mut h = rustc_hash::FxHasher::default();
+                std::hash::Hasher::write(&mut h, sentence.as_bytes());
+                Prng::seeded(seed, std::hash::Hasher::finish(&h))
+            }
+            None => Prng::from_entropy(),
+        };
+        let mut lattice = Lattice::new(sentence, self.bos_id, self.eos_id);
+        self.populate_nodes(&mut lattice);
+        let path = if nbest_size < 0 {
+            let mut uniform = || rng.next_f64();
+            let sampled = lattice.sample(alpha, &mut uniform);
+            if sampled.is_empty() {
+                // Either the lattice is incomplete (Viterbi is empty too
+                // and reports the missing unk) or `alpha` is so large
+                // that the forward mass underflowed: the distribution
+                // has collapsed onto the best path, so take it.
+                lattice.viterbi()
+            } else {
+                sampled
+            }
+        } else {
+            let mut paths = lattice.nbest(nbest_size as usize);
+            if paths.is_empty() {
+                return Err(missing_unk());
+            }
+            let scores: Vec<f64> = paths
+                .iter()
+                .map(|p| p.iter().map(|&i| lattice.node(i).score).sum::<f64>())
+                .collect();
+            let weights = nbest_weights(&scores, alpha);
+            paths.swap_remove(rng.choose_weighted(&weights))
+        };
+        self.pieces_for_path(&lattice, &path)
+    }
+
+    /// The pieces along `path`, fusing consecutive unknown chars.
+    fn pieces_for_path(&self, lattice: &Lattice<'_>, path: &[usize]) -> Result<Vec<String>> {
         if path.is_empty() {
             return Err(missing_unk());
         }
         let mut results = Vec::new();
         let mut unk_run = String::new();
-        for i in path {
+        for &i in path {
             let node = lattice.node(i);
             let piece = lattice.piece(node);
             if self.fuse_unk && Some(node.id) == self.unk_id {
@@ -411,6 +527,32 @@ impl Unigram {
         }
         Ok(results)
     }
+}
+
+/// Softmax weights `exp(alpha * (score - max))` for n-best path
+/// `scores`, computed so that no finite `alpha >= 0` can produce `NaN`:
+/// the best path always gets weight 1, the gap is scaled after the max
+/// is subtracted, and the exponent is clamped to a representable range.
+fn nbest_weights(scores: &[f64], alpha: f64) -> Vec<f64> {
+    // Exponents below this underflow `exp` to 0 anyway.
+    const MIN_EXPONENT: f64 = -750.0;
+    let max = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    scores
+        .iter()
+        .map(|&s| {
+            let gap = s - max;
+            if gap >= 0.0 || !gap.is_finite() {
+                // The best path (or a tie), or a `-inf` score: an
+                // argmax entry gets 1, an unreachable one 0.
+                return if gap >= 0.0 { 1.0 } else { 0.0 };
+            }
+            let exponent = alpha * gap;
+            if exponent.is_nan() {
+                return 0.0;
+            }
+            exponent.max(MIN_EXPONENT).exp()
+        })
+        .collect()
 }
 
 fn missing_unk() -> Error {
@@ -563,6 +705,120 @@ mod tests {
         assert_eq!(ids(0), vec![1, 3]);
         assert_eq!(ids(1), vec![2, 4]);
         assert_eq!(ids(2), vec![0]);
+    }
+
+    #[test]
+    fn nbest_weights_are_finite_for_extreme_alpha() {
+        let scores = [-1000.0, -1000.5, -1200.0];
+        // Overflow regime: `alpha * score` alone would be `-inf`.
+        let w = nbest_weights(&scores, 1e308);
+        assert_eq!(w, [1.0, 0.0, 0.0]);
+        let w = nbest_weights(&scores, f64::MAX);
+        assert_eq!(w, [1.0, 0.0, 0.0]);
+        // Ordinary regime: softmax over the scaled gaps.
+        let w = nbest_weights(&scores, 2.0);
+        assert_eq!(w[0], 1.0);
+        assert!((w[1] - (-1.0f64).exp()).abs() < 1e-12);
+        assert!((w[2] - (-400.0f64).exp()).abs() < 1e-200);
+        // Ties and alpha == 0 give a uniform distribution.
+        assert_eq!(nbest_weights(&[-5.0, -5.0], 1e308), [1.0, 1.0]);
+        assert_eq!(nbest_weights(&scores, 0.0), [1.0, 1.0, 1.0]);
+        // A `-inf` path score never wins and never produces `NaN`.
+        assert_eq!(nbest_weights(&[-1.0, f64::NEG_INFINITY], 1e308), [1.0, 0.0]);
+        assert!(nbest_weights(&scores, 1e308).iter().all(|w| w.is_finite()));
+    }
+
+    /// A model with no `unk_id` and only multi-char pieces leaves char
+    /// positions with no single-char piece. Like SentencePiece and HF,
+    /// the optimized encoder rejects that (it needs an unk node at every
+    /// such position), and the unoptimized and sampling encoders must
+    /// agree with it rather than accept or reject different inputs.
+    #[test]
+    fn sampling_agrees_with_viterbi_on_models_without_single_char_pieces() {
+        let vocab = pieces(&[("ab", -1.0), ("abab", -1.5), ("c", -2.0)]);
+        let optimized = Unigram::new(vocab.clone(), None, false).unwrap();
+        let mut unoptimized = optimized.clone();
+        unoptimized.set_optimized(false);
+        for input in ["ab", "abab", "cabc", "c"] {
+            let expected = optimized.encode(input).map_err(|e| e.to_string());
+            assert_eq!(
+                unoptimized.encode(input).map_err(|e| e.to_string()),
+                expected,
+                "{input}"
+            );
+            for nbest in [-1, 4] {
+                let sampler = Unigram::new(vocab.clone(), None, false)
+                    .unwrap()
+                    .with_sampling(0.5, nbest)
+                    .unwrap();
+                assert_eq!(
+                    sampler.encode(input).map_err(|e| e.to_string()),
+                    expected,
+                    "nbest_size={nbest} on {input}"
+                );
+            }
+        }
+        // Once single-char pieces exist, every encoder accepts the
+        // inputs and sharp sampling reproduces Viterbi.
+        let vocab = pieces(&[("ab", -1.0), ("abab", -1.5), ("a", -3.0), ("b", -3.0)]);
+        let viterbi = Unigram::new(vocab.clone(), None, false).unwrap();
+        for input in ["ab", "abab", "ababa", "ba"] {
+            let expected = viterbi.encode(input).unwrap();
+            for nbest in [-1, 4] {
+                let sampler = Unigram::new(vocab.clone(), None, false)
+                    .unwrap()
+                    .with_sampling(1e6, nbest)
+                    .unwrap();
+                for _ in 0..10 {
+                    assert_eq!(
+                        sampler.encode(input).unwrap(),
+                        expected,
+                        "nbest_size={nbest} on {input}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sampling_incomplete_lattice_reports_missing_unk() {
+        let vocab = pieces(&[("ab", -1.0)]);
+        for nbest in [-1, 4] {
+            let sampler = Unigram::new(vocab.clone(), None, false)
+                .unwrap()
+                .with_sampling(0.5, nbest)
+                .unwrap();
+            let err = sampler.encode("abc").unwrap_err();
+            assert!(err.to_string().contains("unk_id"), "{err}");
+            let err = sampler.encode("ba").unwrap_err();
+            assert!(err.to_string().contains("unk_id"), "{err}");
+        }
+    }
+
+    /// Extreme `alpha` with large-magnitude scores overflows
+    /// `alpha * score`; sampling must still return the Viterbi path.
+    #[test]
+    fn sampling_extreme_alpha_returns_viterbi() {
+        let vocab = pieces(&[
+            ("<unk>", -1500.0),
+            ("a", -1000.0),
+            ("b", -1000.0),
+            ("ab", -1000.5),
+            ("abc", -2100.0),
+            ("c", -1000.0),
+        ]);
+        let viterbi = Unigram::new(vocab.clone(), Some(0), false).unwrap();
+        let expected = viterbi.encode("abc").unwrap();
+        assert_eq!(expected, ["ab", "c"]);
+        for nbest in [-1, 8] {
+            let sampler = Unigram::new(vocab.clone(), Some(0), false)
+                .unwrap()
+                .with_sampling(1e308, nbest)
+                .unwrap();
+            for _ in 0..20 {
+                assert_eq!(sampler.encode("abc").unwrap(), expected, "nbest={nbest}");
+            }
+        }
     }
 
     #[test]
