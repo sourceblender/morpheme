@@ -33,6 +33,13 @@ fn bench_encode(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("batch", name), &refs, |b, refs| {
             b.iter(|| black_box(tok.encode_batch(refs.clone(), true).unwrap()))
         });
+        group.bench_with_input(BenchmarkId::new("char_offsets", name), &refs, |b, refs| {
+            b.iter(|| {
+                for line in refs {
+                    black_box(tok.encode_char_offsets(*line, true).unwrap());
+                }
+            })
+        });
     }
     group.finish();
 }

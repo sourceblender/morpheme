@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{OnceLock, RwLock};
 
 use rustc_hash::FxHashMap;
 
@@ -15,6 +15,8 @@ pub type Vocab = HashMap<String, u32>;
 pub type Merges = Vec<(String, String)>;
 
 const DEFAULT_CACHE_CAPACITY: usize = 10_000;
+/// Byte-fallback token ids indexed by byte value.
+type ByteIds = [Option<u32>; 256];
 /// Words longer than this (in bytes) are not cached.
 const MAX_CACHED_WORD_LEN: usize = 256;
 
@@ -182,6 +184,9 @@ impl BpeBuilder {
                 )));
             }
         }
+        // A dropout of 0 never skips a merge: treat it as "no dropout" so
+        // the merge loop doesn't consult the PRNG per candidate merge.
+        let dropout = self.dropout.filter(|&p| p != 0.0);
         let vocab_r: FxHashMap<u32, String> = reverse_vocab(&self.vocab);
         let prefix = self.continuing_subword_prefix.as_deref().unwrap_or("");
 
@@ -208,7 +213,8 @@ impl BpeBuilder {
             merges,
             merge_list,
             cache: (self.cache_capacity > 0).then(|| WordCache::new(self.cache_capacity)),
-            dropout: self.dropout,
+            byte_ids: OnceLock::new(),
+            dropout,
             unk_token: self.unk_token,
             continuing_subword_prefix: self.continuing_subword_prefix,
             end_of_word_suffix: self.end_of_word_suffix,
@@ -263,7 +269,11 @@ pub struct Bpe {
     /// tokens share an id.
     pub(crate) merge_list: Merges,
     cache: Option<WordCache>,
-    /// BPE-dropout probability (`None` = deterministic).
+    /// Ids of the `<0x00>`..`<0xFF>` byte-fallback tokens, indexed by
+    /// byte; built on first use and reset whenever the vocabulary changes.
+    byte_ids: OnceLock<Box<ByteIds>>,
+    /// BPE-dropout probability (`None` = deterministic; `Some(0.0)` is
+    /// normalized to `None` at build time).
     pub(crate) dropout: Option<f32>,
     /// Token for unknown chars.
     pub(crate) unk_token: Option<String>,
@@ -317,6 +327,11 @@ impl Clone for Bpe {
             merges: self.merges.clone(),
             merge_list: self.merge_list.clone(),
             cache: self.cache.as_ref().map(|c| WordCache::new(c.capacity)),
+            byte_ids: self
+                .byte_ids
+                .get()
+                .cloned()
+                .map_or_else(OnceLock::new, OnceLock::from),
             dropout: self.dropout,
             unk_token: self.unk_token.clone(),
             continuing_subword_prefix: self.continuing_subword_prefix.clone(),
@@ -426,6 +441,7 @@ impl Bpe {
         self.merge_list = self.merges_from_map();
         self.continuing_subword_prefix = continuing_subword_prefix;
         self.end_of_word_suffix = end_of_word_suffix;
+        self.byte_ids = OnceLock::new();
         self.clear_cache();
     }
 
@@ -436,10 +452,31 @@ impl Bpe {
             .ok_or_else(|| Error::Model(format!("unk token {unk:?} is not in the vocabulary")))
     }
 
+    /// The `<0xNN>` token id for every byte (`None` where the vocabulary
+    /// has no such token), computed on first use.
+    fn byte_ids(&self) -> &ByteIds {
+        self.byte_ids.get_or_init(|| {
+            let mut ids = [None; 256];
+            for (b, id) in ids.iter_mut().enumerate() {
+                *id = self.vocab.get(&format!("<0x{b:02X}>")).copied();
+            }
+            Box::new(ids)
+        })
+    }
+
     fn merge_word(&self, w: &str) -> Result<Word> {
         let mut word = Word::with_capacity(w.len());
         // Pending unknown run: (unk id, byte length).
         let mut unk: Option<(u32, usize)> = None;
+        // The unk token's id, looked up at most once per word (and only
+        // when an unknown char is actually met, so a missing unk token
+        // is still only an error when it is needed).
+        let mut unk_id: Option<u32> = None;
+        let prefix = self.continuing_subword_prefix.as_deref();
+        let suffix = self.end_of_word_suffix.as_deref();
+        // Scratch buffer for symbols that carry a prefix or suffix; plain
+        // chars are looked up as a borrowed slice of `w`.
+        let mut buf = String::new();
         let mut chars = w.char_indices().peekable();
         while let Some((i, c)) = chars.next() {
             let is_first = i == 0;
@@ -447,20 +484,20 @@ impl Bpe {
             let byte_len = c.len_utf8();
             let piece = &w[i..i + byte_len];
 
-            let mut symbol = String::with_capacity(byte_len + 8);
-            if !is_first {
-                if let Some(p) = &self.continuing_subword_prefix {
-                    symbol.push_str(p);
+            let prefix = if is_first { None } else { prefix };
+            let suffix = if is_last { suffix } else { None };
+            let symbol: &str = match (prefix, suffix) {
+                (None, None) => piece,
+                (p, s) => {
+                    buf.clear();
+                    buf.push_str(p.unwrap_or(""));
+                    buf.push_str(piece);
+                    buf.push_str(s.unwrap_or(""));
+                    &buf
                 }
-            }
-            symbol.push_str(piece);
-            if is_last {
-                if let Some(s) = &self.end_of_word_suffix {
-                    symbol.push_str(s);
-                }
-            }
+            };
 
-            if let Some(&id) = self.vocab.get(&symbol) {
+            if let Some(&id) = self.vocab.get(symbol) {
                 if let Some((unk_id, unk_len)) = unk.take() {
                     word.add(unk_id, unk_len);
                 }
@@ -469,29 +506,30 @@ impl Bpe {
             }
 
             if self.byte_fallback {
-                let byte_ids: Option<Vec<u32>> = symbol
-                    .bytes()
-                    .map(|b| self.vocab.get(&format!("<0x{b:02X}>")).copied())
-                    .collect();
-                if let Some(ids) = byte_ids {
+                let table = self.byte_ids();
+                if symbol.bytes().all(|b| table[usize::from(b)].is_some()) {
                     if let Some((unk_id, unk_len)) = unk.take() {
                         word.add(unk_id, unk_len);
                     }
-                    for id in ids {
-                        word.add(id, 1);
+                    for b in symbol.bytes() {
+                        word.add(table[usize::from(b)].expect("checked above"), 1);
                     }
                     continue;
                 }
             }
 
             if let Some(unk_token) = &self.unk_token {
+                let id = match unk_id {
+                    Some(id) => id,
+                    None => *unk_id.insert(self.unk_id(unk_token)?),
+                };
                 unk = match (unk, self.fuse_unk) {
                     (Some((id, len)), true) => Some((id, len + byte_len)),
-                    (Some((id, len)), false) => {
-                        word.add(id, len);
-                        Some((self.unk_id(unk_token)?, byte_len))
+                    (Some((prev, len)), false) => {
+                        word.add(prev, len);
+                        Some((id, byte_len))
                     }
-                    (None, _) => Some((self.unk_id(unk_token)?, byte_len)),
+                    (None, _) => Some((id, byte_len)),
                 };
             }
         }
@@ -633,6 +671,53 @@ mod tests {
         // A char whose bytes are not all present falls back to unk.
         let t = bpe.tokenize("ü").unwrap();
         assert_eq!(values(&t), vec![("<unk>", 0, (0, 2))]);
+    }
+
+    #[test]
+    fn byte_id_table_tracks_vocab() {
+        let v = vocab(&[("<unk>", 0), ("<0x00>", 1), ("<0xC3>", 2), ("<0xFF>", 3)]);
+        let mut bpe = Bpe::builder()
+            .vocab_and_merges(v, vec![])
+            .byte_fallback(true)
+            .build()
+            .unwrap();
+        assert!(bpe.byte_ids.get().is_none(), "table is built lazily");
+        let table = bpe.byte_ids();
+        assert_eq!(table[0x00], Some(1));
+        assert_eq!(table[0xC3], Some(2));
+        assert_eq!(table[0xFF], Some(3));
+        assert_eq!(table.iter().flatten().count(), 3);
+        // Lower-case hex is not a byte token.
+        assert_eq!(table[0xA9], None);
+
+        // The clone shares the computed table; retraining resets it.
+        assert_eq!(bpe.clone().byte_ids.get().map(|t| t[0xC3]), Some(Some(2)));
+        let v = vocab(&[("<0xA9>", 7)]);
+        bpe.set_trained(v, MergeMap::default(), None, None);
+        assert!(bpe.byte_ids.get().is_none());
+        assert_eq!(bpe.byte_ids()[0xA9], Some(7));
+        assert_eq!(bpe.byte_ids()[0xC3], None);
+    }
+
+    #[test]
+    fn zero_dropout_is_normalized_away() {
+        let v = vocab(&[("a", 0), ("b", 1), ("ab", 2)]);
+        let bpe = Bpe::builder()
+            .vocab_and_merges(v.clone(), vec![("a".into(), "b".into())])
+            .dropout(0.0)
+            .build()
+            .unwrap();
+        assert_eq!(bpe.dropout(), None);
+        assert_eq!(
+            values(&bpe.tokenize("ab").unwrap()),
+            vec![("ab", 2, (0, 2))]
+        );
+        let bpe = Bpe::builder()
+            .vocab_and_merges(v, vec![("a".into(), "b".into())])
+            .dropout(0.5)
+            .build()
+            .unwrap();
+        assert_eq!(bpe.dropout(), Some(0.5));
     }
 
     #[test]

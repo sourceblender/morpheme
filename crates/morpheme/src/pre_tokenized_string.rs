@@ -1,8 +1,6 @@
 //! [`PreTokenizedString`]: the input split into pieces, each piece a
 //! [`NormalizedString`] that may already carry its tokens.
 
-use std::collections::HashMap;
-
 use crate::encoding::Encoding;
 use crate::error::{Error, Result};
 use crate::normalized_string::{NormalizedString, OffsetRange};
@@ -205,32 +203,88 @@ impl PreTokenizedString {
 
 /// Converts byte offsets of a string to char offsets.
 struct BytesToCharOffsetConverter {
-    map: HashMap<usize, usize>,
+    /// `map[b]` is the index of the char containing byte `b`; one entry
+    /// per byte of the string (no entry for `s.len()` itself).
+    map: Vec<usize>,
 }
 
 impl BytesToCharOffsetConverter {
     fn new(s: &str) -> Self {
-        let mut map = HashMap::with_capacity(s.len());
-        for (i, (b, c)) in s.char_indices().enumerate() {
-            for n in 0..c.len_utf8() {
-                map.insert(b + n, i);
-            }
+        let mut map = Vec::with_capacity(s.len());
+        for (i, c) in s.chars().enumerate() {
+            map.extend(std::iter::repeat_n(i, c.len_utf8()));
         }
         Self { map }
     }
 
+    fn char_at(&self, byte: usize) -> Option<usize> {
+        self.map.get(byte).copied()
+    }
+
     fn convert(&self, offsets: Offsets) -> Option<Offsets> {
-        match (self.map.get(&offsets.0), self.map.get(&offsets.1)) {
-            (Some(&start), Some(&end)) => Some((start, end)),
-            (Some(&start), None) => {
+        match (self.char_at(offsets.0), self.char_at(offsets.1)) {
+            (Some(start), Some(end)) => Some((start, end)),
+            (Some(start), None) => {
                 let last = offsets
                     .1
                     .checked_sub(1)
-                    .and_then(|b| self.map.get(&b).copied())
+                    .and_then(|b| self.char_at(b))
                     .unwrap_or(start + 1);
                 Some((start, last + 1))
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    /// The reference implementation: one map entry per byte.
+    fn reference(s: &str, offsets: Offsets) -> Option<Offsets> {
+        let mut map: HashMap<usize, usize> = HashMap::new();
+        for (i, (b, c)) in s.char_indices().enumerate() {
+            for n in 0..c.len_utf8() {
+                map.insert(b + n, i);
+            }
+        }
+        match (map.get(&offsets.0), map.get(&offsets.1)) {
+            (Some(&start), Some(&end)) => Some((start, end)),
+            (Some(&start), None) => {
+                let last = offsets
+                    .1
+                    .checked_sub(1)
+                    .and_then(|b| map.get(&b).copied())
+                    .unwrap_or(start + 1);
+                Some((start, last + 1))
+            }
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn byte_to_char_converter_matches_reference() {
+        for s in ["", "a", "héllo wörld", "你好 😀 x", "ab"] {
+            let conv = BytesToCharOffsetConverter::new(s);
+            for start in 0..=s.len() + 2 {
+                for end in start..=s.len() + 2 {
+                    assert_eq!(
+                        conv.convert((start, end)),
+                        reference(s, (start, end)),
+                        "{s:?} {start}..{end}"
+                    );
+                }
+            }
+        }
+        let conv = BytesToCharOffsetConverter::new("héllo");
+        assert_eq!(conv.convert((0, 3)), Some((0, 2)));
+        // The end offset may point past the last byte.
+        assert_eq!(conv.convert((1, 6)), Some((1, 5)));
+        // Both offsets inside the string, the end in the middle of a char.
+        assert_eq!(conv.convert((1, 2)), Some((1, 1)));
+        assert_eq!(conv.convert((7, 8)), None);
     }
 }

@@ -167,22 +167,34 @@ impl Matcher {
     }
 }
 
-fn word_regexes() -> &'static (fancy_regex::Regex, fancy_regex::Regex) {
-    static RE: OnceLock<(fancy_regex::Regex, fancy_regex::Regex)> = OnceLock::new();
-    RE.get_or_init(|| {
-        (
-            fancy_regex::Regex::new(r"^\w").expect("valid regex"),
-            fancy_regex::Regex::new(r"\w$").expect("valid regex"),
-        )
-    })
+fn word_regex() -> &'static fancy_regex::Regex {
+    static RE: OnceLock<fancy_regex::Regex> = OnceLock::new();
+    RE.get_or_init(|| fancy_regex::Regex::new(r"^\w$").expect("valid regex"))
 }
 
+/// Whether `c` is a word char (regex `\w`, Unicode-aware). ASCII is
+/// answered inline; anything else is asked of the regex so the answer
+/// stays exactly `\w`'s.
+fn is_word_char(c: char) -> bool {
+    if c.is_ascii() {
+        c.is_ascii_alphanumeric() || c == '_'
+    } else {
+        let mut buf = [0u8; 4];
+        word_regex()
+            .is_match(c.encode_utf8(&mut buf))
+            .unwrap_or(false)
+    }
+}
+
+/// `s` starts with a word char (regex `^\w`).
 fn starts_with_word(s: &str) -> bool {
-    word_regexes().0.is_match(s).unwrap_or(false)
+    s.chars().next().is_some_and(is_word_char)
 }
 
+/// `s` ends with a word char (regex `\w$`). Only the last char is looked
+/// at, so this is O(1) however long `s` is.
 fn ends_with_word(s: &str) -> bool {
-    word_regexes().1.is_match(s).unwrap_or(false)
+    s.chars().next_back().is_some_and(is_word_char)
 }
 
 impl AddedVocabulary {
@@ -574,6 +586,40 @@ mod tests {
                 ("there", (10, 15), false)
             ]
         );
+    }
+
+    #[test]
+    fn word_boundary_checks_match_regex() {
+        let starts = fancy_regex::Regex::new(r"^\w").unwrap();
+        let ends = fancy_regex::Regex::new(r"\w$").unwrap();
+        let samples = [
+            "", " ", "a", "_", "9", "-", "é", "ß", "你", "😀", "→", "ab ", " ab", "x_", "x-", "αβ",
+            "a\u{301}", "\u{200d}", "१२", "Ⅻ", "¼",
+        ];
+        for s in samples {
+            assert_eq!(
+                starts_with_word(s),
+                starts.is_match(s).unwrap(),
+                "starts_with_word({s:?})"
+            );
+            assert_eq!(
+                ends_with_word(s),
+                ends.is_match(s).unwrap(),
+                "ends_with_word({s:?})"
+            );
+        }
+        let single = fancy_regex::Regex::new(r"^\w$").unwrap();
+        let mut buf = [0u8; 4];
+        for c in (0u32..0x3000)
+            .chain(0x1F600..0x1F620)
+            .filter_map(char::from_u32)
+        {
+            assert_eq!(
+                is_word_char(c),
+                single.is_match(c.encode_utf8(&mut buf)).unwrap(),
+                "is_word_char({c:?})"
+            );
+        }
     }
 
     #[test]
