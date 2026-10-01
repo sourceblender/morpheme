@@ -47,8 +47,10 @@
       const text = $("text").value;
       const special = $("special").checked;
       try {
-        $("count").textContent = tokenizer.count(text, special);
+        // One encode per keystroke: the count is the token list's length
+        // (`count()` would run the same encode again).
         const tokens = tokenizer.tokens(text, special);
+        $("count").textContent = tokens.length;
         $("tokens").replaceChildren(...tokens.map((t) => {
           const span = document.createElement("span");
           span.className = "tok";
@@ -67,8 +69,11 @@
         const response = await fetch(url);
         if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
         const json = await response.text();
+        // Parse into a temporary first: if the JSON is rejected, the
+        // previous tokenizer stays usable and is never left freed.
+        const next = Tokenizer.fromJson(json);
         if (tokenizer) tokenizer.free();
-        tokenizer = Tokenizer.fromJson(json);
+        tokenizer = next;
         show(`Loaded ${url}`);
         update();
       } catch (e) {

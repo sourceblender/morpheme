@@ -70,3 +70,15 @@ The crate also compiles natively so the workspace gate covers it:
 cargo check -p morpheme-wasm --target wasm32-unknown-unknown
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 ```
+
+`tests/smoke.mjs` exercises the generated JavaScript ABI in Node against
+the Hugging Face fixtures (`encode` returns a `Uint32Array` with the ids
+the Rust encoder produces, `decode` round-trips, `count` equals the id
+count, and invalid JSON throws). CI runs it after building the `web`
+target with `wasm-bindgen-cli`; locally:
+
+```sh
+./scripts/fetch-hf-fixtures.sh
+(cd bindings/wasm && wasm-pack build --target web --release)
+node bindings/wasm/tests/smoke.mjs        # or: node ... <pkg-dir>
+```

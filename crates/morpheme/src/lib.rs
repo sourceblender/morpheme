@@ -125,7 +125,7 @@ pub use normalizers::NormalizerWrapper;
 pub use pre_tokenized_string::{OffsetType, PreTokenizedString, Split};
 pub use pre_tokenizers::PreTokenizerWrapper;
 pub use processors::PostProcessorWrapper;
-#[cfg(feature = "hub")]
+#[cfg(all(feature = "hub", not(target_arch = "wasm32")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "hub")))]
 pub use tokenizer::FromPretrainedParameters;
 pub use tokenizer::{
