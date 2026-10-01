@@ -34,6 +34,24 @@ def smoke(cli, version, work):
                    ",".join(map(str, encoded["ids"])))
         require(text == "alpha beta", f"{model}: unexpected decoded text {text!r}")
         require(run("inspect", "-t", tokenizer), f"{model}: inspect returned no output")
+        inspection = json.loads(run("inspect", "-t", tokenizer, "--json"))
+        require(inspection["schema_version"] == 1, f"{model}: inspect schema mismatch")
+        count = json.loads(run("count", "-t", tokenizer, "--json", "alpha beta"))
+        require(count["count"] == len(encoded["ids"]), f"{model}: token count mismatch")
+        records = [{"id": None, "text": "alpha beta"}, {"id": "café", "text": "beta alpha"}]
+        inputs = work / f"{model}-inputs.jsonl"
+        inputs.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in records), encoding="utf-8")
+        batch = [json.loads(line) for line in run("encode-batch", "-t", tokenizer,
+                    "--input", inputs, "--batch-size", "1").splitlines()]
+        require(len(batch) == len(records), f"{model}: lost batch records")
+        require([row["id"] for row in batch] == [row["id"] for row in records],
+                f"{model}: batch order or IDs changed")
+        require(batch[0]["encoding"]["ids"] == encoded["ids"], f"{model}: batch encoding differs")
+        inputs.write_text("\n".join(json.dumps({"id": row["id"], "ids": row["encoding"]["ids"]},
+                            ensure_ascii=False) for row in batch), encoding="utf-8")
+        decoded = [json.loads(line) for line in run("decode-batch", "-t", tokenizer,
+                    "--input", inputs, "--skip-special-tokens", "--batch-size", "1").splitlines()]
+        require(decoded == records, f"{model}: batch roundtrip differs")
     print(f"Release smoke passed: {cli} ({version})")
 
 

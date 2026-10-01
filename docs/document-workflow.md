@@ -55,15 +55,16 @@ default = ["hub"]
 hub = ["morpheme/hub"]
 
 [dependencies]
-morpheme = "=0.1.1"
+morpheme = "=0.2.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 tempfile = "3"
 ```
 
-The consumer uses the released 0.1.1 API. Using the latest source also
-enables the newer Hub integrity checks; 0.1.1 predates that hardening.
+The consumer uses the morpheme 0.2.0 API, including verification of Hub
+downloads and cached files. Pin the library version and Hub revision for
+repeatable preparation.
 
 ## Verify the workflow
 

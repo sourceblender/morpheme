@@ -75,8 +75,8 @@ def main():
             subprocess.run(command, env=env, check=True)
             if output.read_bytes() != online:
                 raise RuntimeError("offline pinned replay differs")
-        # The released 0.1.1 library API also supports this consumer; docs
-        # provide a standalone manifest for using it without this checkout.
+        # Docs provide a standalone manifest for using the published library
+        # without this checkout.
     print("Document workflow: Unicode, budgets, fingerprints, atomic failures, and 10,000 records passed")
 
 
