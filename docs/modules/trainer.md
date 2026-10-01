@@ -111,6 +111,14 @@ stderr is a terminal; `morpheme train --quiet` turns it off.
   `vocab_size` is smaller than the number of required chars plus those
   tokens (see [`vocab_size`](#vocab_size)).
 
+  Every finalized score is finite, so a trained Unigram can always be
+  saved and loaded back. A required char that EM did not learn (for
+  example an `initial_alphabet` char missing from the corpus) gets the
+  lowest learned score plus a small growing penalty, as in HF. When
+  nothing was learned at all (an empty corpus), training still succeeds:
+  the required chars get a uniform log-probability, `-ln(n)` for `n`
+  such chars (plus the same penalty), instead of HF's infinite score.
+
 ## Example
 
 ```rust

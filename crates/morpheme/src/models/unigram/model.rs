@@ -5,7 +5,7 @@ use std::sync::RwLock;
 
 use rustc_hash::FxHashMap;
 use serde::de::Error as _;
-use serde::ser::SerializeStruct;
+use serde::ser::{Error as _, SerializeStruct};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::lattice::Lattice;
@@ -179,7 +179,29 @@ impl Unigram {
     /// index. `unk_id` must point inside the vocabulary; with
     /// `byte_fallback`, unknown text is emitted as `<0xNN>` byte pieces
     /// when those exist in the vocabulary.
+    ///
+    /// Every score must be finite: a `NaN` or infinite score is an
+    /// error naming the piece, because `tokenizer.json` cannot represent
+    /// it (JSON has no `NaN` or infinity, and `serde_json` would write
+    /// `null`, which no loader accepts).
     pub fn new(
+        vocab: Vec<(String, f64)>,
+        unk_id: Option<usize>,
+        byte_fallback: bool,
+    ) -> Result<Self> {
+        if let Some((id, (piece, score))) =
+            vocab.iter().enumerate().find(|(_, (_, s))| !s.is_finite())
+        {
+            return Err(Error::Config(non_finite_score(piece, id, *score)));
+        }
+        Self::with_any_scores(vocab, unk_id, byte_fallback)
+    }
+
+    /// [`new`](Self::new) without the finite-score check, for the
+    /// trainer's intermediate models (whose training-time unknown piece
+    /// scores `NaN`, as in HF tokenizers). Such a model must never be
+    /// returned to users: serializing it fails.
+    pub(crate) fn with_any_scores(
         vocab: Vec<(String, f64)>,
         unk_id: Option<usize>,
         byte_fallback: bool,
@@ -555,6 +577,13 @@ fn nbest_weights(scores: &[f64], alpha: f64) -> Vec<f64> {
         .collect()
 }
 
+fn non_finite_score(piece: &str, id: usize, score: f64) -> String {
+    format!(
+        "Unigram: piece {piece:?} (id {id}) has a non-finite score ({score}); \
+         scores must be finite to be saved in tokenizer.json"
+    )
+}
+
 fn missing_unk() -> Error {
     Error::Model("Unigram: encountered an unknown token but `unk_id` is missing".into())
 }
@@ -626,6 +655,16 @@ impl Model for Unigram {
 
 impl Serialize for Unigram {
     fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        // JSON has no `NaN` or infinity: `serde_json` would write `null`
+        // and produce a file that cannot be loaded back, so refuse.
+        if let Some((id, (piece, score))) = self
+            .vocab
+            .iter()
+            .enumerate()
+            .find(|(_, (_, s))| !s.is_finite())
+        {
+            return Err(S::Error::custom(non_finite_score(piece, id, *score)));
+        }
         let mut s = serializer.serialize_struct("Unigram", 4)?;
         s.serialize_field("type", "Unigram")?;
         s.serialize_field("unk_id", &self.unk_id)?;
@@ -931,6 +970,57 @@ mod tests {
         assert!(Unigram::new(vec![], Some(0), false).is_err());
         assert!(Unigram::new(pieces(&[("a", 0.0)]), Some(1), false).is_err());
         assert!(Unigram::new(vec![], None, false).is_ok());
+    }
+
+    #[test]
+    fn non_finite_scores_are_rejected() {
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let err = Unigram::new(pieces(&[("<unk>", 0.0), ("y", bad)]), Some(0), false)
+                .unwrap_err()
+                .to_string();
+            assert!(err.contains("\"y\" (id 1)"), "{err}");
+        }
+    }
+
+    /// A model built without the finite-score check (only the trainer
+    /// does that, internally) refuses to serialize instead of writing
+    /// `null`.
+    #[test]
+    fn serialization_refuses_non_finite_scores() {
+        let model = Unigram::with_any_scores(
+            pieces(&[("<unk>", 0.0), ("x", f64::INFINITY)]),
+            Some(0),
+            false,
+        )
+        .unwrap();
+        let err = serde_json::to_string(&model).unwrap_err().to_string();
+        assert!(err.contains("\"x\" (id 1)"), "{err}");
+
+        let tok = crate::Tokenizer::new(model);
+        assert!(tok.to_json(false).is_err());
+        assert!(tok.to_json(true).is_err());
+    }
+
+    /// `save` fails before the atomic replace, so an existing
+    /// destination is left byte-identical.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn save_of_non_finite_model_leaves_existing_file_intact() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("tokenizer.json");
+        let good = crate::Tokenizer::new(Unigram::default());
+        good.save(&path, true).unwrap();
+        let before = std::fs::read(&path).unwrap();
+
+        let bad =
+            Unigram::with_any_scores(pieces(&[("<unk>", 0.0), ("y", f64::NAN)]), Some(0), false)
+                .unwrap();
+        let bad = crate::Tokenizer::new(bad);
+        assert!(bad.save(&path, true).is_err());
+        assert!(bad.save(&path, false).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        // No temporary file was left behind either.
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
     #[test]
