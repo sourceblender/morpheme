@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Release: no prebuilt Intel macOS (`x86_64-apple-darwin`) CLI archive;
+  Intel Macs install with `cargo install morpheme-cli`.
+
 ## [0.4.0] - 2026-10-01
 
 ### Added

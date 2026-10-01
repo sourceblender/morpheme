@@ -39,8 +39,8 @@ about: Open a pull request
       an ADR, etc.).
 - [ ] I ran the local gate:
   - [ ] `cargo fmt --all -- --check`
-  - [ ] `cargo clippy --workspace --all-targets -- -D warnings`
-  - [ ] `cargo test --workspace` (after `./scripts/fetch-hf-fixtures.sh`)
+  - [ ] `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+  - [ ] `cargo test --workspace --all-features` (after `./scripts/fetch-hf-fixtures.sh`)
 
 ## Related issues
 

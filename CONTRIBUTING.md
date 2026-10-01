@@ -18,11 +18,11 @@ By participating, you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.
 5. Run the local gate (`just gate` runs the same three commands):
    ```sh
    cargo fmt --all -- --check
-   cargo clippy --workspace --all-targets -- -D warnings
-   cargo test --workspace
+   cargo clippy --workspace --all-targets --all-features -- -D warnings
+   cargo test --workspace --all-features
    ```
-   CI also checks all-features and no-default-features builds, rustdoc,
-   the MSRV, wasm32, and the Python and WASM bindings. If your change
+   CI also checks the no-default-features build, rustdoc, the MSRV,
+   wasm32, and the Python and WASM bindings. If your change
    touches those areas, run the matching commands from the
    [full local gate](./docs/contributing.md#local-gate).
 6. Open a pull request. Fill out the PR template.

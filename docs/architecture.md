@@ -136,8 +136,9 @@ The library compiles for `wasm32-unknown-unknown` with any feature set.
 `tempfile`, `ureq`, `sha1` and `sha2` are non-wasm dependencies, so
 `Tokenizer::save` (atomic replace through a temporary file) and the Hub
 client are compiled out on wasm32; `from_bytes`/`to_json` cover the
-browser. CI checks `--no-default-features` and `--all-features` on
-`--target wasm32-unknown-unknown`.
+browser. CI checks the library with `--all-features` on
+`--target wasm32-unknown-unknown` and builds `morpheme-wasm`, which uses
+the library without default features, for the same target.
 
 ## Bindings
 

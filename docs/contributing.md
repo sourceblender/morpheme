@@ -72,75 +72,86 @@ means morpheme disagrees with the reference implementation.
 `just interop` checks the reverse direction (Python loading
 morpheme-trained files).
 
-## CI and docs-only changes
+## CI
+
+`.github/workflows/ci.yml` runs these jobs on every pull request and
+push to `main`:
+
+| Job | What it runs |
+| --- | --- |
+| `lint (rustfmt, clippy, rustdoc)` | `cargo fmt --check`; clippy with `--all-targets --all-features` (this also type-checks the benches, examples and bindings) and for the library with `--no-default-features`; `cargo doc` with `-D warnings` |
+| `test (stable, <os>)` | `cargo test --workspace --all-features` on Linux, macOS and Windows; the Linux leg runs under `cargo-llvm-cov` and uploads `lcov.info` (llvm-cov skips doctests; the other legs run them) |
+| `test (no default features) + wasm` | the library's tests without default features; `--all-features` checked for wasm32; `morpheme-wasm` built for wasm32 (the library without default features) and its JavaScript ABI smoke-tested in Node |
+| `test (MSRV 1.85)` | build and test the workspace on Rust 1.85 |
+| `hub downloads (network)` | the `#[ignore]`d Hub tests against the live Hub |
+| `python (interop, bindings)` | `scripts/check_python_interop.py`, the benchmark-script tests, the document workflow, then `maturin develop` and the bindings' pytest suite |
+| `cargo-deny` | licenses, bans, sources and RustSec advisories (`deny.toml`) |
+
+### Docs-only changes
 
 Every CI run starts with a small `detect changes` job that lists the
 changed files with `git diff` (complete, unlike `paths-ignore`, which
-only looks at the first 300 files). If every changed file is
-documentation (`*.md`, `docs/`, `LICENSE`, issue templates,
-`CODEOWNERS`, `dependabot.yml`), all other jobs are skipped. Anything
-else, including a change that mixes docs and code, runs the full suite,
-as do manual runs (`workflow_dispatch`) and any change the job cannot
-classify.
+only looks at the first 300 files). If every changed file is outside
+what CI builds and tests (`*.md`, `docs/`, `LICENSE`, issue templates,
+`CODEOWNERS`, `dependabot.yml`, `actionlint.yaml`, the `Makefile` and
+`justfile`, `fuzz/`, `bindings/wasm/www/`, and the workflow files other
+than `ci.yml`), all other jobs are skipped. Anything else, including a
+change that mixes the two, runs the full suite, as do manual runs
+(`workflow_dispatch`) and any change the job cannot classify.
 
-The `ci-success` job always runs and passes only if every job passed or
-was skipped as docs-only. To make CI required on `main`, require that
+The `ci-success` job always runs. It passes only if every job passed,
+or if the change was docs-only and the jobs were skipped; a job skipped
+on a code change fails it. To make CI required on `main`, require that
 single check in the branch ruleset: it reports on docs-only changes
 too, so they are never left pending.
 
 ## Local gate
 
-`just gate` (or `make gate`) fetches the fixtures and runs the quick
-core of CI:
+`just gate` (or `make gate`) fetches the fixtures and runs the core of
+CI's `lint` and `test` jobs:
 
 ```sh
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
 ```
 
-CI (`.github/workflows/ci.yml`) runs more than that, with
-`RUSTFLAGS=-D warnings`. To reproduce it locally before a larger change,
-run the jobs that apply:
+CI runs more than that, with `RUSTFLAGS=-D warnings` (see [CI](#ci)). To
+reproduce it locally before a larger change, run the jobs that apply:
 
 ```sh
 ./scripts/fetch-hf-fixtures.sh
 
-# clippy, test, rustdoc (all features and the library without defaults)
+# lint and test (all features, and the library without defaults)
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo clippy -p morpheme --all-targets --no-default-features --locked -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --locked
 cargo test --workspace --all-features --locked
 cargo test -p morpheme --no-default-features --locked
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --locked
-cargo bench --no-run --workspace --locked
 cargo +1.85 test --workspace --locked          # MSRV
 
 # WebAssembly: the library and the bindings must build for wasm32
-cargo check -p morpheme --no-default-features --locked --target wasm32-unknown-unknown
 cargo check -p morpheme --all-features --locked --target wasm32-unknown-unknown
-cargo check -p morpheme-wasm --locked --target wasm32-unknown-unknown
 (cd bindings/wasm && wasm-pack build --target web --release)
 node bindings/wasm/tests/smoke.mjs
 
-# Python bindings (builds the extension into .venv, then runs pytest)
+# Python: interop with `tokenizers`, script tests, then the bindings
 python3 -m venv .venv
-.venv/bin/pip install maturin pytest
-(cd bindings/python && ../../.venv/bin/maturin develop --locked)
-.venv/bin/pytest bindings/python/tests
-
-# Interop with Python `tokenizers` and the script tests
-.venv/bin/pip install tokenizers==0.23.2
+.venv/bin/pip install tokenizers==0.23.2 maturin pytest
 .venv/bin/python scripts/check_python_interop.py
 .venv/bin/python scripts/test_benchmark_baseline.py
 .venv/bin/python scripts/check_document_workflow.py
+(cd bindings/python && ../../.venv/bin/maturin develop --locked)
+.venv/bin/pytest bindings/python/tests
 
 # Hub downloads (network) and dependency policy
 cargo test -p morpheme --features hub --test hub --locked -- --ignored
 cargo deny check                               # needs cargo-deny
 ```
 
-CI builds the WASM smoke-test package with `wasm-bindgen-cli` instead of
-`wasm-pack`; both produce the same `web` target in `bindings/wasm/pkg`.
+CI builds the WASM smoke-test package with `wasm-bindgen-cli` (the
+version pinned in `Cargo.lock`) instead of `wasm-pack`; both produce the
+same `web` target in `bindings/wasm/pkg`.
 
 ## Module-by-module workflow
 
@@ -211,7 +222,8 @@ for 5 minutes and uploads any crash as an artifact.
 
 - `cargo bench -p morpheme` runs the Criterion suite (`encode`, `train`,
   `normalize`); use `--save-baseline` / `--baseline` to compare a change
-  against `main`. CI only compiles it.
+  against `main`. CI only type-checks it (clippy `--all-targets` in the
+  `lint` job).
 - `cargo run --release --example bench_encode -- <tokenizer.json> <text>`
   measures encode and decode throughput on any file.
 - `python3 scripts/benchmark_baseline.py` records and compares isolated

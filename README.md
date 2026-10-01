@@ -44,11 +44,12 @@ WebAssembly (WASM) module for the browser.
 | Python (≥ 3.9) | `pip install morpheme` |
 | WASM | build from source with `wasm-pack` ([`bindings/wasm`](./bindings/wasm/README.md)); not published to npm |
 
-Prebuilt CLI binaries, via the installer scripts attached to each
-[GitHub Release](https://github.com/sourceblender/morpheme/releases/latest):
+Prebuilt CLI binaries (macOS on Apple silicon, Linux, Windows; Intel
+Macs: `cargo install morpheme-cli`), via the installer scripts attached
+to each [GitHub Release](https://github.com/sourceblender/morpheme/releases/latest):
 
 ```sh
-# macOS (Apple silicon) and Linux
+# macOS on Apple silicon, and Linux
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sourceblender/morpheme/releases/latest/download/morpheme-cli-installer.sh | sh
 ```
 
