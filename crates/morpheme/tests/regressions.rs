@@ -989,7 +989,8 @@ fn decode_stream_prefill_ending_mid_character_emits_only_new_text() {
 fn reusing_an_added_token_id_unmaps_the_old_content() {
     // Issue #35, repro A: `<s>` got id 1, then the model grew a `b` at
     // id 1 and `add_tokens(["b"])` replaced the entry; `<s>` still
-    // resolved to 1 and stayed special.
+    // resolved to 1 and stayed special. Since #84, `set_model` moves
+    // `<s>` past the new vocabulary, so the two never share an id.
     let mut tok = word_level_tokenizer(&[("[UNK]", 0)]);
     tok.add_special_tokens(&[morpheme::AddedToken::new("<s>", true)])
         .unwrap();
@@ -1003,15 +1004,18 @@ fn reusing_an_added_token_id_unmaps_the_old_content() {
             .unk_token("[UNK]")
             .build()
             .unwrap(),
-    );
+    )
+    .unwrap();
+    assert_eq!(tok.token_to_id("<s>"), Some(2));
     tok.add_tokens(&[morpheme::AddedToken::new("b", false)])
         .unwrap();
     assert_eq!(tok.id_to_token(1).as_deref(), Some("b"));
-    assert_eq!(tok.token_to_id("<s>"), None);
+    assert_eq!(tok.id_to_token(2).as_deref(), Some("<s>"));
+    assert_eq!(tok.token_to_id("<s>"), Some(2));
     assert_eq!(tok.token_to_id("b"), Some(1));
     let enc = tok.encode("<s> b", false).unwrap();
-    assert_eq!(enc.tokens(), ["[UNK]", "b"]);
-    assert_eq!(tok.decode(&[1], true).unwrap(), "b");
+    assert_eq!(enc.tokens(), ["<s>", "b"]);
+    assert_eq!(tok.decode(&[2, 1], true).unwrap(), "b");
     assert_eq!(tok.decode(&[1], false).unwrap(), "b");
 }
 

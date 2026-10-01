@@ -12,8 +12,17 @@ instance can serve many threads.
 | `Tokenizer::from_file(path)` / `from_json(&str)` / `from_bytes(..)` / `"…".parse()` | Load a Hugging Face `tokenizer.json` |
 | `to_json(pretty)` / `save(path, pretty)` | Write `tokenizer.json` (byte-compatible with HF); `save` is not available on wasm32 |
 | `Tokenizer::new(model)` + `with_normalizer` / `with_pre_tokenizer` / `with_post_processor` / `with_decoder` | Build in code (builder style) |
-| `set_normalizer` / `set_pre_tokenizer` / `set_model` / `set_post_processor` / `set_decoder` | Replace a component in place |
+| `set_normalizer` / `set_pre_tokenizer` / `set_model` / `set_post_processor` / `set_decoder` | Replace a component in place (`set_normalizer` and `set_model` return `Result`, see below) |
 | `model_mut()` | Change runtime model settings in place (Unigram sampling, BPE dropout); not for vocabulary changes, which need `set_model` |
+
+`set_model(model)` rebinds everything that depends on the vocabulary:
+added tokens keep their flags and take the new model's id when it has
+their text, else ids above the new vocabulary (in their previous order);
+post-processor special-token ids and the padding id are then rebound by
+token text. If a token the post-processor or padding is configured with
+resolves to nothing in the new model or the added tokens, it returns
+`Error::Config` and leaves the tokenizer unchanged. `train` rebinds the
+same way.
 | `normalizer()`, `pre_tokenizer()`, `model()`, `post_processor()`, `decoder()`, `truncation()`, `padding()`, `added_vocabulary()` | Inspect |
 
 ### Atomic saves
@@ -132,7 +141,10 @@ chars), `lstrip` / `rstrip` (swallow adjacent whitespace), `normalized`
 model keeps the model's id; new ones get ids above the highest occupied
 model or added-token id, even when the vocabulary has gaps. Id exhaustion
 returns an error.
-When loading `tokenizer.json`, ids are taken from the file as written.
+When loading `tokenizer.json`, ids are taken from the file as written;
+a file fails to load if two added tokens share an id, or if an added
+token's id is the model's id for a different token (an added token at its
+own model id, such as BERT's `[CLS]`, is fine).
 `set_encode_special_tokens(true)` makes special tokens tokenize like
 plain text.
 

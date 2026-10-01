@@ -98,7 +98,11 @@ impl<'de> Visitor<'de> for TokenizerVisitor {
         let model = model.ok_or_else(|| de::Error::missing_field("model"))?;
         let mut added_vocabulary = AddedVocabulary::new();
         added_vocabulary
-            .add_tokens_with_ids(&added, normalizer.as_ref().map(|n| n as &dyn Normalizer))
+            .add_tokens_with_ids(
+                &added,
+                &model,
+                normalizer.as_ref().map(|n| n as &dyn Normalizer),
+            )
             .map_err(de::Error::custom)?;
 
         Ok(Tokenizer {
