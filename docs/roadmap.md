@@ -42,7 +42,9 @@
       seeded, order-independent draws (2026-10-01).
 - [x] Repeatable local performance baselines with input fingerprints, diverse
       text, isolated load memory, and opt-in timing/RSS regression thresholds.
-- [ ] Benchmark regression tracking on dedicated hardware.
+- [ ] Benchmark regression tracking on dedicated hardware (in progress:
+      workflow, host setup script and results branch layout landed; pending
+      registration of the `bench-9800x3d` runner and its first run, #49).
 - [x] Accept the legacy untagged normalizer/decoder JSON forms (no file
       in the fixture set needs them today).
 - [x] Hash-check Hub downloads and cached files against their ETag;

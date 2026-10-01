@@ -1,0 +1,285 @@
+name: Benchmark tracking
+
+# Runs scripts/benchmark_baseline.py on the dedicated self-hosted host and
+# keeps every result on the `benchmarks` branch, comparing each run with the
+# previous one for the same host. See docs/benchmarks.md, "Dedicated host
+# tracking". Deliberately has no pull_request trigger: the self-hosted runner
+# must never execute code from forks.
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # daily, 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      compare_to:
+        description: >-
+          Result to compare with: `latest`, a result file name under
+          results/<host>/ (without .json), or a unique part of one such as the
+          commit SHA.
+        required: false
+        default: latest
+        type: string
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-tracking
+  cancel-in-progress: false
+
+env:
+  HOST_LABEL: bench-9800x3d
+  RESULTS_BRANCH: benchmarks
+  THRESHOLD_PERCENT: '20'
+  REPEATS: '5'
+  BENCH_CPUSET: 2-5
+  FIXTURE_CACHE: /var/cache/morpheme/hf-fixtures
+
+jobs:
+  measure:
+    runs-on: [self-hosted, linux, x64, bench]
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: source
+    outputs:
+      name: ${{ steps.name.outputs.name }}
+      recorded: ${{ steps.measure.outputs.recorded }}
+      status: ${{ steps.measure.outputs.status }}
+      baseline: ${{ steps.baseline.outputs.label }}
+      branch_exists: ${{ steps.branch.outputs.exists }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - name: Put the bench user's rustup on PATH
+        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
+        with:
+          toolchain: stable
+      - name: Host state
+        run: |
+          ./scripts/bench_host_setup.sh --check || true
+          command -v taskset
+          test -x /usr/bin/time
+      - name: Result name
+        id: name
+        run: echo "name=$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Fetch HF fixtures (host cache keyed by the pin list)
+        run: |
+          dest=crates/morpheme/tests/data/hf
+          cache="$FIXTURE_CACHE/$(sha256sum scripts/hf-fixtures.txt | cut -c1-16)"
+          mkdir -p "$dest" "$cache"
+          for f in "$cache"/*.json; do
+            if [ -e "$f" ] && [ ! -e "$dest/$(basename "$f")" ]; then cp "$f" "$dest/"; fi
+          done
+          ./scripts/fetch-hf-fixtures.sh
+          for f in "$dest"/*.json; do
+            if [ ! -e "$cache/$(basename "$f")" ]; then cp "$f" "$cache/"; fi
+          done
+      - name: Does the results branch exist?
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/branches/$RESULTS_BRANCH")
+          case "$code" in
+            200) echo "exists=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "exists=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "unexpected HTTP $code querying branch $RESULTS_BRANCH"; exit 1 ;;
+          esac
+      - name: Check out previous results
+        if: steps.branch.outputs.exists == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: benchmarks
+          path: results-branch
+          persist-credentials: false
+      - name: Resolve the comparison baseline
+        id: baseline
+        env:
+          BRANCH_EXISTS: ${{ steps.branch.outputs.exists }}
+          COMPARE_TO: ${{ inputs.compare_to || 'latest' }}
+        run: |
+          dir="$GITHUB_WORKSPACE/results-branch/results/$HOST_LABEL"
+          file=""
+          if [ "$BRANCH_EXISTS" != true ] || [ ! -d "$dir" ]; then
+            echo "no previous result for $HOST_LABEL; this run becomes the first baseline"
+          elif [ "$COMPARE_TO" = latest ]; then
+            if [ -f "$dir/latest.json" ]; then file="$dir/latest.json"; fi
+          elif [ -f "$dir/$COMPARE_TO.json" ]; then
+            file="$dir/$COMPARE_TO.json"
+          else
+            matches=$(find "$dir" -maxdepth 1 -name "*$COMPARE_TO*.json" ! -name latest.json | sort)
+            count=$(printf '%s\n' "$matches" | grep -c . || true)
+            if [ "$count" -ne 1 ]; then
+              echo "compare_to=$COMPARE_TO matched $count results in $dir:"; printf '%s\n' "$matches"; exit 1
+            fi
+            file="$matches"
+          fi
+          label=""
+          if [ -n "$file" ]; then
+            label=$(basename "$file" .json)
+            if [ "$label" = latest ]; then
+              label="latest ($(python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print(r["revision"][:12])' "$file"))"
+            fi
+            echo "comparing with $file"
+          fi
+          { echo "file=$file"; echo "label=$label"; } >> "$GITHUB_OUTPUT"
+      - name: Build the probe (all cores; the measurement below is pinned)
+        run: cargo build --release --locked -p morpheme --example benchmark_probe
+      - name: Measure
+        id: measure
+        env:
+          NAME: ${{ steps.name.outputs.name }}
+          BASELINE: ${{ steps.baseline.outputs.file }}
+        run: |
+          out="$GITHUB_WORKSPACE/out"
+          mkdir -p "$out"
+          args=(--output "$out/$NAME.json" --host-label "$HOST_LABEL" --repeats "$REPEATS" --no-build)
+          if [ -n "$BASELINE" ]; then
+            args+=(--compare "$BASELINE" --threshold-percent "$THRESHOLD_PERCENT" --summary "$out/summary.md")
+          fi
+          set +e
+          taskset -c "$BENCH_CPUSET" python3 scripts/benchmark_baseline.py "${args[@]}"
+          status=$?
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ -f "$out/$NAME.json" ]; then
+            echo "recorded=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "recorded=false" >> "$GITHUB_OUTPUT"
+          fi
+          # 0 = no regression, 1 = regression, 2 = not comparable: all three are recorded
+          # and published; anything else is a measurement failure.
+          case "$status" in 0 | 1 | 2) ;; *) exit "$status" ;; esac
+      - name: Job summary
+        if: always() && steps.measure.outputs.recorded == 'true'
+        env:
+          NAME: ${{ steps.name.outputs.name }}
+          STATUS: ${{ steps.measure.outputs.status }}
+          BASELINE_LABEL: ${{ steps.baseline.outputs.label }}
+        run: |
+          out="$GITHUB_WORKSPACE/out"
+          case "$STATUS" in
+            0) verdict="no regression above ${THRESHOLD_PERCENT}%" ;;
+            1) verdict="REGRESSION above ${THRESHOLD_PERCENT}% (see rows marked (!))" ;;
+            2) verdict="not comparable (fingerprints differ); this run is the new baseline" ;;
+            *) verdict="unexpected status $STATUS" ;;
+          esac
+          if [ -z "$BASELINE_LABEL" ]; then verdict="first result for this host; nothing to compare"; fi
+          {
+            echo "## Benchmark tracking: $HOST_LABEL"
+            echo
+            echo "- Commit: \`$GITHUB_SHA\` (\`$GITHUB_REF_NAME\`)"
+            echo "- Result: \`results/$HOST_LABEL/$NAME.json\` on branch \`$RESULTS_BRANCH\`"
+            echo "- Baseline: ${BASELINE_LABEL:-none}"
+            echo "- Verdict: $verdict"
+            echo "- Settings: repeats $REPEATS, cpuset $BENCH_CPUSET, threshold ${THRESHOLD_PERCENT}%"
+            echo
+            [ -f "$out/summary.md" ] && cat "$out/summary.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.measure.outputs.recorded == 'true'
+        with:
+          name: benchmark-result
+          path: out/
+          if-no-files-found: error
+
+  publish:
+    # Runs on a hosted runner so the self-hosted host never holds a write token.
+    needs: measure
+    if: always() && needs.measure.outputs.recorded == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the results branch
+        if: needs.measure.outputs.branch_exists == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: benchmarks
+          path: results-branch
+      - name: Create the results branch (first run)
+        if: needs.measure.outputs.branch_exists != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: results-branch
+      - name: Start an orphan history (first run)
+        if: needs.measure.outputs.branch_exists != 'true'
+        working-directory: results-branch
+        run: |
+          git checkout --orphan "$RESULTS_BRANCH"
+          git rm -rfq .
+          git clean -fdxq
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: benchmark-result
+          path: incoming
+      - name: Commit and push the result
+        working-directory: results-branch
+        env:
+          NAME: ${{ needs.measure.outputs.name }}
+          STATUS: ${{ needs.measure.outputs.status }}
+          BASELINE_LABEL: ${{ needs.measure.outputs.baseline }}
+        run: |
+          dir="results/$HOST_LABEL"
+          mkdir -p "$dir"
+          cp "../incoming/$NAME.json" "$dir/$NAME.json"
+          cp "../incoming/$NAME.json" "$dir/latest.json"
+          if [ ! -f README.md ]; then
+            cat > README.md <<'EOF'
+          # Benchmark results
+
+          Written by the `Benchmark tracking` workflow; do not edit by hand.
+
+          - `results/<host>/<utc timestamp>-<sha>.json`: one `scripts/benchmark_baseline.py`
+            report per run.
+          - `results/<host>/latest.json`: copy of the newest report for that host; the next
+            run compares against it.
+
+          See docs/benchmarks.md on the main branch, "Dedicated host tracking".
+          EOF
+            git add README.md
+          fi
+          case "$STATUS" in 0) verdict=ok ;; 1) verdict=regression ;; 2) verdict=not-comparable ;; *) verdict="status-$STATUS" ;; esac
+          if [ -z "$BASELINE_LABEL" ]; then verdict=first; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$dir"
+          git commit -q -m "bench($HOST_LABEL): $NAME ($verdict)" \
+            -m "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            -m "Baseline: ${BASELINE_LABEL:-none}"
+          git push origin "HEAD:$RESULTS_BRANCH"
+
+  gate:
+    # Fails after the result is stored so the history stays complete.
+    needs: [measure, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - env:
+          MEASURE_RESULT: ${{ needs.measure.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          STATUS: ${{ needs.measure.outputs.status }}
+          BASELINE_LABEL: ${{ needs.measure.outputs.baseline }}
+        run: |
+          if [ "$MEASURE_RESULT" != success ]; then echo "::error::measurement failed ($MEASURE_RESULT)"; exit 1; fi
+          if [ "$PUBLISH_RESULT" != success ]; then echo "::error::publishing the result failed ($PUBLISH_RESULT)"; exit 1; fi
+          case "$STATUS" in
+            0) echo "no regression above ${THRESHOLD_PERCENT}% against ${BASELINE_LABEL:-nothing (first run)}" ;;
+            1) echo "::error::performance regression above ${THRESHOLD_PERCENT}% against $BASELINE_LABEL; see the measure job summary"; exit 1 ;;
+            2) echo "::warning::result not comparable with $BASELINE_LABEL (fingerprints differ); it is the new baseline" ;;
+            *) echo "::error::unexpected status $STATUS"; exit 1 ;;
+          esac
