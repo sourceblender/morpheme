@@ -1,7 +1,7 @@
 //! SentencePiece-style metaspace pre-tokenizer and decoder: spaces
 //! become `▁` and words keep their leading `▁`.
 
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 
 use crate::error::Result;
 use crate::normalized_string::SplitDelimiterBehavior;

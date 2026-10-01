@@ -1,18 +1,21 @@
 [package]
 name = "splinter"
 version = "0.0.0"
-description = "A Rust tokenizer library."
+description = "Fast, pure-Rust subword tokenization (BPE, WordPiece, Unigram) compatible with Hugging Face tokenizers."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-authors = ["The splinter authors"]
+homepage.workspace = true
+authors.workspace = true
+readme = "../../README.md"
+keywords = ["tokenizer", "bpe", "wordpiece", "sentencepiece", "nlp"]
+categories = ["text-processing", "science"]
 
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 rustc-hash = { workspace = true }
 unicode-normalization-alignments = { workspace = true }
 unicode_categories = { workspace = true }
@@ -22,7 +25,6 @@ aho-corasick = { workspace = true }
 rayon = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
 # preserve_order lets tests check that JSON field order matches HF.

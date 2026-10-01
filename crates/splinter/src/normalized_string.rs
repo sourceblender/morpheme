@@ -13,9 +13,9 @@ use std::ops::{Bound, RangeBounds};
 use serde::{Deserialize, Serialize};
 use unicode_normalization_alignments::UnicodeNormalization;
 
+use crate::Offsets;
 use crate::error::Result;
 use crate::pattern::Pattern;
-use crate::Offsets;
 
 /// A byte range expressed in one of the two coordinate systems of a
 /// [`NormalizedString`].

@@ -68,7 +68,16 @@ format, and is now verified against the reference implementation.
   end-of-word suffix is optional and applies to the last character only,
   as in Hugging Face.
 - MSRV raised from 1.74 to 1.85 (required by current dependencies;
-  verified in CI).
+  verified in CI). Crates moved to the Rust 2024 edition and the
+  MSRV-aware dependency resolver (v3).
+- Dependencies: `thiserror` 2; unused `tracing`/`tracing-subscriber`/
+  `anyhow` dependencies removed; crates.io metadata (description,
+  keywords, categories, readme) added.
+- CI: GitHub Actions updated to their current majors, least-privilege
+  `permissions`, cancellation of superseded runs, blocking `cargo-deny`
+  (licenses, bans, sources, RustSec advisories) via `deny.toml`, rustdoc
+  and Python-interop jobs. Release publishing passes the registry token
+  via the environment.
 - `examples/` tokenizers regenerated with the new CLI
   (`scripts/regenerate-examples.sh`); `examples/corpus.txt` expanded.
 

@@ -8,8 +8,7 @@
 | Feature request             | [GitHub Issues](../../issues/new?template=feature_request.md)                |
 | Security issue              | [SECURITY.md](./SECURITY.md) — email `security@sourceblender.dev`            |
 | Code of conduct violation   | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — email `conduct@sourceblender.dev` |
-| General usage question      | [GitHub Discussions](../../discussions)                                    |
-| Design / architecture chat  | [GitHub Discussions → Design](../../discussions/categories/design)         |
+| Usage or design question    | [GitHub Issues](../../issues/new) — start the title with `[question]`        |
 
 ## Response expectations
 

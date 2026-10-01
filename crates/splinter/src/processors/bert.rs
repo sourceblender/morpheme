@@ -39,11 +39,7 @@ impl BertProcessing {
 
 impl PostProcessor for BertProcessing {
     fn added_tokens(&self, is_pair: bool) -> usize {
-        if is_pair {
-            3
-        } else {
-            2
-        }
+        if is_pair { 3 } else { 2 }
     }
 
     fn process_encodings(

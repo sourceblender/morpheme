@@ -408,7 +408,7 @@ impl PostProcessor for TemplateProcessing {
             n => {
                 return Err(err(format!(
                     "TemplateProcessing expects 1 or 2 encodings, got {n}"
-                )))
+                )));
             }
         };
         self.apply(template, encodings, add_special_tokens)
@@ -617,16 +617,20 @@ mod tests {
             Err(Error::PostProcessor(m)) => assert!(m.contains("[SEP]"), "{m}"),
             other => panic!("expected error, got {other:?}"),
         }
-        assert!(TemplateProcessing::builder()
-            .try_pair("$A $A")
-            .unwrap()
-            .build()
-            .is_err());
-        assert!(TemplateProcessing::builder()
-            .try_single("$A $B")
-            .unwrap()
-            .build()
-            .is_err());
+        assert!(
+            TemplateProcessing::builder()
+                .try_pair("$A $A")
+                .unwrap()
+                .build()
+                .is_err()
+        );
+        assert!(
+            TemplateProcessing::builder()
+                .try_single("$A $B")
+                .unwrap()
+                .build()
+                .is_err()
+        );
         assert!(TemplateProcessing::builder().build().is_ok());
     }
 

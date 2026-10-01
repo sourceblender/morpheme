@@ -9,9 +9,9 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
+use crate::Token;
 use crate::error::Result;
 use crate::traits::Model;
-use crate::Token;
 
 pub use bpe::{Bpe, BpeBuilder};
 pub use unigram::Unigram;
@@ -56,8 +56,8 @@ impl<'de> Deserialize<'de> for ModelWrapper {
             }
             other => {
                 return Err(D::Error::custom(format!(
-                "unsupported model type {other:?} (expected BPE, WordPiece, WordLevel or Unigram)"
-            )))
+                    "unsupported model type {other:?} (expected BPE, WordPiece, WordLevel or Unigram)"
+                )));
             }
         };
         Ok(model)

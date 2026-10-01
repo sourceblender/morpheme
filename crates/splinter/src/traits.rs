@@ -6,11 +6,11 @@
 
 use std::collections::HashMap;
 
+use crate::Token;
 use crate::encoding::Encoding;
 use crate::error::Result;
 use crate::normalized_string::NormalizedString;
 use crate::pre_tokenized_string::PreTokenizedString;
-use crate::Token;
 
 /// Rewrites text in place, keeping alignments to the original.
 pub trait Normalizer {

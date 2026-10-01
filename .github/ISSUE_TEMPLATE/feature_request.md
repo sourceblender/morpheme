@@ -24,15 +24,14 @@ What else did you consider?
 Which module(s) does this touch? See docs/modules/.
 -->
 
-- [ ] `normalizer`
-- [ ] `pre_tokenizer`
-- [ ] `bpe`
-- [ ] `wordpiece`
-- [ ] `unigram`
-- [ ] `post_processor`
-- [ ] `decoder`
-- [ ] `trainer`
-- [ ] `tokenizer` (glue)
+- [ ] `normalizers`
+- [ ] `pre_tokenizers`
+- [ ] `models` (BPE / WordPiece / WordLevel / Unigram)
+- [ ] `processors` (post-processors)
+- [ ] `decoders`
+- [ ] `trainers`
+- [ ] core (`tokenizer`, `encoding`, `normalized_string`, `added_vocabulary`)
+- [ ] `tokenizer.json` (de)serialization / Hugging Face interop
 - [ ] `cli`
 - [ ] other (describe)
 

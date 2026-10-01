@@ -1,12 +1,16 @@
 [package]
 name = "splinter-cli"
 version = "0.0.0"
-description = "CLI for the splinter tokenizer library."
+description = "Command-line tool to train, inspect and run Hugging Face-compatible tokenizers with splinter."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-authors = ["The splinter authors"]
+homepage.workspace = true
+authors.workspace = true
+readme = "../../README.md"
+keywords = ["tokenizer", "cli", "bpe", "nlp"]
+categories = ["command-line-utilities", "text-processing"]
 
 [[bin]]
 name = "splinter"
@@ -18,8 +22,6 @@ doc = false
 [dependencies]
 splinter = { path = "../../crates/splinter", version = "0.0.0" }
 anyhow = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

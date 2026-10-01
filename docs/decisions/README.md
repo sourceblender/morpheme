@@ -7,7 +7,7 @@ Each ADR is a short markdown file, one decision per file.
 
 | Number | Title | Status |
 | ------ | ----- | ------ |
-| _none yet_ | — | — |
+| [0001](./0001-adopt-hugging-face-tokenizers-design.md) | Adopt the Hugging Face `tokenizers` design and file format | accepted |
 
 ## Conventions
 

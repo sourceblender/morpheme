@@ -7,7 +7,7 @@
 | latest  | :white_check_mark: |
 | < latest | :x:                |
 
-`splinter` is pre-alpha. Security fixes will be backported only at the
+`splinter` is pre-release (v0.x). Security fixes will be backported only at the
 discretion of the maintainers, and only for the most recent release line.
 
 ## Reporting a vulnerability

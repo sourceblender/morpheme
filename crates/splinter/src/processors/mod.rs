@@ -157,15 +157,19 @@ mod tests {
 
     #[test]
     fn missing_or_unknown_type_is_an_error() {
-        assert!(serde_json::from_str::<PostProcessorWrapper>(
-            r#"{"sep":["[SEP]",102],"cls":["[CLS]",101]}"#
-        )
-        .is_err());
+        assert!(
+            serde_json::from_str::<PostProcessorWrapper>(
+                r#"{"sep":["[SEP]",102],"cls":["[CLS]",101]}"#
+            )
+            .is_err()
+        );
         assert!(serde_json::from_str::<PostProcessorWrapper>(r#"{"type":"Nope"}"#).is_err());
-        assert!(serde_json::from_str::<PostProcessorWrapper>(
-            r#"{"type":"BertProcessing","sep":["[SEP]",102]}"#
-        )
-        .is_err());
+        assert!(
+            serde_json::from_str::<PostProcessorWrapper>(
+                r#"{"type":"BertProcessing","sep":["[SEP]",102]}"#
+            )
+            .is_err()
+        );
     }
 
     /// Every `post_processor` in the downloaded HF fixtures

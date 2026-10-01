@@ -225,8 +225,8 @@ pub fn process_offsets(encoding: &mut Encoding, add_prefix_space: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pre_tokenizers::tests::splits;
     use crate::Token;
+    use crate::pre_tokenizers::tests::splits;
 
     #[test]
     fn table_is_a_bijection() {

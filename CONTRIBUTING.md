@@ -35,7 +35,7 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 <footer>
 ```
 
-Common scopes: `lib`, `cli`, `bpe`, `wordpiece`, `unigram`, `pre-tokenizer`, `normalizer`, `decoder`, `post-processor`, `trainer`, `docs`, `ci`.
+Common scopes: `lib`, `cli`, `models`, `normalizers`, `pre-tokenizers`, `processors`, `decoders`, `trainers`, `interop`, `docs`, `ci`.
 
 ## Reporting bugs
 

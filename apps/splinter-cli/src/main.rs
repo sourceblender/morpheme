@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::io::Read;
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use splinter::decoders::{self, DecoderWrapper};
 use splinter::models::{Bpe, ModelWrapper, Unigram, WordLevel, WordPiece};
@@ -119,14 +119,6 @@ enum Preset {
 }
 
 fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")),
-        )
-        .with_writer(std::io::stderr)
-        .init();
-
     match Cli::parse().command {
         Command::Encode {
             tokenizer,

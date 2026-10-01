@@ -4,9 +4,9 @@ use std::sync::RwLock;
 use rustc_hash::FxHashMap;
 
 use super::word::{MergeMap, Word};
+use crate::Token;
 use crate::error::{Error, Result};
 use crate::traits::Model;
-use crate::Token;
 
 /// `token -> id`.
 pub type Vocab = HashMap<String, u32>;

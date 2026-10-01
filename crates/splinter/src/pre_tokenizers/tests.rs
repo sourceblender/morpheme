@@ -7,10 +7,10 @@
 use serde_json::Value;
 
 use super::PreTokenizerWrapper;
+use crate::Offsets;
 use crate::decoders::DecoderWrapper;
 use crate::pre_tokenized_string::{OffsetType, PreTokenizedString};
 use crate::traits::{Decoder, PreTokenizer};
-use crate::Offsets;
 
 /// Pre-tokenize `input` and return `(piece, byte offsets)`. Pieces are
 /// leaked so tests can compare against `&str` literals.

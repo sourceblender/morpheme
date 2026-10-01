@@ -7,10 +7,10 @@ use serde::de::{self, MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::Token;
 use crate::error::{Error, Result};
 use crate::models::bpe::{Bpe, OrderedVocab};
 use crate::traits::Model;
-use crate::Token;
 
 /// `token -> id`.
 pub type Vocab = HashMap<String, u32>;

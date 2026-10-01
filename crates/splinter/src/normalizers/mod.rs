@@ -123,7 +123,7 @@ impl_from!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     fn roundtrip(v: Value) {
         let n: NormalizerWrapper = serde_json::from_value(v.clone()).unwrap();

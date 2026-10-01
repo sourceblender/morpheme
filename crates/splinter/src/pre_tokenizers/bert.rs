@@ -31,8 +31,8 @@ impl PreTokenizer for BertPreTokenizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pre_tokenizers::tests::splits;
     use crate::NormalizedString;
+    use crate::pre_tokenizers::tests::splits;
 
     #[test]
     fn basic() {

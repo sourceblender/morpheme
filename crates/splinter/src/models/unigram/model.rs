@@ -10,9 +10,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::lattice::Lattice;
 use super::trie::Trie;
+use crate::Token;
 use crate::error::{Error, Result};
 use crate::traits::Model;
-use crate::Token;
 
 /// Score penalty (below the lowest piece score) for unknown chars.
 pub(crate) const UNK_PENALTY: f64 = 10.0;

@@ -54,8 +54,8 @@ impl PostProcessor for Sequence {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::processors::BertProcessing;
     use crate::Token;
+    use crate::processors::BertProcessing;
 
     #[test]
     fn serde_round_trip() {

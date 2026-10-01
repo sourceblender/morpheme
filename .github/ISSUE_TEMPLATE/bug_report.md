@@ -14,7 +14,9 @@ One-line description of the bug.
 
 <!--
 A minimal reproduction is the single most helpful thing.
-Paste a `cargo` snippet, a JSON tokenizer, or a failing test.
+Paste a `cargo` snippet, a tokenizer.json (or the Hugging Face model id
+it came from), or a failing test. For interop bugs, include what Python
+`tokenizers` returns for the same input.
 -->
 
 ```rust

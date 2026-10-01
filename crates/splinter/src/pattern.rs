@@ -2,8 +2,8 @@
 //! replacing), plus [`SysRegex`], the regex engine used throughout the
 //! crate.
 
-use crate::error::{Error, Result};
 use crate::Offsets;
+use crate::error::{Error, Result};
 
 /// A compiled regular expression supporting the look-around syntax used
 /// by GPT-2-style pre-tokenizer patterns (`\s+(?!\S)` and friends).
