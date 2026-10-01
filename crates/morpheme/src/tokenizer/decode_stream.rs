@@ -34,6 +34,8 @@ pub struct DecodeStream<'tok> {
     /// next decode.
     prefix: String,
     prefix_index: usize,
+    /// `prefill` was called and its prefix is not computed yet.
+    pending_prefill: bool,
 }
 
 impl<'tok> DecodeStream<'tok> {
@@ -44,14 +46,25 @@ impl<'tok> DecodeStream<'tok> {
             ids: Vec::new(),
             prefix: String::new(),
             prefix_index: 0,
+            pending_prefill: false,
         }
     }
 
     /// Start from ids whose text was already shown (e.g. the prompt), so
     /// the next chunk is decoded in their context but not re-emitted.
+    /// The prefill may end inside a multi-token character; that character
+    /// is emitted by the step that completes it.
+    ///
+    /// Like HF, incomplete characters are recognised by the trailing
+    /// U+FFFD their bytes decode to. A real U+FFFD at the end of the
+    /// prefill is told apart when it comes from several byte tokens
+    /// (removing one of them would *add* replacement characters), but a
+    /// single id whose text is just U+FFFD is indistinguishable from an
+    /// incomplete byte and is emitted again with the next chunk.
     #[must_use]
     pub fn prefill(mut self, ids: &[u32]) -> Self {
         self.ids.extend_from_slice(ids);
+        self.pending_prefill = !self.ids.is_empty();
         self
     }
 
@@ -66,12 +79,42 @@ impl<'tok> DecodeStream<'tok> {
         let (tokenizer, skip) = (self.tokenizer, self.skip_special_tokens);
         let decode = |ids: &[u32]| tokenizer.decode(ids, skip);
 
-        if self.prefix.is_empty() && !self.ids.is_empty() {
-            let prefix = decode(&self.ids)?;
-            if !prefix.ends_with('\u{FFFD}') {
-                self.prefix = prefix;
-                self.prefix_index = self.ids.len();
+        // First step after `prefill`: the prefilled text was already shown.
+        // If the prefill ends inside a character (byte fallback), only the
+        // ids up to the last complete character count as shown; the rest
+        // stay as context so the character is emitted once completed. A
+        // character is at most 4 bytes, so at most 3 trailing byte tokens
+        // can be incomplete; anything longer is real U+FFFD text.
+        //
+        // Walking back must not split a *complete* character that happens
+        // to be U+FFFD (bytes EF BF BD): removing one of its bytes turns
+        // the remaining ones into more replacement characters, whereas
+        // removing bytes of an incomplete character never adds any (a
+        // byte-fallback run is replaced as a whole, a byte-level one per
+        // maximal invalid sequence, so the texts themselves are not
+        // compared). A single id whose text is U+FFFD stays ambiguous.
+        if self.pending_prefill {
+            self.pending_prefill = false;
+            let len = self.ids.len();
+            let full = decode(&self.ids)?;
+            let trailing_fffd = |s: &str| s.chars().rev().take_while(|&c| c == '\u{FFFD}').count();
+            let (mut k, mut prefix) = (len, full.clone());
+            let mut fffd = trailing_fffd(&full);
+            while fffd > 0 && k > 0 && k + 3 > len {
+                let shorter = decode(&self.ids[..k - 1])?;
+                let shorter_fffd = trailing_fffd(&shorter);
+                if shorter_fffd > fffd {
+                    // Removing this id split a complete character.
+                    break;
+                }
+                (k, prefix, fffd) = (k - 1, shorter, shorter_fffd);
             }
+            if fffd > 0 {
+                // Not an incomplete character: real U+FFFD text.
+                (k, prefix) = (len, full);
+            }
+            self.prefix = prefix;
+            self.prefix_index = k;
         }
 
         self.ids.extend_from_slice(ids);

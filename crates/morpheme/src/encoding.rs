@@ -68,6 +68,12 @@ pub struct Encoding {
 impl Encoding {
     /// Build an encoding from its parts. All vectors must have the same
     /// length.
+    ///
+    /// # Panics
+    ///
+    /// In debug builds, panics if the vectors differ in length. (Release
+    /// builds accept the encoding and fail later, in truncation or
+    /// padding.)
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         ids: Vec<u32>,
@@ -79,6 +85,33 @@ impl Encoding {
         attention_mask: Vec<u32>,
         overflowing: Vec<Encoding>,
     ) -> Self {
+        let n = ids.len();
+        debug_assert_eq!(
+            type_ids.len(),
+            n,
+            "Encoding::new: type_ids length != ids length"
+        );
+        debug_assert_eq!(
+            tokens.len(),
+            n,
+            "Encoding::new: tokens length != ids length"
+        );
+        debug_assert_eq!(words.len(), n, "Encoding::new: words length != ids length");
+        debug_assert_eq!(
+            offsets.len(),
+            n,
+            "Encoding::new: offsets length != ids length"
+        );
+        debug_assert_eq!(
+            special_tokens_mask.len(),
+            n,
+            "Encoding::new: special_tokens_mask length != ids length"
+        );
+        debug_assert_eq!(
+            attention_mask.len(),
+            n,
+            "Encoding::new: attention_mask length != ids length"
+        );
         Self {
             ids,
             type_ids,

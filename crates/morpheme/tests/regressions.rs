@@ -818,3 +818,415 @@ fn word_level_trainer_never_leaves_id_holes() {
         .collect();
     assert_eq!(vocab, expected);
 }
+
+// ----- v0.2 review ----------------------------------------------------
+
+fn char_level_tokenizer() -> Tokenizer {
+    // One id per character, so tokens come out exactly as the
+    // pre-tokenizer split them.
+    let chars = "abcdefghijklmnopqrstuvwxyz ABCXYZéè\u{301}\u{307}İ";
+    let mut vocab: HashMap<String, u32> = HashMap::from([("[UNK]".to_string(), 0)]);
+    for c in chars.chars() {
+        let next = vocab.len() as u32;
+        vocab.entry(c.to_string()).or_insert(next);
+    }
+    let model = morpheme::models::WordLevel::builder()
+        .vocab(vocab)
+        .unk_token("[UNK]")
+        .build()
+        .unwrap();
+    Tokenizer::new(model)
+}
+
+fn zero_width_split() -> morpheme::pre_tokenizers::Split {
+    morpheme::pre_tokenizers::Split::new(
+        morpheme::pattern::SplitPattern::Regex("$".into()),
+        morpheme::SplitDelimiterBehavior::Isolated,
+        false,
+    )
+    .unwrap()
+}
+
+#[test]
+fn zero_width_split_after_length_changing_normalizer_does_not_panic() {
+    // Issue #26: `$` matches the empty string at the end of the normalized
+    // text; that empty span was sliced using its index as an *original*
+    // byte offset, which is out of range once NFD or Lowercase changed
+    // the byte length.
+    let cases: [(morpheme::NormalizerWrapper, &str); 2] = [
+        (morpheme::normalizers::Nfd.into(), "éé x"),
+        (morpheme::normalizers::Lowercase.into(), "İ"),
+    ];
+    for (normalizer, input) in cases {
+        let mut normalized_only = char_level_tokenizer();
+        normalized_only
+            .set_normalizer(Some(normalizer.clone()))
+            .unwrap();
+        let with_split = char_level_tokenizer()
+            .with_normalizer(normalizer)
+            .with_pre_tokenizer(zero_width_split());
+
+        let got = with_split.encode(input, false).unwrap();
+        let want = normalized_only.encode(input, false).unwrap();
+        assert!(!want.tokens().is_empty());
+        assert_eq!(got.tokens(), want.tokens(), "{input:?}");
+        assert_eq!(got.offsets(), want.offsets(), "{input:?}");
+    }
+    // Without a normalizer the zero-width split is a no-op as well.
+    let plain = char_level_tokenizer().with_pre_tokenizer(zero_width_split());
+    assert_eq!(
+        plain.encode("ab c", false).unwrap().tokens(),
+        char_level_tokenizer()
+            .encode("ab c", false)
+            .unwrap()
+            .tokens()
+    );
+}
+
+#[test]
+fn pattern_returning_non_boundary_offsets_is_an_error_not_a_panic() {
+    // Issue #26: a third-party `Pattern` that reports offsets inside a
+    // character used to hit an `expect`.
+    struct MidChar;
+    impl morpheme::pattern::Pattern for MidChar {
+        fn find_matches(&self, inside: &str) -> morpheme::Result<Vec<((usize, usize), bool)>> {
+            Ok(vec![((0, 1), false), ((1, inside.len()), false)])
+        }
+    }
+    let s = NormalizedString::from("éa");
+    let err = s
+        .split(MidChar, morpheme::SplitDelimiterBehavior::Isolated)
+        .unwrap_err();
+    assert!(matches!(err, morpheme::Error::PreTokenizer(_)), "{err}");
+}
+
+fn assert_offsets_cover_once(enc: &morpheme::Encoding, len: usize) {
+    let mut covered = vec![0u8; len];
+    for &(s, e) in enc.offsets() {
+        assert!(s <= e && e <= len, "bad offsets {:?}", enc.offsets());
+        for c in &mut covered[s..e] {
+            *c += 1;
+        }
+    }
+    assert!(
+        covered.iter().all(|&c| c <= 1),
+        "overlapping offsets {:?}",
+        enc.offsets()
+    );
+}
+
+#[test]
+fn rstrip_token_followed_by_lstrip_token_does_not_overlap_or_panic() {
+    // Issue #27, overlap: "<x>" (rstrip) swallowed the space that " <y>"
+    // also started with, so byte 3 was covered twice (HF does the same).
+    let mut tok = word_level_tokenizer(&[("[UNK]", 0)]);
+    tok.add_tokens(&[
+        morpheme::AddedToken::new("<x>", false).rstrip(true),
+        morpheme::AddedToken::new(" <y>", false),
+    ])
+    .unwrap();
+    let enc = tok.encode("<x> <y>", false).unwrap();
+    assert_eq!(enc.tokens(), ["<x> ", "<y>"]);
+    assert_eq!(enc.offsets(), [(0, 4), (4, 7)]);
+    assert_eq!(enc.ids(), [1, 2]);
+    assert_offsets_cover_once(&enc, "<x> <y>".len());
+
+    // Issue #27, panic: the lstrip clamp moved the second match's start
+    // past its end (3..2) and `slice` returned `None`.
+    let mut tok = word_level_tokenizer(&[("[UNK]", 0)]);
+    tok.add_tokens(&[
+        morpheme::AddedToken::new("A", false).rstrip(true),
+        morpheme::AddedToken::new(" ", false).lstrip(true),
+    ])
+    .unwrap();
+    let enc = tok.encode("A  ", false).unwrap();
+    assert_eq!(enc.tokens(), ["A  "]);
+    assert_eq!(enc.ids(), [1]);
+    assert_eq!(enc.offsets(), [(0, 3)]);
+    assert_offsets_cover_once(&enc, 3);
+}
+
+#[test]
+fn decode_stream_prefill_ending_mid_character_emits_only_new_text() {
+    // Issue #30: a prefill ending inside a byte-fallback character left
+    // the stream without a prefix, and the first completed step returned
+    // the whole prompt.
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/hf/llama.json");
+    if !path.exists() && std::env::var_os("MORPHEME_SKIP_HF_GOLDEN").is_some() {
+        eprintln!("skipping: {} missing", path.display());
+        return;
+    }
+    let tok = Tokenizer::from_file(&path).unwrap();
+    let ids = tok.encode("hi 😀", false).unwrap().ids().to_vec();
+    assert_eq!(ids.len(), 6, "{ids:?}");
+    let full = tok.decode(&ids, false).unwrap();
+
+    for split in 1..ids.len() {
+        let (shown, rest) = ids.split_at(split);
+        let mut stream = tok.decode_stream(false).prefill(shown);
+        let mut emitted = String::new();
+        for &id in rest {
+            if let Some(chunk) = stream.step(id).unwrap() {
+                emitted.push_str(&chunk);
+            }
+        }
+        let prefix = tok.decode(shown, false).unwrap();
+        let prefix = prefix.trim_end_matches('\u{FFFD}');
+        assert_eq!(
+            format!("{prefix}{emitted}"),
+            full,
+            "prefill of {split} ids re-emitted or lost text: {emitted:?}"
+        );
+    }
+
+    // The case from the issue: 4 ids end inside the emoji.
+    let mut stream = tok.decode_stream(false).prefill(&ids[..4]);
+    assert_eq!(stream.step(ids[4]).unwrap(), None);
+    assert_eq!(stream.step(ids[5]).unwrap().as_deref(), Some("😀"));
+}
+
+#[test]
+fn reusing_an_added_token_id_unmaps_the_old_content() {
+    // Issue #35, repro A: `<s>` got id 1, then the model grew a `b` at
+    // id 1 and `add_tokens(["b"])` replaced the entry; `<s>` still
+    // resolved to 1 and stayed special.
+    let mut tok = word_level_tokenizer(&[("[UNK]", 0)]);
+    tok.add_special_tokens(&[morpheme::AddedToken::new("<s>", true)])
+        .unwrap();
+    assert_eq!(tok.token_to_id("<s>"), Some(1));
+    tok.set_model(
+        morpheme::models::WordLevel::builder()
+            .vocab(HashMap::from([
+                ("[UNK]".to_string(), 0),
+                ("b".to_string(), 1),
+            ]))
+            .unk_token("[UNK]")
+            .build()
+            .unwrap(),
+    );
+    tok.add_tokens(&[morpheme::AddedToken::new("b", false)])
+        .unwrap();
+    assert_eq!(tok.id_to_token(1).as_deref(), Some("b"));
+    assert_eq!(tok.token_to_id("<s>"), None);
+    assert_eq!(tok.token_to_id("b"), Some(1));
+    let enc = tok.encode("<s> b", false).unwrap();
+    assert_eq!(enc.tokens(), ["[UNK]", "b"]);
+    assert_eq!(tok.decode(&[1], true).unwrap(), "b");
+    assert_eq!(tok.decode(&[1], false).unwrap(), "b");
+}
+
+#[test]
+fn tokenizer_json_with_duplicate_added_token_ids_fails_to_load() {
+    // Issue #35, repro B.
+    let json = r#"{
+      "version": "1.0",
+      "added_tokens": [
+        {"id": 1, "content": "<s>", "special": true, "single_word": false,
+         "lstrip": false, "rstrip": false, "normalized": false},
+        {"id": 1, "content": "</s>", "special": true, "single_word": false,
+         "lstrip": false, "rstrip": false, "normalized": false}
+      ],
+      "model": {"type": "WordLevel", "vocab": {"[UNK]": 0}, "unk_token": "[UNK]"}
+    }"#;
+    let err = Tokenizer::from_bytes(json).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("<s>") && msg.contains("</s>") && msg.contains("id 1"),
+        "{msg}"
+    );
+
+    // The same id with identical content is a duplicate too.
+    let json = json.replace("\"</s>\"", "\"<s>\"");
+    let err = Tokenizer::from_bytes(json).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("id 1") && msg.matches("\"<s>\"").count() == 2,
+        "{msg}"
+    );
+
+    // Empty-content entries are still skipped, not counted as duplicates.
+    let json = r#"{
+      "version": "1.0",
+      "added_tokens": [
+        {"id": 1, "content": "", "special": false, "single_word": false,
+         "lstrip": false, "rstrip": false, "normalized": false},
+        {"id": 1, "content": "<s>", "special": true, "single_word": false,
+         "lstrip": false, "rstrip": false, "normalized": false}
+      ],
+      "model": {"type": "WordLevel", "vocab": {"[UNK]": 0}, "unk_token": "[UNK]"}
+    }"#;
+    assert_eq!(
+        Tokenizer::from_bytes(json).unwrap().token_to_id("<s>"),
+        Some(1)
+    );
+}
+
+#[test]
+fn decode_stream_prefill_ending_in_a_real_replacement_character() {
+    // PR #57 review: U+FFFD itself can go through byte fallback as
+    // <0xEF><0xBF><0xBD>, which looks like an incomplete character from
+    // the text alone. Removing one of its bytes adds replacement
+    // characters, which an incomplete character never does, so the
+    // prefix is kept whole and nothing is re-emitted.
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/hf/llama.json");
+    if !path.exists() && std::env::var_os("MORPHEME_SKIP_HF_GOLDEN").is_some() {
+        eprintln!("skipping: {} missing", path.display());
+        return;
+    }
+    let stream_rest = |tok: &Tokenizer, shown: &[u32], rest: &[u32]| {
+        let mut stream = tok.decode_stream(false).prefill(shown);
+        let mut emitted = String::new();
+        for &id in rest {
+            if let Some(chunk) = stream.step(id).unwrap() {
+                emitted.push_str(&chunk);
+            }
+        }
+        emitted
+    };
+
+    // Llama has "\u{FFFD}" as a vocabulary token; drop it (and the one
+    // merge producing it) so the character goes through byte fallback.
+    let mut json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    json["model"]["vocab"]
+        .as_object_mut()
+        .unwrap()
+        .remove("\u{FFFD}");
+    json["model"]["merges"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|m| !m.as_str().unwrap().contains('\u{FFFD}'));
+    let tok = Tokenizer::from_bytes(json.to_string()).unwrap();
+    let shown = tok.encode("hi \u{FFFD}", false).unwrap().ids().to_vec();
+    let all = tok
+        .encode("hi \u{FFFD} there", false)
+        .unwrap()
+        .ids()
+        .to_vec();
+    assert!(all.starts_with(&shown), "{shown:?} {all:?}");
+    let byte_tokens = shown
+        .iter()
+        .rev()
+        .take_while(|&&id| tok.id_to_token(id).is_some_and(|t| t.starts_with("<0x")))
+        .count();
+    assert_eq!(
+        byte_tokens, 3,
+        "U+FFFD should be three byte-fallback tokens"
+    );
+    assert_eq!(tok.decode(&shown, false).unwrap(), "hi \u{FFFD}");
+
+    assert_eq!(stream_rest(&tok, &shown, &all[shown.len()..]), " there");
+    // A prefill ending one or two bytes into the character completes it.
+    for cut in 1..=2 {
+        let at = shown.len() - cut;
+        assert_eq!(stream_rest(&tok, &all[..at], &all[at..]), "\u{FFFD} there");
+    }
+
+    // With the stock vocabulary "\u{FFFD}" is a single id, which cannot
+    // be told from an incomplete byte: it is emitted again (documented in
+    // docs/interop.md; HF re-emits the whole prompt here).
+    let tok = Tokenizer::from_file(&path).unwrap();
+    let shown = tok.encode("hi \u{FFFD}", false).unwrap().ids().to_vec();
+    let all = tok
+        .encode("hi \u{FFFD} there", false)
+        .unwrap()
+        .ids()
+        .to_vec();
+    assert!(all.starts_with(&shown), "{shown:?} {all:?}");
+    assert_eq!(
+        tok.id_to_token(*shown.last().unwrap()).as_deref(),
+        Some("\u{FFFD}")
+    );
+    assert_eq!(
+        stream_rest(&tok, &shown, &all[shown.len()..]),
+        "\u{FFFD} there"
+    );
+}
+
+#[test]
+fn set_normalizer_is_transactional() {
+    // Issue #40 (1): `set_normalizer` assigned the normalizer before
+    // refreshing the added tokens, so a failing refresh left the new
+    // normalizer with stale matchers. A `Replace` whose regex exceeds
+    // fancy-regex's backtrack limit on an added token fails at refresh.
+    let mut tok = word_level_tokenizer(&[("[UNK]", 0), ("x", 1)]);
+    let content = "a".repeat(40);
+    tok.add_tokens(&[morpheme::AddedToken::new(&content, false).normalized(true)])
+        .unwrap();
+    let before = tok.to_json(false).unwrap();
+    let input = format!("{content} x");
+    assert_eq!(tok.encode(&*input, false).unwrap().ids(), [2, 1]);
+
+    let replace = morpheme::normalizers::Replace::new(
+        morpheme::pattern::SplitPattern::Regex(r"(a|a)*b(?!x)".into()),
+        "",
+    )
+    .unwrap();
+    let err = tok
+        .set_normalizer(Some(replace.clone().into()))
+        .unwrap_err();
+    assert!(matches!(err, morpheme::Error::Regex(_)), "{err}");
+
+    assert_eq!(tok.to_json(false).unwrap(), before);
+    assert_eq!(tok.encode(&*input, false).unwrap().ids(), [2, 1]);
+    let r = std::panic::catch_unwind(|| tok.clone().with_normalizer(replace));
+    assert!(r.is_err());
+}
+
+#[test]
+#[cfg(debug_assertions)]
+#[should_panic(expected = "Encoding::new: type_ids length != ids length")]
+fn encoding_new_rejects_mismatched_lengths_in_debug() {
+    // Issue #40 (2): the mismatch used to surface as an index panic in
+    // `truncate` or `pad`.
+    let _ = morpheme::Encoding::new(
+        vec![1, 2, 3],
+        vec![0],
+        vec!["a".into(), "b".into(), "c".into()],
+        vec![None; 3],
+        vec![(0, 1); 3],
+        vec![0; 3],
+        vec![1; 3],
+        vec![],
+    );
+}
+
+#[test]
+fn bytes_to_char_accepts_an_empty_range_at_the_end() {
+    // Issue #40 (3).
+    use morpheme::normalized_string::bytes_to_char;
+    assert_eq!(bytes_to_char("abc", 3..3), Some(3..3));
+    assert_eq!(bytes_to_char("abc", 0..0), Some(0..0));
+    assert_eq!(bytes_to_char("abc", 1..1), Some(1..1));
+    assert_eq!(bytes_to_char("éa", 2..2), Some(1..1));
+    assert_eq!(bytes_to_char("éa", 0..3), Some(0..2));
+    assert_eq!(bytes_to_char("éa", 1..3), None);
+    assert_eq!(bytes_to_char("éa", 0..4), None);
+    #[allow(clippy::reversed_empty_ranges)]
+    let reversed = 2..1;
+    assert_eq!(bytes_to_char("abc", reversed), None);
+}
+
+#[test]
+fn template_processing_rejects_empty_templates() {
+    // Issue #40 (4): an empty `single` template produced empty encodings
+    // for any input.
+    use morpheme::processors::TemplateProcessing;
+    let err = TemplateProcessing::builder().try_single("").unwrap_err();
+    assert!(matches!(err, morpheme::Error::PostProcessor(_)), "{err}");
+    let err = TemplateProcessing::builder().try_single("  ").unwrap_err();
+    assert!(matches!(err, morpheme::Error::PostProcessor(_)), "{err}");
+    let err = TemplateProcessing::builder()
+        .single(morpheme::processors::template::Template::from(vec![]))
+        .build()
+        .unwrap_err();
+    assert!(err.to_string().contains("single"), "{err}");
+    assert!(
+        TemplateProcessing::builder()
+            .try_single("[CLS] $A [SEP]")
+            .unwrap()
+            .special_tokens(vec![("[CLS]", 1), ("[SEP]", 0)])
+            .build()
+            .is_ok()
+    );
+}

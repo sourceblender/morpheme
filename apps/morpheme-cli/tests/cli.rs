@@ -375,3 +375,187 @@ fn hub_ids_are_served_from_the_cache_offline() {
     assert!(!o.status.success());
     assert!(String::from_utf8_lossy(&o.stderr).contains("HF_HUB_OFFLINE"));
 }
+
+#[test]
+fn train_rejects_special_tokens_the_preset_cannot_use() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("wp.json");
+    let out = out.to_str().unwrap();
+    let corpus = corpus();
+    // WordPiece/WordLevel always need their unknown token (#28).
+    for (model, preset, specials, expected) in [
+        ("wordpiece", "bert", &["[CLS]", "[SEP]"][..], "[UNK]"),
+        ("wordlevel", "whitespace", &["[PAD]"], "[UNK]"),
+        ("wordpiece", "sentencepiece", &["<s>"], "<unk>"),
+        ("wordlevel", "byte-level", &["<|endoftext|>"], "[UNK]"),
+        // The bert post-processor needs [CLS] and [SEP].
+        ("wordpiece", "bert", &["[UNK]", "[SEP]"], "[CLS]"),
+        ("bpe", "bert", &["[UNK]", "[CLS]"], "[SEP]"),
+    ] {
+        let mut args = vec!["train", "--model", model, "--preset", preset, "--out", out];
+        for special in specials {
+            args.extend(["--special-token", special]);
+        }
+        args.push(&corpus);
+        let o = morpheme(&args);
+        assert!(!o.status.success(), "{model}/{preset} {specials:?}");
+        let stderr = String::from_utf8_lossy(&o.stderr);
+        assert!(
+            stderr.contains(&format!("--special-token \"{expected}\"")),
+            "{model}/{preset} {specials:?}: {stderr}"
+        );
+        assert!(!Path::new(out).exists(), "{model}/{preset}: wrote {out}");
+    }
+
+    // With the unknown token listed, out-of-vocabulary input maps to it.
+    stdout(&morpheme(&[
+        "train",
+        "--model",
+        "wordpiece",
+        "--preset",
+        "whitespace",
+        "--special-token",
+        "[UNK]",
+        "--vocab-size",
+        "300",
+        "--out",
+        out,
+        &corpus,
+    ]));
+    let enc = stdout(&morpheme(&["encode", "-t", out, "the quick ☃ fox"]));
+    assert!(enc.contains("\"[UNK]\""), "{enc}");
+}
+
+#[test]
+fn train_warns_when_vocab_size_is_below_what_the_alphabet_needs() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("tiny.json");
+    let out = out.to_str().unwrap();
+    let o = morpheme(&["train", "--vocab-size", "5", "--out", out, &corpus()]);
+    assert!(o.status.success());
+    let stderr = String::from_utf8_lossy(&o.stderr);
+    assert!(
+        stderr.contains("warning: --vocab-size 5 is below"),
+        "{stderr}"
+    );
+
+    let o = morpheme(&["train", "--vocab-size", "300", "--out", out, &corpus()]);
+    assert!(o.status.success());
+    assert!(!String::from_utf8_lossy(&o.stderr).contains("warning"));
+}
+
+#[test]
+fn directories_stand_for_their_tokenizer_json() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = dir.path().join("example").join("tiny");
+    std::fs::create_dir_all(&repo).unwrap();
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/wordlevel.json"),
+        repo.join("tokenizer.json"),
+    )
+    .unwrap();
+    let out = stdout(&morpheme(&[
+        "encode",
+        "-t",
+        repo.to_str().unwrap(),
+        "the quick fox",
+    ]));
+    assert!(out.contains("\"the\""), "{out}");
+
+    // A directory without tokenizer.json is not "Is a directory": it falls
+    // through to the Hub lookup (which fails offline against an empty cache).
+    let empty = dir.path().join("example").join("empty");
+    std::fs::create_dir_all(&empty).unwrap();
+    let o = Command::new(env!("CARGO_BIN_EXE_morpheme"))
+        .args(["encode", "-t", empty.to_str().unwrap(), "hi"])
+        .env("HF_HUB_CACHE", dir.path().join("cache"))
+        .env("HF_HUB_OFFLINE", "1")
+        .output()
+        .unwrap();
+    assert!(!o.status.success());
+    let stderr = String::from_utf8_lossy(&o.stderr);
+    assert!(stderr.contains("failed to load"), "{stderr}");
+    assert!(!stderr.contains("Is a directory"), "{stderr}");
+}
+
+#[test]
+fn batch_encode_errors_name_the_failing_record() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("no-unk.json");
+    // A WordLevel model whose unknown token is missing from the vocabulary
+    // fails to encode any out-of-vocabulary word.
+    let vocab = [("a", 0), ("b", 1)]
+        .map(|(s, id)| (s.to_owned(), id))
+        .into();
+    let model = morpheme::models::WordLevel::builder()
+        .vocab(vocab)
+        .unk_token("<unk>")
+        .build()
+        .unwrap();
+    morpheme::Tokenizer::new(model)
+        .with_pre_tokenizer(morpheme::pre_tokenizers::WhitespaceSplit)
+        .save(&path, false)
+        .unwrap();
+    let input = dir.path().join("input.jsonl");
+    std::fs::write(
+        &input,
+        "{\"text\":\"a b\"}\n{\"text\":\"a\"}\n{\"text\":\"a zzz\"}\n{\"text\":\"b\"}\n",
+    )
+    .unwrap();
+    let o = morpheme(&[
+        "encode-batch",
+        "-t",
+        path.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+        "--batch-size",
+        "64",
+    ]);
+    assert!(!o.status.success());
+    assert!(o.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&o.stderr);
+    assert!(stderr.contains("record 3"), "{stderr}");
+    assert!(!stderr.contains("record 1"), "{stderr}");
+}
+
+#[cfg(unix)]
+#[test]
+fn closed_stdout_pipe_is_a_quiet_success() {
+    use std::io::Write;
+    use std::process::Stdio;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("configured.json");
+    configured_tokenizer(&path);
+    let path = path.to_str().unwrap();
+    // Each command reads stdin, so it cannot write before we have closed
+    // the read end of its stdout (`morpheme ... | head -n 0`).
+    for (args, stdin) in [
+        (vec!["encode", "-t", path, "--json", "-"], "a b a\n"),
+        (vec!["count", "-t", path, "-"], "a b a\n"),
+        (
+            vec!["encode-batch", "-t", path, "--batch-size", "2"],
+            "{\"text\":\"a\"}\n",
+        ),
+        (
+            vec!["decode-batch", "-t", path, "--batch-size", "2"],
+            "{\"ids\":[1]}\n",
+        ),
+    ] {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_morpheme"))
+            .args(&args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        drop(child.stdout.take());
+        let mut input = child.stdin.take().unwrap();
+        input.write_all(stdin.as_bytes()).unwrap();
+        drop(input);
+        let o = child.wait_with_output().unwrap();
+        let stderr = String::from_utf8_lossy(&o.stderr);
+        assert!(o.status.success(), "{args:?}: {} {stderr}", o.status);
+        assert!(stderr.is_empty(), "{args:?}: {stderr}");
+    }
+}

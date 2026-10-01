@@ -25,22 +25,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [load_json, encode, normalized_string, components_json]
+        target: [load_json, encode, normalized_string, components_json, precompiled, decode]
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@nightly
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
+        with:
+          toolchain: nightly
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: fuzz
       - name: Cache HF tokenizer fixtures
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: crates/morpheme/tests/data
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         run: ./scripts/fetch-hf-fixtures.sh
       - name: Install cargo-fuzz
-        run: cargo install --locked cargo-fuzz
+        # Pinned so a new cargo-fuzz release cannot change a scheduled run;
+        # bump deliberately (`cargo search cargo-fuzz`).
+        run: cargo install --locked cargo-fuzz --version 0.13.2
       - name: Seed corpus
         run: python3 fuzz/make_corpus.py
       - name: Fuzz
@@ -51,7 +55,7 @@ jobs:
             -max_total_time="$SECONDS_PER_TARGET" -timeout=10 -rss_limit_mb=2048
       - name: Upload crash artifacts
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fuzz-artifacts-${{ matrix.target }}
           path: fuzz/artifacts/${{ matrix.target }}/

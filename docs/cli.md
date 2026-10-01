@@ -2,7 +2,14 @@
 
 `morpheme` loads one tokenizer per command. Local files and Hub model ids
 are accepted with `-t`; pin a Hub model with `--revision <commit>` and set
-`HF_HUB_OFFLINE=1` to require a verified cached copy.
+`HF_HUB_OFFLINE=1` to require a verified cached copy. A local directory
+(for example a cloned model repository) stands for the `tokenizer.json`
+inside it; a directory without one does not shadow a Hub id of the same
+name.
+
+Every command exits 0 without a message when its reader goes away
+(`morpheme encode-batch ... | head -n 1`), so pipelines can stop early.
+Other failures print an `Error:` line on stderr and exit 1.
 
 ## Count tokens
 
@@ -65,8 +72,28 @@ records fail with a nonzero exit status and a record number.
 
 Completed batches may already have been written when a later record
 fails. No output is written for a batch whose parsing/encoding fails.
-Write to a temporary output file and rename it only on command success
-when the complete dataset must be published atomically.
+When encoding a batch fails, the records are retried one at a time so the
+error names the exact record. Write to a temporary output file and rename
+it only on command success when the complete dataset must be published
+atomically.
+
+## Train
+
+```sh
+morpheme train --model wordpiece --preset bert --vocab-size 30000 \
+  --out tokenizer.json corpus.txt
+```
+
+`--special-token` replaces the preset's default special tokens (ids
+follow the order given), so the list must contain whatever the preset
+needs: WordPiece and WordLevel always need their unknown token (`[UNK]`,
+or `<unk>` with `--preset sentencepiece`) because every
+out-of-vocabulary word maps to it, and the `bert` preset needs `[CLS]`
+and `[SEP]` for its post-processor. Lists missing them are rejected
+before training starts rather than silently producing a tokenizer that
+fails on the first unknown word. A `--vocab-size` smaller than the
+special tokens plus the initial alphabet is accepted (nothing beyond
+them can be learned) with a warning on stderr.
 
 ## Inspect configuration
 

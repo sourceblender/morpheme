@@ -48,3 +48,17 @@ path = "fuzz_targets/components_json.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "precompiled"
+path = "fuzz_targets/precompiled.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode"
+path = "fuzz_targets/decode.rs"
+test = false
+doc = false
+bench = false
