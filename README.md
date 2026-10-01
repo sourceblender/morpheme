@@ -84,6 +84,10 @@ let pinned = Tokenizer::from_pretrained(
 offsets like the Python API. `encode_batch` encodes in parallel and
 applies the file's padding/truncation settings.
 
+The library also builds for `wasm32-unknown-unknown`;
+[`bindings/wasm`](bindings/wasm/README.md) wraps it for the browser with
+`wasm-bindgen` (`fromJson`, `encode`, `tokens`, `count`, `decode`).
+
 Train a GPT-2-style byte-level BPE tokenizer:
 
 ```rust

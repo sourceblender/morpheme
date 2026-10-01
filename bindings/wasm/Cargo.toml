@@ -1,0 +1,23 @@
+[package]
+name = "morpheme-wasm"
+version = "0.3.0"
+description = "Browser bindings for morpheme via wasm-bindgen: load tokenizer.json, count, encode and decode."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+# Built with wasm-pack / wasm-bindgen-cli, not published to crates.io.
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+# The glue only makes sense inside a JS host; tests live in the Rust crate.
+test = false
+doctest = false
+bench = false
+
+[dependencies]
+# No rayon (single-threaded wasm) and no progress bars.
+morpheme = { path = "../../crates/morpheme", version = "0.3.0", default-features = false }
+wasm-bindgen = "0.2"

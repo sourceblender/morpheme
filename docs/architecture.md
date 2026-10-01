@@ -22,7 +22,8 @@
 ```
 morpheme/
 ├── crates/morpheme      # the library
-└── apps/morpheme-cli    # `morpheme` binary: train / encode / decode / inspect
+├── apps/morpheme-cli    # `morpheme` binary: train / encode / decode / inspect
+└── bindings/wasm        # `morpheme-wasm`: wasm-bindgen glue + browser example (unpublished)
 ```
 
 ## Pipeline
@@ -116,6 +117,12 @@ non-wasm dependency there, so `Tokenizer::save` (atomic replace through a
 temporary file) is compiled out on wasm32; `from_bytes`/`to_json` cover
 the browser. CI checks `--no-default-features --target
 wasm32-unknown-unknown`.
+
+`bindings/wasm` (`morpheme-wasm`) wraps `Tokenizer` for JavaScript with
+`wasm-bindgen`: `fromJson`, `encode`, `tokens`, `count`, `decode`, with
+Rust errors thrown as JS `Error`s. It depends on the library with
+`default-features = false` and is built with `wasm-pack build --target
+web`; see `bindings/wasm/README.md` and the `www/index.html` example.
 
 ## Hub downloads
 

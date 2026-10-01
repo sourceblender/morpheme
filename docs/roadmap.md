@@ -50,10 +50,11 @@
 ## Ecosystem
 
 - [ ] Python bindings via PyO3.
-- [ ] WASM target via `wasm-bindgen`. Partial: the library compiles for
+- [x] WASM target via `wasm-bindgen`: the library compiles for
       `wasm32-unknown-unknown` (`parallel` feature gates rayon with a
-      sequential fallback; `save` is compiled out there) and CI checks it.
-      The `wasm-bindgen` binding crate and browser example are still to do.
+      sequential fallback; `save` is compiled out there), and
+      `bindings/wasm` exposes `fromJson`/`encode`/`tokens`/`count`/`decode`
+      with a browser token-counter example. Not published to npm.
 
 ## Out of scope
 
