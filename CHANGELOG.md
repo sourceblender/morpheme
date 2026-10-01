@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release: no prebuilt Intel macOS (`x86_64-apple-darwin`) CLI archive;
   Intel Macs install with `cargo install morpheme-cli`.
 
+### Fixed
+
+- Hub: blob downloads keep the bearer token on same-origin redirects, so
+  gated or private repositories whose resolve URL redirects within the
+  Hub no longer fail with `401`. Redirects are followed by hand (at most
+  10 hops, relative `Location` resolved against the current URL) and the
+  token is sent only to the endpoint's own origin at every hop: never to
+  another origin, never over cleartext from an `https` endpoint. Error
+  messages from an `https_only` refusal no longer include the URL's query
+  string (#87).
+
 ## [0.4.0] - 2026-10-01
 
 ### Added

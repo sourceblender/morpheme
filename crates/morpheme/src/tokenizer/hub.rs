@@ -36,6 +36,8 @@ const FILENAME: &str = "tokenizer.json";
 const TIMEOUT: Duration = Duration::from_secs(10);
 /// Pause before the single retry of a `429`/`5xx` metadata or blob request.
 const RETRY_BACKOFF: Duration = Duration::from_millis(500);
+/// Redirects followed by a blob download (ureq's default as well).
+const MAX_BLOB_REDIRECTS: usize = 10;
 /// Permissions of newly created cache files and saved tokenizers on Unix
 /// (what `huggingface_hub` produces under the default umask).
 #[cfg(unix)]
@@ -399,6 +401,66 @@ fn same_target(url: &str, endpoint: &str) -> bool {
     }
 }
 
+/// `scheme://authority` of an absolute `http(s)` URL.
+fn origin_prefix(url: &str) -> Option<&str> {
+    let (scheme, rest) = url.split_once("://")?;
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or(rest);
+    Some(&url[..scheme.len() + 3 + authority.len()])
+}
+
+/// Resolve a redirect `Location` against the URL that returned it:
+/// absolute (`https://host/p`), scheme-relative (`//host/p`), absolute-path
+/// (`/p`), query-only (`?q`) and path-relative (`p`) forms. Returns `None`
+/// for a malformed location or a scheme other than `http`/`https`.
+fn resolve_location(base: &str, location: &str) -> Option<String> {
+    let location = location.trim();
+    origin_of(base)?;
+    let resolved = if location.starts_with("//") {
+        let (scheme, _) = base.split_once("://")?;
+        format!("{scheme}:{location}")
+    } else if location.starts_with('/') {
+        format!("{}{location}", origin_prefix(base)?)
+    } else if let Some((scheme, _)) = location.split_once(':').filter(|(scheme, _)| {
+        // RFC 3986 scheme: a letter, then letters, digits, `+`, `-`, `.`.
+        scheme.starts_with(|c: char| c.is_ascii_alphabetic())
+            && scheme
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+    }) {
+        // Absolute URL: only `http(s)://` is followed.
+        if !matches!(scheme.to_ascii_lowercase().as_str(), "http" | "https")
+            || !location[scheme.len()..].starts_with("://")
+        {
+            return None;
+        }
+        location.to_owned()
+    } else {
+        // Relative to the base: drop its fragment (and query, unless the
+        // location is a fragment), then its last path segment.
+        let base = base.split('#').next().unwrap_or(base);
+        if location.is_empty() || location.starts_with('#') {
+            format!("{base}{location}")
+        } else if location.starts_with('?') {
+            format!("{}{location}", base.split('?').next().unwrap_or(base))
+        } else {
+            let base = base.split('?').next().unwrap_or(base);
+            let prefix = origin_prefix(base)?;
+            let dir = match base[prefix.len()..].rfind('/') {
+                Some(i) => &base[..prefix.len() + i + 1],
+                None => return Some(format!("{prefix}/{location}")),
+            };
+            format!("{dir}{location}")
+        }
+    };
+    origin_of(&resolved).map(|_| resolved)
+}
+
+/// Whether `status` is a redirect that carries a `Location` to follow
+/// (the ones ureq follows itself).
+fn is_redirect(status: u16) -> bool {
+    matches!(status, 301 | 302 | 303 | 307 | 308)
+}
+
 /// Strip the query string and fragment from a URL before embedding it in
 /// an error message (presigned LFS/CDN URLs carry credentials there).
 fn redact_url(url: &str) -> &str {
@@ -580,12 +642,69 @@ fn get_once(
         if is_connection_error(&e) {
             Fetch::Unreachable(e)
         } else {
+            // Some ureq errors (e.g. `RequireHttpsOnly`) quote the full
+            // URL: redact it there too.
+            let detail = match e {
+                ureq::Error::RequireHttpsOnly(_) => {
+                    "the endpoint is https, so cleartext http is refused".to_owned()
+                }
+                e => e.to_string().replace(url, redact_url(url)),
+            };
             Fetch::Failed(Error::Hub(format!(
-                "request to {} failed: {e}",
+                "request to {} failed: {detail}",
                 redact_url(url)
             )))
         }
     })
+}
+
+fn invalid_redirect(from: &str, location: &str) -> Fetch {
+    Fetch::Failed(Error::Hub(format!(
+        "{} redirected to an unsupported location {:?}",
+        redact_url(from),
+        redact_url(location)
+    )))
+}
+
+/// GET `url`, following up to [`MAX_BLOB_REDIRECTS`] redirects by hand so
+/// the token decision is made at every hop: the bearer token is sent only
+/// to the endpoint's own origin (same scheme, host and port), so it
+/// survives same-origin redirects but never reaches a CDN or another
+/// origin, nor cleartext after an `https` endpoint is downgraded. With
+/// `https_only`, an `http://` hop fails. Each hop is retried once on a
+/// transient status, as a single request is.
+fn get_following_redirects(
+    url: &str,
+    endpoint: &str,
+    token: Option<&str>,
+    ua: &str,
+    https_only: bool,
+) -> std::result::Result<ureq::http::Response<ureq::Body>, Fetch> {
+    let no_redirects = agent(0, https_only);
+    let mut url = url.to_owned();
+    let mut hops = 0;
+    loop {
+        let hop_token = token.filter(|_| same_target(&url, endpoint));
+        let resp = get(&no_redirects, &url, hop_token, ua, false)?;
+        if !is_redirect(resp.status().as_u16()) {
+            return Ok(resp);
+        }
+        let Some(location) = header(&resp, "location") else {
+            return Err(Fetch::Failed(Error::Hub(format!(
+                "{} answered HTTP {} without a Location header",
+                redact_url(&url),
+                resp.status().as_u16()
+            ))));
+        };
+        if hops == MAX_BLOB_REDIRECTS {
+            return Err(Fetch::Failed(Error::Hub(format!(
+                "too many redirects (more than {MAX_BLOB_REDIRECTS}) downloading from {}",
+                redact_url(&url)
+            ))));
+        }
+        url = resolve_location(&url, &location).ok_or_else(|| invalid_redirect(&url, &location))?;
+        hops += 1;
+    }
 }
 
 fn download(
@@ -656,7 +775,9 @@ fn download(
         .filter(|e| valid_etag(e))
         .ok_or_else(|| Fetch::Failed(Error::Hub("the Hub did not return a valid ETag".into())))?;
     let download_url = match header(&resp, "location") {
-        Some(loc) if (300..400).contains(&status) => loc,
+        Some(loc) if (300..400).contains(&status) => {
+            resolve_location(&url, &loc).ok_or_else(|| invalid_redirect(&url, &loc))?
+        }
         _ => url.clone(),
     };
     drop(resp);
@@ -666,16 +787,8 @@ fn download(
     let blob = blobs.join(&etag);
     if !verify_file(&blob, &etag).unwrap_or(false) {
         std::fs::create_dir_all(&blobs)?;
-        // Only send the token to the Hub itself over the same scheme:
-        // never to a CDN, never over cleartext after a downgrade.
-        let same_origin = same_target(&download_url, &config.endpoint);
-        let resp = get(
-            &agent(10, https_only),
-            &download_url,
-            token.filter(|_| same_origin),
-            &ua,
-            false,
-        )?;
+        let resp =
+            get_following_redirects(&download_url, &config.endpoint, token, &ua, https_only)?;
         let status = resp.status().as_u16();
         if status >= 400 {
             return Err(Fetch::Failed(status_error(status, None, repo_id, revision)));
@@ -1368,6 +1481,251 @@ mod tests {
         cfg.token = Some("hf_secret".into());
         resolve("org/model", &params, &cfg).unwrap();
         assert_eq!(authorized.load(Ordering::SeqCst), 2);
+    }
+
+    /// A request seen by [`serve_routes`]: path (with query), whether it
+    /// asked for a byte range (the metadata probe) and its
+    /// `Authorization` header.
+    #[derive(Debug, Clone)]
+    struct Seen {
+        path: String,
+        range: bool,
+        authorization: Option<String>,
+    }
+
+    /// A minimal HTTP/1.1 server answering every request with
+    /// `route(request)`. Returns the base URL and the requests seen.
+    fn serve_routes(
+        route: impl Fn(&Seen) -> String + Send + 'static,
+    ) -> (String, Arc<std::sync::Mutex<Vec<Seen>>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let log = seen.clone();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { return };
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                let mut line = String::new();
+                if reader.read_line(&mut line).unwrap_or(0) == 0 {
+                    continue;
+                }
+                let path = line.split_whitespace().nth(1).unwrap_or("").to_owned();
+                let mut request = Seen {
+                    path,
+                    range: false,
+                    authorization: None,
+                };
+                line.clear();
+                while reader.read_line(&mut line).unwrap_or(0) > 0 && line != "\r\n" {
+                    if let Some((name, value)) = line.split_once(':') {
+                        match name.trim().to_ascii_lowercase().as_str() {
+                            "range" => request.range = true,
+                            "authorization" => {
+                                request.authorization = Some(value.trim().to_owned());
+                            }
+                            _ => {}
+                        }
+                    }
+                    line.clear();
+                }
+                let answer = route(&request);
+                log.lock().unwrap().push(request);
+                let _ = stream.write_all(answer.as_bytes());
+            }
+        });
+        (url, seen)
+    }
+
+    /// A small valid `tokenizer.json` and its Git ETag.
+    fn tokenizer_body() -> (String, String) {
+        let tokenizer = crate::Tokenizer::new(crate::models::WordLevel::default());
+        let body = tokenizer.to_json(false).unwrap();
+        let etag = git_hash(body.as_bytes());
+        (body, etag)
+    }
+
+    const BEARER: &str = "Bearer hf_secret";
+
+    #[test]
+    fn token_follows_same_origin_blob_redirects() {
+        // The Hub redirects the authenticated blob request to `/protected`
+        // on its own origin, which requires the token (issue #87).
+        let (body, etag) = tokenizer_body();
+        let (url, seen) = serve_routes(move |req| {
+            let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
+            if req.path == "/protected" {
+                if req.authorization.as_deref() == Some(BEARER) {
+                    response("200 OK", &headers, &body)
+                } else {
+                    response("401 Unauthorized", &[], "")
+                }
+            } else if req.range {
+                response("206 Partial Content", &headers, "{")
+            } else {
+                response("302 Found", &[("Location", "/protected")], "")
+            }
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = config(dir.path(), &url, false);
+        cfg.token = Some("hf_secret".into());
+        let path = resolve("org/model", &FromPretrainedParameters::default(), &cfg).unwrap();
+        crate::Tokenizer::from_file(&path).unwrap();
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 3, "{seen:?}");
+        assert!(
+            seen.iter()
+                .all(|r| r.authorization.as_deref() == Some(BEARER)),
+            "{seen:?}"
+        );
+    }
+
+    #[test]
+    fn token_is_dropped_on_cross_origin_blob_redirects() {
+        let (body, etag) = tokenizer_body();
+        // The CDN (another port) serves the blob without credentials.
+        let (cdn, cdn_seen) = serve_routes({
+            let etag = etag.clone();
+            move |_| response("200 OK", &[("ETag", etag.as_str())], &body)
+        });
+        // The endpoint redirects its blob request to the CDN with a
+        // scheme-relative location.
+        let location = format!("//{}/blob?X-Amz-Signature=SECRET", &cdn["http://".len()..]);
+        let (url, seen) = serve_routes(move |req| {
+            let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
+            if req.range {
+                response("206 Partial Content", &headers, "{")
+            } else {
+                response("302 Found", &[("Location", location.as_str())], "")
+            }
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = config(dir.path(), &url, false);
+        cfg.token = Some("hf_secret".into());
+        let path = resolve("org/model", &FromPretrainedParameters::default(), &cfg).unwrap();
+        crate::Tokenizer::from_file(&path).unwrap();
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 2, "{seen:?}");
+        assert!(
+            seen.iter()
+                .all(|r| r.authorization.as_deref() == Some(BEARER)),
+            "{seen:?}"
+        );
+        let cdn_seen = cdn_seen.lock().unwrap();
+        assert_eq!(cdn_seen.len(), 1, "{cdn_seen:?}");
+        assert_eq!(cdn_seen[0].path, "/blob?X-Amz-Signature=SECRET");
+        assert_eq!(cdn_seen[0].authorization, None);
+    }
+
+    #[test]
+    fn https_endpoint_refuses_a_cleartext_redirect_hop() {
+        // The hop decision: never the token over cleartext.
+        assert!(!same_target(
+            "http://huggingface.co/x",
+            "https://huggingface.co"
+        ));
+        // And the hop itself fails under `https_only`, before any request
+        // is made, with the presigned query redacted.
+        let err = match get_following_redirects(
+            "http://127.0.0.1:9/blob?X-Amz-Signature=SECRET",
+            "https://127.0.0.1:9",
+            Some("hf_secret"),
+            "ua",
+            true,
+        ) {
+            Ok(_) => panic!("a cleartext hop must fail"),
+            Err(Fetch::Failed(e)) => e.to_string(),
+            Err(Fetch::Unreachable(e)) => panic!("unexpected connection error: {e}"),
+            Err(Fetch::Unavailable(e)) => panic!("unexpected transient error: {e}"),
+        };
+        assert!(err.contains("/blob"), "{err}");
+        assert!(!err.contains("SECRET"), "{err}");
+    }
+
+    #[test]
+    fn blob_redirect_loops_and_bad_locations_are_errors() {
+        let (_, etag) = tokenizer_body();
+        let (url, seen) = serve_routes(move |req| {
+            let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
+            if req.range {
+                response("206 Partial Content", &headers, "{")
+            } else if req.path.starts_with("/bad") {
+                response(
+                    "302 Found",
+                    &[("Location", "ftp://example.com/x?sig=SECRET")],
+                    "",
+                )
+            } else {
+                response(
+                    "307 Temporary Redirect",
+                    &[("Location", "/loop?sig=SECRET")],
+                    "",
+                )
+            }
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = config(dir.path(), &url, false);
+        let params = FromPretrainedParameters::default();
+        let err = resolve("org/model", &params, &cfg).unwrap_err().to_string();
+        assert!(err.contains("too many redirects"), "{err}");
+        assert!(!err.contains("SECRET"), "{err}");
+        // Metadata, the blob request and MAX_BLOB_REDIRECTS hops.
+        assert_eq!(seen.lock().unwrap().len(), 2 + MAX_BLOB_REDIRECTS);
+
+        let err = match get_following_redirects(&format!("{url}/bad"), &url, None, "ua", false) {
+            Ok(_) => panic!("ftp:// must not be followed"),
+            Err(Fetch::Failed(e)) => e.to_string(),
+            Err(_) => panic!("unexpected error kind"),
+        };
+        assert!(err.contains("unsupported location"), "{err}");
+        assert!(!err.contains("SECRET"), "{err}");
+    }
+
+    #[test]
+    fn redirect_locations_resolve_against_the_current_url() {
+        let base = "https://huggingface.co/org/model/resolve/main/tokenizer.json?a=1#f";
+        let cases = [
+            ("https://cdn.hf.co/x?sig=1", "https://cdn.hf.co/x?sig=1"),
+            ("HTTP://cdn.hf.co/x", "HTTP://cdn.hf.co/x"),
+            ("//cdn.hf.co/x", "https://cdn.hf.co/x"),
+            ("/protected", "https://huggingface.co/protected"),
+            ("/p?q=1", "https://huggingface.co/p?q=1"),
+            (
+                "other.json",
+                "https://huggingface.co/org/model/resolve/main/other.json",
+            ),
+            (
+                "?b=2",
+                "https://huggingface.co/org/model/resolve/main/tokenizer.json?b=2",
+            ),
+            (" /trimmed ", "https://huggingface.co/trimmed"),
+        ];
+        for (location, want) in cases {
+            assert_eq!(
+                resolve_location(base, location).as_deref(),
+                Some(want),
+                "{location}"
+            );
+        }
+        assert_eq!(
+            resolve_location("http://127.0.0.1:8080", "x").as_deref(),
+            Some("http://127.0.0.1:8080/x")
+        );
+        assert_eq!(
+            resolve_location("http://[::1]:8080/a/b", "/c").as_deref(),
+            Some("http://[::1]:8080/c")
+        );
+        for bad in [
+            "ftp://huggingface.co/x",
+            "javascript:alert(1)",
+            "data:text/plain,hi",
+            "https:/missing-slash",
+            "https://",
+            "//",
+        ] {
+            assert_eq!(resolve_location(base, bad), None, "{bad}");
+        }
+        assert_eq!(resolve_location("not a url", "/x"), None);
     }
 
     #[test]

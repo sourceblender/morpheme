@@ -62,3 +62,23 @@ replaces the link itself, so shared Hub blobs are not modified by saves.
   `FromPretrainedParameters::anonymous()` skips the `HF_TOKEN` and
   token-file lookup so public downloads (and the network tests) send no
   credentials.
+
+## Notes (2026-10-01, issue #87)
+
+- **The token decision is made at every redirect hop.** ureq strips
+  `Authorization` on every redirect it follows, including same-origin
+  ones, so a Hub that redirects an authenticated blob request within
+  itself (gated or private repos) answered `401`. Blob downloads now
+  follow redirects by hand: an agent with no automatic redirects, at most
+  10 hops, `Location` resolved against the current URL (absolute,
+  scheme-relative, absolute-path and relative forms; schemes other than
+  `http`/`https` are an error). Each hop sends the token only when it
+  targets the endpoint's own origin (same scheme, host and port), so the
+  token is kept within the Hub, dropped for a CDN or any other origin, and
+  never sent over cleartext from an `https` endpoint, whose agent stays
+  `https_only` (an `http://` hop fails). Each hop keeps the single retry
+  on a transient status, error messages keep redacting query strings
+  (including URLs quoted by ureq errors), and the hash verification and
+  atomic publication are unchanged. The metadata request already followed
+  only relative redirects on the endpoint with the token, which is
+  consistent with this rule.
