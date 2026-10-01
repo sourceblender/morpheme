@@ -143,7 +143,7 @@ jobs:
         run: |
           out="$GITHUB_WORKSPACE/out"
           mkdir -p "$out"
-          args=(--output "$out/$NAME.json" --host-label "$HOST_LABEL" --repeats "$REPEATS")
+          args=(--output "$out/$NAME.json" --host-label "$HOST_LABEL" --repeats "$REPEATS" --no-build)
           if [ -n "$BASELINE" ]; then
             args+=(--compare "$BASELINE" --threshold-percent "$THRESHOLD_PERCENT" --summary "$out/summary.md")
           fi

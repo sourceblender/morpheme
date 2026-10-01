@@ -22,8 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after storing when a workload regresses by more than 20%.
   `scripts/bench_host_setup.sh` prepares the host (runner, systemd
   services, CPU governor and boost tuning; `--check` reports its state).
-  `benchmark_baseline.py` gained `--host-label`, `--summary` (Markdown
-  comparison table) and exit status 2 for a non-comparable baseline (#49).
+  `benchmark_baseline.py` gained `--host-label`, `--no-build`, `--summary`
+  (Markdown comparison table) and exit status 2 for a non-comparable baseline (#49).
 
 ## [0.3.0] - 2026-10-01
 

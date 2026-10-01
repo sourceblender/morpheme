@@ -42,7 +42,7 @@ report_cpu() {
     boost=$(cat /sys/devices/system/cpu/cpu[0-9]*/cpufreq/boost | sort -u | tr '\n' ' ')
     echo "boost (per cpu):     ${boost}(0 = disabled)"
   else
-    echo "boost:               (no boost control exposed)"
+    echo "boost:               NOT disabled (no boost control exposed; turn Core Performance Boost off in firmware)"
   fi
   if [ -f /sys/devices/system/cpu/amd_pstate/status ]; then
     echo "amd_pstate:          $(cat /sys/devices/system/cpu/amd_pstate/status)"
@@ -207,8 +207,10 @@ install_cpu_tuning() {
 #!/usr/bin/env bash
 # Pin the benchmark host to a steady clock: performance governor on every
 # core, turbo/boost off. Each knob is skipped with a message when the
-# kernel does not expose it (for example amd-pstate in active mode only
-# offers energy_performance_preference, and some firmware hides boost).
+# kernel does not expose it. energy_performance_preference (amd-pstate in
+# active mode) is set to performance as well, but it is only a hint: when
+# no boost control is writable, boost stays ENABLED and the script says so;
+# disable Core Performance Boost in firmware in that case.
 set -uo pipefail
 cpufreq=/sys/devices/system/cpu/cpufreq
 touched=0
@@ -230,7 +232,7 @@ for epp in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/energy_performance_preferen
   [ -w "$epp" ] || continue
   echo performance > "$epp" 2> /dev/null && eppset=$((eppset + 1))
 done
-[ "$eppset" -gt 0 ] && echo "energy_performance_preference: performance on ${eppset} cpus"
+[ "$eppset" -gt 0 ] && echo "energy_performance_preference: performance on ${eppset} cpus (a hint, not a boost control)"
 if [ -w "$cpufreq/boost" ]; then
   echo 0 > "$cpufreq/boost" && echo "boost: disabled via $cpufreq/boost"
 else
@@ -242,7 +244,7 @@ else
   if [ "$percpu" -gt 0 ]; then
     echo "boost: disabled on ${percpu} cpus via per-cpu cpufreq/boost"
   else
-    echo "skip: no writable boost control ($cpufreq/boost or per-cpu cpufreq/boost); disable Core Performance Boost in firmware for a fixed clock"
+    echo "boost: NOT disabled; no writable control ($cpufreq/boost or per-cpu cpufreq/boost). Disable Core Performance Boost in firmware for a fixed clock"
   fi
 fi
 exit 0
@@ -283,6 +285,19 @@ Finally re-run this script with sudo to install and start the systemd service.
 EOF
 }
 
+order_runner_after_tuning() {
+  # Drop-in so the runner only accepts jobs once the CPU tuning has been applied.
+  local unit="$1"
+  local dropin="/etc/systemd/system/${unit}.d/10-after-bench-cpu-tuning.conf"
+  install -d -m 0755 "$(dirname "$dropin")"
+  cat > "$dropin" <<EOF
+[Unit]
+Wants=bench-cpu-tuning.service
+After=bench-cpu-tuning.service
+EOF
+  systemctl daemon-reload
+}
+
 install_service() {
   local unit
   if [ ! -f "$RUNNER_DIR/.runner" ]; then
@@ -292,9 +307,14 @@ install_service() {
   unit=$(runner_unit_name)
   if [ -z "$unit" ]; then
     log "Installing the runner systemd service as ${RUNNER_USER}"
-    (cd "$RUNNER_DIR" && ./svc.sh install "$RUNNER_USER" && ./svc.sh start)
+    (cd "$RUNNER_DIR" && ./svc.sh install "$RUNNER_USER")
+    unit=$(runner_unit_name)
+    [ -n "$unit" ] || die "svc.sh install did not create a systemd unit"
+    order_runner_after_tuning "$unit"
+    (cd "$RUNNER_DIR" && ./svc.sh start)
   else
     log "Runner service ${unit} already installed"
+    order_runner_after_tuning "$unit"
     systemctl is-active --quiet "$unit" || (cd "$RUNNER_DIR" && ./svc.sh start)
   fi
 }

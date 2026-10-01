@@ -182,7 +182,9 @@ older Python comparison above):
 | t5-small | 23.3 | 9.7 | 18.4 | 9.3 | 17.9 |
 
 `--host-label NAME` records a machine name in the report (`host_label`,
-informational, not compared). With `--compare`, `--summary FILE` also writes
+informational, not compared). `--no-build` uses the already built release
+probe (error if missing) so a caller can build on all cores and measure under
+`taskset`. With `--compare`, `--summary FILE` also writes
 the per-workload medians as a Markdown table, marking rows over the threshold
 with `(!)`. The exit status is 0 when nothing regressed, 1 on a regression, and
 2 when the baseline is not comparable (a fingerprint differs), so a caller can
@@ -198,17 +200,22 @@ Ubuntu 26.04, registered as a self-hosted GitHub Actions runner with the labels
 `bench` user, the latest `actions/runner` tarball in `/opt/actions-runner`
 (sha256-verified against the release metadata), its systemd service, and
 `bench-cpu-tuning.service`, which at boot sets the `performance` governor on
-every core and turns boost off where the kernel exposes a control (`cpufreq/boost`,
-per-cpu `boost`, or `energy_performance_preference` for amd-pstate in active
-mode; it reports what it skipped). The script prints the one-off `config.sh`
-registration command instead of embedding a token. `--check` reports the
-governor, boost state, both services, and whether the runner is online.
+every core and turns boost off where the kernel exposes a control
+(`cpufreq/boost` or per-cpu `boost`). With amd-pstate in active mode it also
+sets `energy_performance_preference` to `performance`, which is only a hint:
+if neither boost file is writable the service reports that boost stays
+enabled, and Core Performance Boost should be turned off in firmware for a
+fixed clock. The runner unit gets a drop-in ordering it after the tuning
+unit, so no job runs before the settings are applied. The script prints the
+one-off `config.sh` registration command instead of embedding a token.
+`--check` reports the governor, boost state, both services, and whether the
+runner is online.
 
 The `Benchmark tracking` workflow (`.github/workflows/benchmark-tracking.yml`)
 runs daily at 03:17 UTC, on every `v*` tag, and on `workflow_dispatch`. Each run:
 
 1. builds the probe on all cores, then measures with
-   `taskset -c 2-5 python3 scripts/benchmark_baseline.py --repeats 5 --host-label bench-9800x3d`
+   `taskset -c 2-5 python3 scripts/benchmark_baseline.py --no-build --repeats 5 --host-label bench-9800x3d`
    (four workers on four logical CPUs; HF fixtures come from a host cache
    under `/var/cache/morpheme/hf-fixtures`, keyed by `scripts/hf-fixtures.txt`);
 2. compares with the previous result for the same host at the 20% threshold;

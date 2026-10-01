@@ -108,6 +108,7 @@ def main():
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--host-label", help="name of the machine recorded in the report (informational, not compared)")
     parser.add_argument("--summary", type=pathlib.Path, help="with --compare: write a Markdown comparison table here")
+    parser.add_argument("--no-build", action="store_true", help="use the already built release probe instead of running cargo build")
     args = parser.parse_args()
     if args.summary and not args.compare:
         parser.error("--summary requires --compare")
@@ -122,8 +123,12 @@ def main():
     for key in list(env):
         if key in ("RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER", "CARGO_TARGET_DIR", "RUSTC") or key.startswith("CARGO_PROFILE_RELEASE_"):
             del env[key]
-    subprocess.run(["cargo", "build", "--release", "--locked", "-p", "morpheme", "--example", "benchmark_probe"], cwd=ROOT, env=env, check=True)
     probe = ROOT / "target/release/examples" / ("benchmark_probe.exe" if os.name == "nt" else "benchmark_probe")
+    if args.no_build:
+        if not probe.is_file():
+            parser.error(f"--no-build but {probe} is missing; build it with: cargo build --release --locked -p morpheme --example benchmark_probe")
+    else:
+        subprocess.run(["cargo", "build", "--release", "--locked", "-p", "morpheme", "--example", "benchmark_probe"], cwd=ROOT, env=env, check=True)
     cpu = command("sysctl", "-n", "machdep.cpu.brand_string") if sys.platform == "darwin" else platform.processor()
     if sys.platform.startswith("linux"):
         match = re.search(r"^model name\s*:\s*(.+)$", pathlib.Path("/proc/cpuinfo").read_text(), re.MULTILINE)
