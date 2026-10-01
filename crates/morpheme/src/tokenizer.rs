@@ -13,7 +13,7 @@ pub use hub::FromPretrainedParameters;
 
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::io::BufRead;
+use std::io::{BufRead, Write};
 use std::path::Path;
 
 use rayon::prelude::*;
@@ -414,9 +414,23 @@ impl Tokenizer {
         })
     }
 
-    /// Save as `tokenizer.json`.
+    /// Save as `tokenizer.json` using atomic replacement. Readers see the
+    /// previous complete file or the new complete file. A destination
+    /// symlink is replaced, rather than writing through it.
     pub fn save(&self, path: impl AsRef<Path>, pretty: bool) -> Result<()> {
-        std::fs::write(path, self.to_json(pretty)?)?;
+        let contents = self.to_json(pretty)?;
+        let path = path.as_ref();
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let mut file = tempfile::NamedTempFile::new_in(parent)?;
+        file.write_all(contents.as_bytes())?;
+        if let Ok(metadata) = std::fs::metadata(path) {
+            file.as_file().set_permissions(metadata.permissions())?;
+        }
+        file.as_file().sync_all()?;
+        file.persist(path).map_err(|e| e.error)?;
         Ok(())
     }
 

@@ -40,7 +40,9 @@ fancy-regex = { workspace = true }
 aho-corasick = { workspace = true }
 rayon = { workspace = true }
 ureq = { workspace = true, optional = true }
-tempfile = { workspace = true, optional = true }
+tempfile = { workspace = true }
+sha1 = { version = "0.10", optional = true }
+sha2 = { version = "0.10", optional = true }
 indicatif = { workspace = true, optional = true }
 
 [package.metadata.docs.rs]
@@ -52,7 +54,7 @@ default = ["progressbar"]
 # Trainer progress bars on stderr (`show_progress`), like Hugging Face.
 progressbar = ["dep:indicatif"]
 # `Tokenizer::from_pretrained`: download tokenizers from the Hugging Face Hub.
-hub = ["dep:ureq", "dep:tempfile"]
+hub = ["dep:ureq", "dep:sha1", "dep:sha2"]
 
 [dev-dependencies]
 criterion = { workspace = true }

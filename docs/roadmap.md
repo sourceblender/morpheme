@@ -37,7 +37,8 @@
 - [ ] Benchmark regression tracking on dedicated hardware.
 - [ ] Accept the legacy untagged normalizer/decoder JSON forms (no file
       in the fixture set needs them today).
-- [ ] Hash-check Hub downloads against their ETag.
+- [x] Hash-check Hub downloads and cached files against their ETag;
+      repair corrupt entries online and reject them offline.
 
 ## Ecosystem
 

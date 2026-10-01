@@ -35,6 +35,41 @@ fn word_level_trainer() -> morpheme::trainers::WordLevelTrainer {
 }
 
 #[test]
+fn saving_tokenizers_is_atomic_for_readers_and_preserves_existing_files_on_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("tokenizer.json");
+    let tok = word_level_tokenizer(&[("[UNK]", 0), ("a", 1)]);
+    tok.save(&path, false).unwrap();
+    let initial = std::fs::read(&path).unwrap();
+    assert!(tok.save(dir.path(), true).is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), initial);
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    std::thread::scope(|scope| {
+        let reader = scope.spawn(|| {
+            for _ in 0..100 {
+                let loaded = Tokenizer::from_file(&path).unwrap();
+                assert_eq!(loaded.encode("a", false).unwrap().ids(), &[1]);
+            }
+        });
+        for pretty in [true, false].into_iter().cycle().take(20) {
+            tok.save(&path, pretty).unwrap();
+        }
+        reader.join().unwrap();
+    });
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o640)).unwrap();
+        tok.save(&path, true).unwrap();
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o640
+        );
+    }
+}
+
+#[test]
 fn retraining_reassigns_added_tokens_without_corrupting_model_ids() {
     use morpheme::AddedToken;
     let mut tok = word_level_tokenizer(&[("[UNK]", 0), ("a", 1), ("[SEP]", 2)]);
