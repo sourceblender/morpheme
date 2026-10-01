@@ -7,14 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Unigram scores are always finite, so a saved tokenizer can be loaded
-  back. `Unigram::new` (and loading) rejects a `NaN` or infinite score
-  with an error naming the piece; serializing a non-finite score is an
-  error instead of writing `null`, so `Tokenizer::save` leaves an
-  existing file untouched; and `UnigramTrainer` on an empty corpus gives
-  the required chars a uniform log-probability instead of `+inf` (#86).
+## [0.5.0] - 2026-10-01
 
 ### Changed
 
@@ -32,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unigram scores are always finite, so a saved tokenizer can be loaded
+  back. `Unigram::new` (and loading) rejects a `NaN` or infinite score
+  with an error naming the piece; serializing a non-finite score is an
+  error instead of writing `null`, so `Tokenizer::save` leaves an
+  existing file untouched; and `UnigramTrainer` on an empty corpus gives
+  the required chars a uniform log-probability instead of `+inf` (#86).
 - `set_model` no longer leaves added-token, post-processor and padding
   ids bound to the previous vocabulary, where an id could encode as one
   token and decode as another (#84).
@@ -40,9 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   naming both tokens and the id instead of loading a tokenizer whose
   encode and decode disagree. An added token at its own model id (BERT's
   `[CLS]`) still loads (#85).
-
-### Fixed
-
 - Hub: blob downloads keep the bearer token on same-origin redirects, so
   gated or private repositories whose resolve URL redirects within the
   Hub no longer fail with `401`. Redirects are followed by hand (at most
@@ -402,7 +398,8 @@ format, and is now verified against the reference implementation.
     before the first character (`prepend("")`, an empty-pattern
     `replace`) indexed out of bounds and panicked.
 
-[Unreleased]: https://github.com/sourceblender/morpheme/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/sourceblender/morpheme/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/sourceblender/morpheme/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/sourceblender/morpheme/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/sourceblender/morpheme/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sourceblender/morpheme/compare/v0.1.1...v0.2.0

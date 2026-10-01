@@ -32,7 +32,7 @@ WebAssembly (WASM) module for the browser.
 - **Fast** — faster than Python `tokenizers` in our encode and training
   benchmarks (see [benchmarks](./docs/benchmarks.md)).
 
-**Status:** v0.4.0. The library API may still change before 1.0; see the
+**Status:** v0.5.0. The library API may still change before 1.0; see the
 [changelog](./CHANGELOG.md).
 
 ## Install
