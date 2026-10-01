@@ -42,7 +42,7 @@
 - [x] Repeatable local performance baselines with input fingerprints, diverse
       text, isolated load memory, and opt-in timing/RSS regression thresholds.
 - [ ] Benchmark regression tracking on dedicated hardware.
-- [ ] Accept the legacy untagged normalizer/decoder JSON forms (no file
+- [x] Accept the legacy untagged normalizer/decoder JSON forms (no file
       in the fixture set needs them today).
 - [x] Hash-check Hub downloads and cached files against their ETag;
       repair corrupt entries online and reject them offline.

@@ -81,6 +81,13 @@ fn main() -> morpheme::Result<()> {
   `{"type":"BertNormalizer","clean_text":true,"handle_chinese_chars":true,"strip_accents":null,"lowercase":true}`.
 - `BertNormalizer` fields that are missing fall back to the defaults
   above (HF requires them; this only accepts more files).
-- An unknown or missing `"type"` is a load error. The very old untagged
-  normalizer format (no `"type"` key) is not accepted.
+- An unknown `"type"` is a load error. Unknown keys inside a normalizer
+  object are ignored (the same policy as pre-tokenizers and decoders).
+- The very old untagged format (no `"type"` key) is accepted for the
+  normalizers that have fields (`BertNormalizer`, `Strip`, `Sequence`,
+  `Precompiled`, `Replace`, `Prepend`), inferred from the fields as in
+  HF; `{}` is an error, as in HF. Saving always writes the tagged form.
+- `Precompiled` counts a rule that deletes the very first char of the
+  input in its alignments (HF drops it, shifting every later offset by
+  one char); see [`docs/interop.md`](../interop.md).
 - `Replace` with an invalid regex is a load error.

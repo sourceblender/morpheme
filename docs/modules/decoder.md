@@ -67,5 +67,9 @@ fn main() -> morpheme::Result<()> {
   `Replace` normalizer.
 - `BpeDecoder` on an empty list and `Strip` with `stop` beyond the token
   return results instead of panicking (HF panics).
-- Legacy untagged decoder JSON (no `"type"`) is not accepted; an unknown
-  `"type"` is a load error.
+- Legacy untagged decoder JSON (no `"type"`) is accepted for the decoders
+  HF can tell apart by their fields (`BPEDecoder`, `WordPiece`, `CTC`,
+  `Replace`, `Strip`); `ByteLevel`, `Metaspace`, `Sequence`, `Fuse` and
+  `ByteFallback` need the `"type"` key, as in HF. Saving always writes
+  the tagged form. An unknown `"type"` is a load error; unknown keys
+  inside a decoder object are ignored.
