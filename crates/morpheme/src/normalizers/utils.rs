@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::Result;
 use crate::normalized_string::NormalizedString;
 use crate::normalizers::NormalizerWrapper;
+use crate::pre_tokenizers::impl_unit_serde;
 use crate::traits::Normalizer;
 
 /// Apply several normalizers in order.
@@ -84,8 +85,10 @@ impl Normalizer for Sequence {
 ///
 /// assert_eq!(normalize(&Lowercase, "HeLLo ÀÉ"), "hello àé");
 /// ```
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Lowercase;
+
+impl_unit_serde!(Lowercase);
 
 impl Normalizer for Lowercase {
     fn normalize(&self, normalized: &mut NormalizedString) -> Result<()> {

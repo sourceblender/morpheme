@@ -43,6 +43,23 @@ nothing is silently replaced with a default.
 - `Metaspace` with `add_prefix_space` instead of `prepend_scheme`, and
   without `split`; `ByteLevel` without `use_regex`; Unigram without
   `byte_fallback`.
+- Untagged normalizer / decoder objects (no `"type"` key, from files
+  written before the tag existed): the variant is inferred from the
+  fields, as in HF's untagged fallback — normalizers `BertNormalizer`
+  (`clean_text`, `handle_chinese_chars`, `lowercase`), `Strip`
+  (`strip_left`, `strip_right`), `Sequence` (`normalizers`),
+  `Precompiled` (`precompiled_charsmap`), `Replace` (`pattern`,
+  `content`), `Prepend` (`prepend`); decoders `BPEDecoder` (`suffix`),
+  `WordPiece` (`prefix`, `cleanup`), `CTC` (`pad_token`,
+  `word_delimiter_token`, `cleanup`), `Replace` (`pattern`, `content`),
+  `Strip` (`content`, `start`, `stop`). Parameterless components (`{}`)
+  and the components whose HF deserializer requires the tag (`ByteLevel`,
+  `Metaspace`, decoder `Sequence`, `Fuse`, `ByteFallback`) need the
+  `"type"` key, as in HF. Saving always writes the tagged form.
+
+Unknown keys inside any component object are ignored (the same policy
+for normalizers, pre-tokenizers, decoders, models and the top-level
+file); only an unknown `"type"` value is an error.
 
 ## Offsets: bytes vs chars
 
@@ -102,16 +119,18 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
 
 - **Errors instead of panics.** Malformed input (merges referencing
   missing tokens, bad regexes, invalid `unk_id`, malformed Precompiled
-  charsmaps, templates naming undefined special tokens, `Strip` decoder
-  bounds, …) returns `morpheme::Error`; HF panics in several of these
-  cases.
+  charsmaps, templates naming undefined special tokens, …) returns
+  `morpheme::Error`; HF panics in several of these cases. A Precompiled
+  charsmap whose trie size is not a multiple of 4 is rejected (HF rounds
+  it down and reads the replacement pool from the wrong offset).
+- **`Strip` decoder clamps.** `start` / `stop` larger than the token are
+  clamped to its length and the result is returned; HF panics on an
+  index underflow. Within bounds the output is identical.
 - **Lenient defaults.** Some fields HF requires fall back to their
   defaults when missing (BertNormalizer flags, ByteLevel
   `add_prefix_space`/`trim_offsets`, Digits `individual_digits`,
   RobertaProcessing flags, TemplateProcessing `special_tokens`). Valid
   files behave identically.
-- **Not accepted:** the very old untagged normalizer / decoder JSON
-  without a `"type"` key.
 - **Deterministic trainers.** Where HF's trainers depend on hash-map
   iteration order (BPE symbol ids with a prefix/suffix, `limit_alphabet`
   ties, Unigram), morpheme uses a fixed order, so results are
@@ -170,11 +189,96 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
 - **Sequence ownership is preserved.** Pair overflow retains sequence
   ranges even without a post-processor. Sequence lookups use the actual
   ids (including nonzero ids), and a missing sequence yields no match.
+- **Added-token matches never overlap.** When an `rstrip` added token
+  swallows whitespace that the next added token also starts with (for
+  example `<x>` with `rstrip` and ` <y>` on `"<x> <y>"`), the second match
+  starts where the first ends, so every byte belongs to exactly one
+  token and offsets are `[(0,4),(4,7)]`. HF reports overlapping offsets
+  (`[(0,4),(3,7)]`), and panics when the second token also has `lstrip`.
+- **Zero-width `Split` patterns are safe.** A `Split` regex that matches
+  the empty string (`$`, `^`, `\b`, lookarounds) after a normalizer that
+  changes the byte length (`NFD`, `Lowercase`, `Prepend`, …) produces the
+  same tokens as without the pattern; HF panics (`NormalizedString bad
+  split`). A custom `Pattern` reporting offsets inside a character is an
+  error, not a panic.
+- **Duplicate added-token ids are rejected.** A `tokenizer.json` whose
+  `added_tokens` list the same id for two contents fails to load with an
+  error naming both; HF keeps the last one but leaves the first content
+  mapped to the id. Reusing an id through the API (for example after
+  `set_model`) unmaps the previous content.
+- **Template strings tolerate repeated spaces, but not emptiness.**
+  `Template::try_from("[CLS]  $A")` (two spaces) parses here; HF's
+  `try_from` splits on single spaces and fails. An empty template (`""`
+  or an empty piece list) is an error in both the parser and the
+  `TemplateProcessing` builder, where HF's builder would accept an empty
+  `single` and produce empty encodings. Files are unaffected:
+  `tokenizer.json` stores templates as piece lists.
+- **`DecodeStream::prefill` never re-emits the prompt.** When the
+  prefilled ids end inside a character (byte fallback), the step that
+  completes the character emits just that character; the text before it
+  is treated as already shown. HF emits the entire prompt again with that
+  first chunk. Later chunks are identical. `tests/hf_golden.rs` strips
+  the re-emitted prompt from HF's recorded first chunk for this case.
+  Both libraries recognise an incomplete character by the trailing
+  U+FFFD it decodes to. morpheme tells a real U+FFFD apart when it is
+  made of several byte-fallback tokens (`<0xEF><0xBF><0xBD>`); a single
+  id whose text is just U+FFFD remains ambiguous and is emitted again
+  with the next chunk (HF re-emits the whole prompt in both cases).
 
-Kept on purpose because HF does it:
+### Corrections to upstream offsets
+
+Alignment bugs shared with HF that are fixed here (ADR 0002); the
+affected inputs get different offsets from `tokenizers` 0.23.2 on
+purpose. Text output is identical.
+
+- **Precompiled deletion at position 0.** When a SentencePiece charsmap
+  (T5, ALBERT, XLM-R, …) deletes the very first char of the input (for
+  example U+0007 in T5), HF drops the removal from its alignment
+  bookkeeping, so every surviving char maps back to the char *before*
+  it — token offsets for such inputs are off by one char. morpheme
+  counts the removal, so `"\u{7}ab"` normalizes to `"ab"` with `a` and
+  `b` aligned to themselves. Deletions anywhere else were already
+  correct in both.
+
+### Other divergences
+
+- **Re-adding an added token updates its flags.** `add_tokens` /
+  `add_special_tokens` with the content of an existing added token but
+  different flags (`lstrip`, `normalized`, `special`, …) replaces the
+  stored token and counts it as added. HF compares added tokens by
+  content only, so it returns 0 and keeps the old flags.
+- **Template whitespace tolerance.** `TemplateProcessing` templates are
+  split on any whitespace run (`"[CLS]  $A\t[SEP]"` is accepted); HF
+  splits on single spaces and rejects the empty pieces. Well-formed
+  templates behave identically.
+
+### Parity quirks kept on purpose
+
+Behaviours that look odd but are kept because HF does them, so outputs
+stay identical:
 
 - A BPE model with neither `unk_token` nor `byte_fallback` silently
   drops characters it cannot represent.
+- **Normalized special tokens are not skipped on decode.** A special
+  token with `normalized: true` whose normalized form differs from its
+  content (for example `<MASK>` under a `Lowercase` normalizer) decodes to
+  its normalized text, and `skip_special_tokens` does not remove it,
+  because the special-token set is keyed by the raw content. Special
+  tokens are `normalized: false` by default, so only files that opt in
+  are affected.
+- **Byte-fallback offsets include prefix / suffix bytes.** With
+  `byte_fallback` and a `continuing_subword_prefix` or
+  `end_of_word_suffix`, an unknown char is looked up *with* the prefix /
+  suffix attached, and when it falls back to bytes the prefix / suffix
+  bytes are emitted as `<0xNN>` tokens too, each with a one-byte offset
+  inside the word.
+- **`ignore_merges` only without dropout.** The whole-word shortcut is
+  consulted only when `dropout` is `null` / `0.0`; with dropout active a
+  word is always merged (with vocab `{a, b, ab}`, `ignore_merges: true`
+  and `dropout: 1.0`, `"ab"` gives `[a, b]`).
+- **Duplicate merge pairs.** A pair listed more than once in `merges`
+  takes the rank of its last occurrence and is written once on re-save
+  (HF's merges are a map keyed by pair).
 - `BpeTrainer` and `WordPieceTrainer` do not error when the special
   tokens and the alphabet alone exceed `vocab_size`; they learn no merges
   and return the larger vocabulary (see

@@ -204,6 +204,19 @@ mod tests {
         assert!(serde_json::from_str::<Bpe>(wrong).is_err());
     }
 
+    /// HF re-serializes a duplicated merge pair once, at the position of
+    /// its last occurrence.
+    #[test]
+    fn duplicate_merges_are_written_once() {
+        let json = r#"{"vocab":{"a":0,"b":1,"c":2,"ab":3,"bc":4},"merges":[["a","b"],["b","c"],["a","b"]]}"#;
+        let bpe: Bpe = serde_json::from_str(json).unwrap();
+        let out = serde_json::to_value(&bpe).unwrap();
+        assert_eq!(out["merges"], serde_json::json!([["b", "c"], ["a", "b"]]));
+        // Reloading the re-serialized form gives the same model.
+        let back: Bpe = serde_json::from_value(out).unwrap();
+        assert_eq!(back, bpe);
+    }
+
     #[test]
     fn preserves_sparse_ids() {
         let json = r#"{"vocab":{"a":0,"b":5,"ab":9},"merges":[["a","b"]]}"#;

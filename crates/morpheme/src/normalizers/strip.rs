@@ -5,6 +5,7 @@ use unicode_normalization_alignments::char::is_combining_mark;
 
 use crate::error::Result;
 use crate::normalized_string::NormalizedString;
+use crate::pre_tokenizers::impl_unit_serde;
 use crate::traits::Normalizer;
 
 /// Remove leading and/or trailing whitespace.
@@ -82,8 +83,10 @@ impl Normalizer for Strip {
 /// let strip = Sequence::new(vec![Nfd.into(), StripAccents.into()]);
 /// assert_eq!(normalize(&strip, "café naïve"), "cafe naive");
 /// ```
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct StripAccents;
+
+impl_unit_serde!(StripAccents);
 
 impl Normalizer for StripAccents {
     fn normalize(&self, normalized: &mut NormalizedString) -> Result<()> {

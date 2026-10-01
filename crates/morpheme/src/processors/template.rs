@@ -79,6 +79,9 @@ impl TryFrom<&str> for Piece {
 
     fn try_from(s: &str) -> Result<Self> {
         let bad = || err(format!("cannot build a template piece from {s:?}"));
+        if s.is_empty() {
+            return Err(bad());
+        }
         let parts: Vec<&str> = s.split(':').collect();
         match parts.as_slice() {
             [id] => Piece::parse_id(id).ok_or_else(bad),
@@ -213,10 +216,16 @@ impl TryFrom<&str> for Template {
     type Error = Error;
 
     fn try_from(s: &str) -> Result<Self> {
-        s.split_whitespace()
+        // Pieces are separated by whitespace (HF requires exactly one
+        // space; see docs/interop.md). An empty template is an error.
+        let pieces = s
+            .split_whitespace()
             .map(Piece::try_from)
-            .collect::<Result<Vec<_>>>()
-            .map(Template)
+            .collect::<Result<Vec<_>>>()?;
+        if pieces.is_empty() {
+            return Err(err(format!("template {s:?} has no pieces")));
+        }
+        Ok(Template(pieces))
     }
 }
 
@@ -502,6 +511,9 @@ impl TemplateProcessingBuilder {
         let pair = self.pair.unwrap_or_else(default_pair);
         let special_tokens = self.special_tokens.unwrap_or_default();
 
+        if single.0.is_empty() {
+            return Err(err("template for `single` cannot be empty"));
+        }
         if !(pair.uses(Sequence::A) && pair.uses(Sequence::B)) {
             return Err(err("template for `pair` must use both sequences"));
         }

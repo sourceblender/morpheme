@@ -103,6 +103,14 @@ impl Precompiled {
             .and_then(|b| b.try_into().ok())
             .ok_or_else(|| bad("too short"))?;
         let trie_size = u32::from_le_bytes(header) as usize;
+        // The trie is an array of u32 units, so its byte size must be a
+        // multiple of 4. HF's reader silently rounds down and then reads
+        // the replacement pool from the wrong offset; reject instead.
+        if trie_size % 4 != 0 {
+            return Err(bad(&format!(
+                "trie size {trie_size} is not a multiple of 4"
+            )));
+        }
         let trie_end = 4usize
             .checked_add(trie_size)
             .filter(|&e| e <= precompiled_charsmap.len())
@@ -145,7 +153,18 @@ impl Precompiled {
 }
 
 /// Append the transformations replacing `old` (several chars) by `new`.
-fn push_replacement(dest: &mut Vec<(char, isize)>, old: &str, new: &str) {
+///
+/// A removal is folded into the change marker of the previous char; when
+/// there is no previous char (the removal is at the very start of the
+/// string) it is counted in `initial_offset` instead, so the alignments
+/// of everything after it stay exact. (HF drops such a removal, which
+/// shifts every later alignment by one char; see `docs/interop.md`.)
+fn push_replacement(
+    dest: &mut Vec<(char, isize)>,
+    initial_offset: &mut usize,
+    old: &str,
+    new: &str,
+) {
     let diff = new.chars().count() as isize - old.chars().count() as isize;
     dest.extend(new.chars().map(|c| (c, 0)));
     match diff.cmp(&0) {
@@ -154,11 +173,10 @@ fn push_replacement(dest: &mut Vec<(char, isize)>, old: &str, new: &str) {
                 *change = 1;
             }
         }
-        Ordering::Less => {
-            if let Some((_, change)) = dest.last_mut() {
-                *change += diff;
-            }
-        }
+        Ordering::Less => match dest.last_mut() {
+            Some((_, change)) => *change += diff,
+            None => *initial_offset += diff.unsigned_abs(),
+        },
         Ordering::Equal => {}
     }
 }
@@ -166,12 +184,13 @@ fn push_replacement(dest: &mut Vec<(char, isize)>, old: &str, new: &str) {
 impl Normalizer for Precompiled {
     fn normalize(&self, normalized: &mut NormalizedString) -> Result<()> {
         let mut dest = Vec::with_capacity(normalized.len());
+        let mut initial_offset = 0;
         let mut modified = false;
         for grapheme in normalized.get().graphemes(true) {
             if grapheme.len() < 6 {
                 if let Some(norm) = self.transform(grapheme) {
                     modified = true;
-                    push_replacement(&mut dest, grapheme, norm);
+                    push_replacement(&mut dest, &mut initial_offset, grapheme, norm);
                     continue;
                 }
             }
@@ -180,14 +199,14 @@ impl Normalizer for Precompiled {
                 match self.transform(part) {
                     Some(norm) => {
                         modified = true;
-                        push_replacement(&mut dest, part, norm);
+                        push_replacement(&mut dest, &mut initial_offset, part, norm);
                     }
                     None => dest.push((c, 0)),
                 }
             }
         }
         if modified {
-            normalized.transform(dest, 0);
+            normalized.transform(dest, initial_offset);
         }
         Ok(())
     }
@@ -301,12 +320,56 @@ mod tests {
     #[test]
     fn expansion_followed_by_removal() {
         let mut dest = vec![];
+        let mut initial_offset = 0;
         let mut n = NormalizedString::from("™\x1eg");
-        push_replacement(&mut dest, "™", "TM");
-        push_replacement(&mut dest, "\x1e", "");
+        push_replacement(&mut dest, &mut initial_offset, "™", "TM");
+        push_replacement(&mut dest, &mut initial_offset, "\x1e", "");
         dest.push(('g', 0));
-        n.transform(dest, 0);
+        assert_eq!(initial_offset, 0);
+        n.transform(dest, initial_offset);
         assert_eq!(n.get(), "TMg");
+        assert_eq!(
+            n.get_range_original(OffsetRange::Normalized(2..3)),
+            Some("g")
+        );
+    }
+
+    /// A removal with nothing before it cannot be folded into a previous
+    /// char; it must become `initial_offset`, or every later alignment
+    /// shifts by one char (the upstream bug tracked in issue #31).
+    #[test]
+    fn removal_at_position_zero_keeps_alignments() {
+        let mut dest = vec![];
+        let mut initial_offset = 0;
+        let mut n = NormalizedString::from("\x1e\x1egh");
+        push_replacement(&mut dest, &mut initial_offset, "\x1e", "");
+        push_replacement(&mut dest, &mut initial_offset, "\x1e", "");
+        dest.push(('g', 0));
+        dest.push(('h', 0));
+        assert_eq!(initial_offset, 2);
+        n.transform(dest, initial_offset);
+        assert_eq!(n.get(), "gh");
+        assert_eq!(
+            n.get_range_original(OffsetRange::Normalized(0..1)),
+            Some("g")
+        );
+        assert_eq!(
+            n.get_range_original(OffsetRange::Normalized(1..2)),
+            Some("h")
+        );
+    }
+
+    #[test]
+    fn trie_size_must_be_a_multiple_of_four() {
+        // A 5-byte "trie" cannot be an array of u32 units.
+        let mut blob = 5u32.to_le_bytes().to_vec();
+        blob.extend([0, 0, 0, 0, 0]);
+        let err = Precompiled::from_bytes(&blob).unwrap_err();
+        assert!(err.to_string().contains("multiple of 4"), "{err}");
+        // The same data with a well-formed size is accepted.
+        let mut blob = 4u32.to_le_bytes().to_vec();
+        blob.extend([0, 0, 0, 0, 0]);
+        assert!(Precompiled::from_bytes(&blob).is_ok());
     }
 
     #[test]
@@ -378,6 +441,43 @@ mod tests {
         assert_eq!(
             ns.get_range_original(OffsetRange::Normalized(2..3)),
             Some("x")
+        );
+    }
+
+    /// T5's charsmap deletes U+0007. When it is the first char, the
+    /// surviving chars must still map to themselves (HF maps `a` back to
+    /// the deleted `\u{7}` and `b` to `a`).
+    #[test]
+    fn t5_charsmap_deletion_at_position_zero_offsets() {
+        let Some(p) = fixture_charsmap("t5-small") else {
+            return;
+        };
+        for input in ["\u{7}ab", "\u{7}\u{7}ab"] {
+            let mut ns = NormalizedString::from(input);
+            p.normalize(&mut ns).unwrap();
+            assert_eq!(ns.get(), "ab", "input {input:?}");
+            assert_eq!(
+                ns.get_range_original(OffsetRange::Normalized(0..1)),
+                Some("a"),
+                "input {input:?}"
+            );
+            assert_eq!(
+                ns.get_range_original(OffsetRange::Normalized(1..2)),
+                Some("b"),
+                "input {input:?}"
+            );
+        }
+        // A deletion that is not first was already aligned correctly.
+        let mut ns = NormalizedString::from("x\u{7}ab");
+        p.normalize(&mut ns).unwrap();
+        assert_eq!(ns.get(), "xab");
+        assert_eq!(
+            ns.get_range_original(OffsetRange::Normalized(0..1)),
+            Some("x")
+        );
+        assert_eq!(
+            ns.get_range_original(OffsetRange::Normalized(1..2)),
+            Some("a")
         );
     }
 
