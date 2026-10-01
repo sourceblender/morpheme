@@ -21,3 +21,8 @@ bench = false
 # No rayon (single-threaded wasm) and no progress bars.
 morpheme = { path = "../../crates/morpheme", version = "0.4.0", default-features = false }
 wasm-bindgen = "0.2"
+
+# Not a cargo-dist app: built locally with wasm-pack / wasm-bindgen-cli
+# (see README.md); not published anywhere yet.
+[package.metadata.dist]
+dist = false

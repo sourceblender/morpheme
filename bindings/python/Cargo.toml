@@ -22,3 +22,7 @@ doc = false
 [dependencies]
 morpheme = { path = "../../crates/morpheme", features = ["hub"] }
 pyo3 = { version = "0.29", features = ["extension-module", "abi3-py39"] }
+
+# Not a cargo-dist app: distributed as Python wheels (python-wheels.yml).
+[package.metadata.dist]
+dist = false

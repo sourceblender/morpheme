@@ -18,6 +18,9 @@ targets = [
     "x86_64-pc-windows-msvc",
 ]
 install-path = "CARGO_HOME"
+# Build only distributable packages with `-p` instead of `--workspace`: the
+# bindings crates are cdylibs that some targets (musl) cannot produce.
+precise-builds = true
 publish-jobs = ["./publish-crates"]
 # A reusable workflow may only use permissions its caller grants; the
 # publish job just needs to read the repository.
