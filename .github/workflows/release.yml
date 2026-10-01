@@ -8,6 +8,15 @@
 # tags); `allow-dirty = ["ci"]` in dist-workspace.toml lets dist accept the
 # edited file. Dependabot keeps the pins current.
 #
+# Other local changes to re-apply after regenerating:
+# - `paths` on the pull_request trigger: the PR-only `dist plan` runs only
+#   when release configuration changes.
+# - the `concurrency` block (superseded PR plans are cancelled; tag runs
+#   never are).
+# - least-privilege permissions: `contents: read` for the workflow, and
+#   `contents: write` only on the `host` job, which creates the release.
+# - `timeout-minutes` on every job.
+#
 # Copyright 2022-2024, axodotdev
 # SPDX-License-Identifier: MIT or Apache-2.0
 #
@@ -23,7 +32,7 @@
 
 name: Release
 permissions:
-  "contents": "write"
+  "contents": "read"
 
 # This task will run whenever you push a git tag that looks like a version
 # like "1.0.0", "v0.1.0-prerelease.1", "my-app/0.1.0", "releases/v1.0.0", etc.
@@ -48,14 +57,25 @@ permissions:
 # will be marked as a prerelease.
 on:
   pull_request:
+    paths:
+      - "dist-workspace.toml"
+      - "**/Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/publish-crates.yml"
   push:
     tags:
       - '**[0-9]+.[0-9]+.[0-9]+*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Run 'dist plan' (or host) to determine what tasks we need to do
   plan:
     runs-on: "ubuntu-22.04"
+    timeout-minutes: 10
     outputs:
       val: ${{ steps.plan.outputs.manifest }}
       tag: ${{ !github.event.pull_request && github.ref_name || '' }}
@@ -116,6 +136,7 @@ jobs:
       # - N "local" tasks that build each platform's binaries and platform-specific installers
       matrix: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix }}
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     container: ${{ matrix.container && matrix.container.image || null }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -179,6 +200,7 @@ jobs:
       - plan
       - build-local-artifacts
     runs-on: "ubuntu-22.04"
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/global-dist-manifest.json
@@ -230,6 +252,10 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: "ubuntu-22.04"
+    timeout-minutes: 15
+    # The only job that writes: it creates the GitHub Release.
+    permissions:
+      "contents": "write"
     outputs:
       val: ${{ steps.host.outputs.manifest }}
     steps:
@@ -309,6 +335,7 @@ jobs:
     # "host" however must run to completion, no skipping allowed!
     if: ${{ always() && needs.host.result == 'success' && (needs.custom-publish-crates.result == 'skipped' || needs.custom-publish-crates.result == 'success') }}
     runs-on: "ubuntu-22.04"
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:

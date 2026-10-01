@@ -4,7 +4,10 @@ name: Benchmark tracking
 # keeps every result on the `benchmarks` branch, comparing each run with the
 # previous one for the same host. See docs/benchmarks.md, "Dedicated host
 # tracking". Deliberately has no pull_request trigger: the self-hosted runner
-# must never execute code from forks.
+# must never execute code from forks. Scheduled and tag runs skip the
+# measurement when the commit is already the host's latest result (e.g. a
+# quiet night, or a release tag on a commit the nightly run measured);
+# a manual run always measures.
 
 on:
   schedule:
@@ -38,7 +41,38 @@ env:
   FIXTURE_CACHE: /var/cache/morpheme/hf-fixtures
 
 jobs:
+  # On a hosted runner, so a skipped run never occupies the bench host.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      measure: ${{ steps.check.outputs.measure }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ]; then
+            echo "measure=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Empty when the branch or the host's latest.json does not exist yet.
+          latest=$(gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$GITHUB_REPOSITORY/contents/results/$HOST_LABEL/latest.json?ref=$RESULTS_BRANCH" \
+            2>/dev/null | jq -r '.revision // empty' || true)
+          if [ -n "$latest" ] && [ "$latest" = "$GITHUB_SHA" ]; then
+            echo "$GITHUB_SHA is already the latest result for $HOST_LABEL; skipping"
+            echo "measure=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest result: ${latest:-none}; measuring $GITHUB_SHA"
+            echo "measure=true" >> "$GITHUB_OUTPUT"
+          fi
+
   measure:
+    needs: changes
+    if: needs.changes.outputs.measure == 'true'
     runs-on: [self-hosted, linux, x64, bench]
     timeout-minutes: 90
     permissions:
@@ -262,7 +296,7 @@ jobs:
 
   gate:
     # Fails after the result is stored so the history stays complete.
-    needs: [measure, publish]
+    needs: [changes, measure, publish]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -270,11 +304,15 @@ jobs:
       contents: read
     steps:
       - env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          MEASURE: ${{ needs.changes.outputs.measure }}
           MEASURE_RESULT: ${{ needs.measure.result }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
           STATUS: ${{ needs.measure.outputs.status }}
           BASELINE_LABEL: ${{ needs.measure.outputs.baseline }}
         run: |
+          if [ "$CHANGES_RESULT" != success ]; then echo "::error::checking for a new commit failed ($CHANGES_RESULT)"; exit 1; fi
+          if [ "$MEASURE" != true ]; then echo "already measured this commit; nothing to do"; exit 0; fi
           if [ "$MEASURE_RESULT" != success ]; then echo "::error::measurement failed ($MEASURE_RESULT)"; exit 1; fi
           if [ "$PUBLISH_RESULT" != success ]; then echo "::error::publishing the result failed ($PUBLISH_RESULT)"; exit 1; fi
           case "$STATUS" in
