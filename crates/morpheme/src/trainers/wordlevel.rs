@@ -1,6 +1,6 @@
 //! WordLevel trainer: keep the most frequent words.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::added_vocabulary::AddedToken;
 use crate::error::{Error, Result};
@@ -128,6 +128,11 @@ impl WordLevelTrainer {
         let mut ordered: Vec<(&String, u64)> = word_counts.iter().map(|(w, c)| (w, *c)).collect();
         // Most frequent first; ties alphabetical.
         ordered.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+        // Special tokens first, then words by frequency, each token once:
+        // a special token that also occurs in the corpus (or is listed
+        // twice) must not take a second id and leave a hole. Hugging Face
+        // does not deduplicate here.
+        let mut seen = HashSet::new();
         let vocab: HashMap<String, u32> = self
             .special_tokens
             .iter()
@@ -138,6 +143,7 @@ impl WordLevelTrainer {
                     .filter(|(_, n)| *n >= self.min_frequency)
                     .map(|(w, _)| w.clone()),
             )
+            .filter(|w| seen.insert(w.clone()))
             .take(self.vocab_size)
             .enumerate()
             .map(|(i, w)| (w, i as u32))

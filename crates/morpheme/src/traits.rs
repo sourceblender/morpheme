@@ -71,7 +71,7 @@ pub trait PostProcessor {
             for o in e.overflowing_mut() {
                 o.set_sequence_id(i);
             }
-            e.set_type_ids(vec![i as u32; e.len()]);
+            e.set_uniform_type_id(i as u32);
         }
         let encodings = self.process_encodings(encodings, add_special_tokens)?;
         Ok(Encoding::merge(encodings, false))

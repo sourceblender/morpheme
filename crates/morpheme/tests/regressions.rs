@@ -219,3 +219,142 @@ fn vocab_with_shared_ids_round_trips_losslessly() {
         }
     }
 }
+
+/// Tokenizer over a tiny whole-word vocab, truncating only the second
+/// sequence with a stride so that it overflows.
+fn overflowing_pair_tokenizer(
+    post_processor: morpheme::PostProcessorWrapper,
+    max_length: usize,
+) -> Tokenizer {
+    let words = [
+        "<s>", "</s>", "[CLS]", "[SEP]", "[UNK]", "a", "b", "c", "d", "e", "f", "g", "h",
+    ];
+    let vocab: HashMap<String, u32> = words
+        .iter()
+        .enumerate()
+        .map(|(i, w)| (w.to_string(), i as u32))
+        .collect();
+    let model = morpheme::models::WordLevel::builder()
+        .vocab(vocab)
+        .unk_token("[UNK]")
+        .build()
+        .unwrap();
+    let mut tok = Tokenizer::new(model)
+        .with_pre_tokenizer(morpheme::pre_tokenizers::WhitespaceSplit)
+        .with_post_processor(post_processor);
+    tok.set_truncation(Some(morpheme::TruncationParams {
+        max_length,
+        stride: 1,
+        strategy: morpheme::TruncationStrategy::OnlySecond,
+        ..Default::default()
+    }))
+    .unwrap();
+    tok
+}
+
+fn overflow_type_ids(e: &morpheme::Encoding) -> Vec<Vec<u32>> {
+    e.overflowing()
+        .iter()
+        .map(|o| o.type_ids().to_vec())
+        .collect()
+}
+
+#[test]
+fn roberta_overflow_type_ids_are_all_zero() {
+    // PR #14 review: with `add_special_tokens = false`, the second
+    // sequence's overflow kept type id 1 (Hugging Face does the same),
+    // which RoBERTa's single-row type embedding cannot accept.
+    let tok = overflowing_pair_tokenizer(RobertaProcessing::new(("</s>", 1), ("<s>", 0)).into(), 6);
+    let enc = tok.encode(("a b", "c d e f g h"), false).unwrap();
+    assert_eq!(enc.type_ids(), &[0; 6]);
+    assert!(!enc.overflowing().is_empty());
+    for ids in overflow_type_ids(&enc) {
+        assert!(ids.iter().all(|t| *t == 0), "{ids:?}");
+    }
+}
+
+#[test]
+fn template_type_ids_apply_to_overflow() {
+    // PR #14 review: `$B:3` was applied to the main encoding only; the
+    // overflow kept type id 1 (Hugging Face does the same).
+    let template = morpheme::processors::TemplateProcessing::builder()
+        .try_single("[CLS] $A:2 [SEP]")
+        .unwrap()
+        .try_pair("[CLS] $A:2 [SEP] $B:3 [SEP]")
+        .unwrap()
+        .special_tokens(vec![("[CLS]", 2), ("[SEP]", 3)])
+        .build()
+        .unwrap();
+    let tok = overflowing_pair_tokenizer(template.into(), 9);
+    let enc = tok.encode(("a b", "c d e f g h"), true).unwrap();
+    assert_eq!(enc.type_ids(), &[0, 2, 2, 0, 3, 3, 3, 3, 0]);
+    assert_eq!(overflow_type_ids(&enc), vec![vec![0, 2, 2, 0, 3, 3, 3, 0]]);
+}
+
+/// A post-processor that adds nothing, so `process` is the trait's
+/// default implementation.
+struct Passthrough;
+
+impl morpheme::PostProcessor for Passthrough {
+    fn added_tokens(&self, _is_pair: bool) -> usize {
+        0
+    }
+    fn process_encodings(
+        &self,
+        encodings: Vec<morpheme::Encoding>,
+        _add_special_tokens: bool,
+    ) -> morpheme::Result<Vec<morpheme::Encoding>> {
+        Ok(encodings)
+    }
+}
+
+#[test]
+fn default_pair_processing_sets_overflow_type_ids() {
+    // PR #14 review: the default `process` set sequence ids on overflow
+    // but not type ids, so a pair whose overflow was built with type 0
+    // kept 0 instead of 1.
+    use morpheme::PostProcessor;
+    let mut second = morpheme::Encoding::from_tokens(
+        vec![
+            morpheme::Token::new(7, "c".into(), (0, 1)),
+            morpheme::Token::new(8, "d".into(), (2, 3)),
+        ],
+        0,
+    );
+    second.truncate(1, 0, morpheme::TruncationDirection::Right);
+    let first =
+        morpheme::Encoding::from_tokens(vec![morpheme::Token::new(5, "a".into(), (0, 1))], 0);
+    let merged = Passthrough.process(first, Some(second), false).unwrap();
+    assert_eq!(merged.type_ids(), &[0, 1]);
+    assert_eq!(overflow_type_ids(&merged), vec![vec![0, 1]]);
+}
+
+#[test]
+fn word_level_trainer_never_leaves_id_holes() {
+    // PR #14 review: a special token listed twice or also present in the
+    // corpus got two ids, leaving gaps (Hugging Face does the same).
+    let model = morpheme::models::WordLevel::builder()
+        .unk_token("[UNK]")
+        .build()
+        .unwrap();
+    let mut tok =
+        Tokenizer::new(model).with_pre_tokenizer(morpheme::pre_tokenizers::WhitespaceSplit);
+    let trainer = morpheme::trainers::WordLevelTrainer::builder()
+        .vocab_size(100)
+        .special_tokens(
+            ["[UNK]", "[PAD]", "[UNK]"]
+                .map(|t| morpheme::AddedToken::new(t, true))
+                .to_vec(),
+        )
+        .build()
+        .unwrap();
+    tok.train(trainer, ["[UNK] a a b [UNK] [UNK] c"].into_iter())
+        .unwrap();
+    let mut vocab: Vec<(String, u32)> = tok.vocab(false).into_iter().collect();
+    vocab.sort_by_key(|(_, id)| *id);
+    let expected: Vec<(String, u32)> = [("[UNK]", 0), ("[PAD]", 1), ("a", 2), ("b", 3), ("c", 4)]
+        .iter()
+        .map(|(t, i)| (t.to_string(), *i))
+        .collect();
+    assert_eq!(vocab, expected);
+}

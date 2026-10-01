@@ -392,7 +392,9 @@ impl TemplateProcessing {
                             "template uses sequence {id:?} but only {n} sequence(s) were given"
                         ))
                     })?;
-                    encoding.set_type_ids(vec![*type_id; encoding.len()]);
+                    // Overflow parts take the template's type id too
+                    // (Hugging Face keeps their original id).
+                    encoding.set_uniform_type_id(*type_id);
                     encoding.set_sequence_id(i);
                     out.push(encoding.clone());
                 }

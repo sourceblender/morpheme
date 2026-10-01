@@ -122,6 +122,17 @@ Deliberate differences, all in the direction of *accepting more* or
   `tokenizer.json`, not the other files of a repository, and use the
   same cache layout as `huggingface_hub`.
 
+- **Consistent type ids on overflow.** When truncation produces
+  overflowing encodings, they get the same type ids as the main
+  encoding: all `0` for `RobertaProcessing` (HF leaves `1` on the second
+  sequence's overflow when `add_special_tokens` is false, which RoBERTa
+  models cannot accept), and the template's type id for
+  `TemplateProcessing` pieces such as `$B:3` (HF keeps the original id
+  on overflow). Without overflow, outputs are identical to HF.
+- **No id gaps from `WordLevelTrainer`.** A special token that is
+  listed twice or also occurs in the corpus gets a single id; HF assigns
+  it again, leaving unused ids.
+
 Kept on purpose because HF does it: a BPE model with neither
 `unk_token` nor `byte_fallback` silently drops characters it cannot
 represent.

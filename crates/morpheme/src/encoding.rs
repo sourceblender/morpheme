@@ -158,6 +158,16 @@ impl Encoding {
         self.type_ids = type_ids;
     }
 
+    /// Give this encoding and every overflowing part (recursively) the
+    /// same type id. Post-processors use this so that overflow produced
+    /// by truncation agrees with the main encoding.
+    pub(crate) fn set_uniform_type_id(&mut self, type_id: u32) {
+        self.type_ids = vec![type_id; self.len()];
+        for o in &mut self.overflowing {
+            o.set_uniform_type_id(type_id);
+        }
+    }
+
     /// Token strings.
     pub fn tokens(&self) -> &[String] {
         &self.tokens

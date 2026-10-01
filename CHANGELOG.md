@@ -162,6 +162,12 @@ format, and is now verified against the reference implementation.
 
 ### Fixed
 
+- Overflowing encodings from truncation now carry the same type ids as
+  the main encoding for `RobertaProcessing` (all `0`),
+  `TemplateProcessing` type overrides (e.g. `$B:3`) and the default pair
+  processing; Hugging Face gets the first two wrong.
+- `WordLevelTrainer` no longer leaves gaps in the id range when a
+  special token is repeated or also appears in the corpus.
 - BPE trainer produced models that could not be loaded (merged symbols
   missing from the vocabulary) and double-counted pair frequencies.
 - HF loader silently replaced normalizers, pre-tokenizers and decoders

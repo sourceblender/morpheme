@@ -111,8 +111,12 @@ impl PostProcessor for RobertaProcessing {
                 }
             }
         }
+        // RoBERTa models have a single token type: every id is 0,
+        // including overflow from truncation. (Hugging Face leaves type 1
+        // on the second sequence's overflow when `add_special_tokens` is
+        // false, which RoBERTa's one-row type embedding cannot accept.)
         for e in &mut encodings {
-            e.set_type_ids(vec![0; e.len()]);
+            e.set_uniform_type_id(0);
         }
         if !add_special_tokens {
             return Ok(encodings);
@@ -134,11 +138,6 @@ impl PostProcessor for RobertaProcessing {
                         false,
                     )
                 } else {
-                    // Overflowing parts of the second sequence are all type 0
-                    // too (the top-level one was reset above).
-                    for o in encoding.overflowing_mut() {
-                        o.set_type_ids(vec![0; o.len()]);
-                    }
                     Encoding::merge(
                         [self.special(&self.sep), encoding, self.special(&self.sep)],
                         false,
