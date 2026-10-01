@@ -360,11 +360,23 @@ fn origin_of(url: &str) -> Option<(String, String, u16)> {
         "http" => 80,
         _ => return None,
     };
-    let (host, port) = match authority.rsplit_once(':') {
-        Some((host, port)) if !host.ends_with(']') || host.starts_with('[') => {
-            (host, port.parse().ok()?)
+    // A bracketed IPv6 host (`[::1]`, `[fe80::1%25eth0]:8443`) contains
+    // colons itself, so look for it before splitting `host[:port]`.
+    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+        let (inner, after) = rest
+            .split_once(']')
+            .filter(|(inner, _)| !inner.is_empty())?;
+        let port = match after.strip_prefix(':') {
+            Some(port) => port.parse().ok()?,
+            None if after.is_empty() => default_port,
+            None => return None,
+        };
+        (format!("[{inner}]"), port)
+    } else {
+        match authority.rsplit_once(':') {
+            Some((host, port)) => (host.to_owned(), port.parse().ok()?),
+            None => (authority.to_owned(), default_port),
         }
-        _ => (authority, default_port),
     };
     if host.is_empty() {
         return None;
@@ -1207,6 +1219,58 @@ mod tests {
         assert!(same_target("http://localhost/blob", "http://localhost:80"));
         assert!(same_target("https://[::1]:8443/x", "https://[::1]:8443"));
         assert!(!same_target("https://[::1]:8443/x", "https://[::1]"));
+    }
+
+    #[test]
+    fn origins_parse_bracketed_ipv6_hosts() {
+        let https = |host: &str, port: u16| Some(("https".to_owned(), host.to_owned(), port));
+        let http = |host: &str, port: u16| Some(("http".to_owned(), host.to_owned(), port));
+        assert_eq!(origin_of("https://[::1]"), https("[::1]", 443));
+        assert_eq!(origin_of("https://[::1]/x/y"), https("[::1]", 443));
+        assert_eq!(origin_of("https://[::1]:8443/x"), https("[::1]", 8443));
+        assert_eq!(
+            origin_of("http://[fe80::1%25eth0]/"),
+            http("[fe80::1%25eth0]", 80)
+        );
+        assert_eq!(
+            origin_of("http://user@[2001:DB8::1]:8080/p?q#f"),
+            http("[2001:db8::1]", 8080)
+        );
+        // Existing non-bracketed cases.
+        assert_eq!(
+            origin_of("https://huggingface.co/x"),
+            https("huggingface.co", 443)
+        );
+        assert_eq!(
+            origin_of("HTTPS://HuggingFace.co:443/x"),
+            https("huggingface.co", 443)
+        );
+        assert_eq!(
+            origin_of("http://127.0.0.1:8080/blob"),
+            http("127.0.0.1", 8080)
+        );
+        assert_eq!(origin_of("http://localhost/blob"), http("localhost", 80));
+        // Malformed or unsupported.
+        for bad in [
+            "https://[::1",
+            "https://[::1]x",
+            "https://[::1]:port",
+            "https://[]",
+            "https://",
+            "https://:8443",
+            "ftp://[::1]",
+            "huggingface.co/x",
+        ] {
+            assert_eq!(origin_of(bad), None, "{bad}");
+        }
+        // The token follows IPv6 endpoints to the same origin only.
+        assert!(same_target("https://[::1]/x", "https://[::1]:443"));
+        assert!(same_target(
+            "http://[fe80::1%25eth0]:80/x",
+            "http://[fe80::1%25eth0]"
+        ));
+        assert!(!same_target("https://[::2]/x", "https://[::1]"));
+        assert!(!same_target("http://[::1]/x", "https://[::1]"));
     }
 
     #[test]
