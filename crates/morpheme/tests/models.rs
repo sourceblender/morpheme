@@ -650,3 +650,32 @@ fn unigram_sampling_encode_batch_under_rayon() {
         assert_eq!(enc.offsets(), single.offsets());
     }
 }
+
+/// `model_mut` also reaches `Bpe::set_dropout`, the runtime BPE setting
+/// the accessor's docs name: dropout 1 skips every merge and the cached
+/// deterministic result is not served afterwards.
+#[test]
+fn tokenizer_model_mut_sets_bpe_dropout() {
+    let v = vocab(&[("a", 0), ("b", 1), ("ab", 2)]);
+    let bpe = Bpe::builder()
+        .vocab_and_merges(v, merges(&[("a", "b")]))
+        .build()
+        .unwrap();
+    let mut tok = Tokenizer::new(bpe);
+    assert_eq!(tok.encode("ab", false).unwrap().tokens(), ["ab"]);
+
+    match tok.model_mut() {
+        ModelWrapper::Bpe(b) => b.set_dropout(Some(1.0)).unwrap(),
+        other => panic!("expected a BPE model, got {other:?}"),
+    }
+    assert_eq!(tok.encode("ab", false).unwrap().tokens(), ["a", "b"]);
+
+    match tok.model_mut() {
+        ModelWrapper::Bpe(b) => {
+            assert!(b.set_dropout(Some(2.0)).is_err());
+            b.set_dropout(None).unwrap();
+        }
+        other => panic!("expected a BPE model, got {other:?}"),
+    }
+    assert_eq!(tok.encode("ab", false).unwrap().tokens(), ["ab"]);
+}

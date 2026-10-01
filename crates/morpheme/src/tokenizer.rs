@@ -694,7 +694,8 @@ impl Tokenizer {
     }
 
     /// Mutable access to the model, for runtime settings such as Unigram
-    /// sampling (`Unigram::set_sampling` / `set_seed`) or BPE dropout.
+    /// sampling (`Unigram::set_sampling` / `set_seed`) or BPE dropout
+    /// (`Bpe::set_dropout`).
     ///
     /// Do not change the vocabulary through this accessor: added tokens
     /// that already existed in the model are resolved against the model's
