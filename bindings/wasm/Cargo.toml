@@ -1,6 +1,6 @@
 [package]
 name = "morpheme-wasm"
-version = "0.3.0"
+version = "0.4.0"
 description = "Browser bindings for morpheme via wasm-bindgen: load tokenizer.json, count, encode and decode."
 edition.workspace = true
 rust-version.workspace = true
@@ -19,5 +19,5 @@ bench = false
 
 [dependencies]
 # No rayon (single-threaded wasm) and no progress bars.
-morpheme = { path = "../../crates/morpheme", version = "0.3.0", default-features = false }
+morpheme = { path = "../../crates/morpheme", version = "0.4.0", default-features = false }
 wasm-bindgen = "0.2"
