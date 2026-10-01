@@ -65,9 +65,42 @@ fn main() -> morpheme::Result<()> {
   `Model` trait.
 - The Viterbi lattice is internal; use `tokenize` / `encode`.
 
-Not implemented: subword-regularization sampling (`alpha` /
-`nbest_size` sampling). HF does not store these settings in
-`tokenizer.json`, so loading files is unaffected.
+## Subword-regularization sampling
+
+`encode` / `tokenize` can draw a random segmentation instead of the
+Viterbi best one (SentencePiece `SampleEncode`, HF `Unigram(alpha,
+nbest_size)`):
+
+```rust
+let model = Unigram::new(pieces, Some(0), false)?
+    .with_sampling(0.1, -1)?   // alpha, nbest_size
+    .with_seed(42);            // optional: reproducible draws
+```
+
+- `set_sampling(alpha, nbest_size) -> Result<()>` / `with_sampling`:
+  - `nbest_size > 1`: the `nbest_size` best lattice paths are found and
+    one is picked with probability proportional to `exp(alpha * score)`;
+  - `nbest_size < 0`: one path is sampled from the whole lattice with
+    the piece scores scaled by `alpha` (forward filtering, backward
+    sampling);
+  - `nbest_size` of `0` or `1`, or `alpha == 0`: plain Viterbi,
+    byte-for-byte identical to not sampling (`sampling()` reports
+    `None`).
+  - `alpha` must be finite and `>= 0`; anything else is a config error.
+- `set_seed(Option<u64>)` / `with_seed(u64)`: with a seed the draw for
+  a given sentence is a pure function of `(seed, sentence)`, so results
+  are reproducible and independent of thread or batch order
+  (`encode_batch` under rayon gives the same output as sequential
+  `encode`). Without a seed each call draws from a thread-local
+  entropy-seeded generator. The PRNG is an in-crate splitmix64-seeded
+  xorshift64*; no dependency is added.
+- Sampled encodings bypass the sentence cache (the cache only ever holds
+  Viterbi results) and build tokens through the same path as Viterbi,
+  so offsets stay contiguous and `byte_fallback` / unknown fusing behave
+  the same.
+- These settings are runtime-only: they are not read from or written
+  to `tokenizer.json` (HF's Unigram JSON has no such fields), and
+  `Clone` carries them over.
 
 ## Serialization
 

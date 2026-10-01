@@ -2,6 +2,7 @@
 
 pub(crate) mod lattice;
 mod model;
+mod prng;
 mod trie;
 
 pub(crate) use lattice::Lattice;

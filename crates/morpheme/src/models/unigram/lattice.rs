@@ -309,6 +309,73 @@ impl<'a> Lattice<'a> {
             .collect()
     }
 
+    /// One segmentation sampled from the lattice with probability
+    /// proportional to `exp(theta * score)` (forward filtering, backward
+    /// sampling, as SentencePiece's `Lattice::Sample`). `uniform` must
+    /// return values in `[0, 1)`. Empty if some position cannot be
+    /// reached.
+    pub(crate) fn sample(&self, theta: f64, uniform: &mut dyn FnMut() -> f64) -> Vec<usize> {
+        let len = self.len();
+        let n = self.nodes.len();
+        let mut alpha = vec![f64::NEG_INFINITY; n];
+        alpha[BOS_NODE] = 0.0;
+        let boundaries = self
+            .sentence
+            .char_indices()
+            .map(|(pos, _)| pos)
+            .chain(std::iter::once(len));
+        for pos in boundaries {
+            if self.begin_nodes[pos].is_empty() {
+                return vec![];
+            }
+            for &r in &self.begin_nodes[pos] {
+                for (k, &l) in self.end_nodes[pos].iter().enumerate() {
+                    alpha[r] =
+                        log_sum_exp(alpha[r], theta * self.nodes[l].score + alpha[l], k == 0);
+                }
+            }
+        }
+        if !alpha[EOS_NODE].is_finite() {
+            return vec![];
+        }
+
+        let mut results = Vec::new();
+        let mut node = EOS_NODE;
+        let mut probs: Vec<f64> = Vec::new();
+        while node != BOS_NODE {
+            let pos = self.nodes[node].pos;
+            let candidates = &self.end_nodes[pos];
+            if candidates.is_empty() {
+                return vec![];
+            }
+            let mut z = 0.0;
+            for (k, &l) in candidates.iter().enumerate() {
+                z = log_sum_exp(z, alpha[l] + theta * self.nodes[l].score, k == 0);
+            }
+            probs.clear();
+            probs.extend(
+                candidates
+                    .iter()
+                    .map(|&l| (alpha[l] + theta * self.nodes[l].score - z).exp()),
+            );
+            let mut target = uniform() * probs.iter().sum::<f64>();
+            let mut chosen = candidates.len() - 1;
+            for (k, p) in probs.iter().enumerate() {
+                if target < *p {
+                    chosen = k;
+                    break;
+                }
+                target -= p;
+            }
+            node = candidates[chosen];
+            if node != BOS_NODE {
+                results.push(node);
+            }
+        }
+        results.reverse();
+        results
+    }
+
     /// Forward-backward: add `freq * P(node)` to `expected[node.id]` for
     /// every piece node, and return `freq * log Z`.
     ///
@@ -445,6 +512,49 @@ mod tests {
             x = log_sum_exp(x, *y, i == 0);
         }
         approx(x, (1f64.exp() + 2f64.exp() + 3f64.exp()).ln());
+    }
+
+    #[test]
+    fn sample_matches_lattice_probabilities() {
+        let mut l = Lattice::new("ABC", 1, 2);
+        l.insert(0, 1, 1.0, 3);
+        l.insert(1, 1, 1.2, 4);
+        l.insert(2, 1, 2.5, 5);
+        l.insert(0, 2, 3.0, 6);
+        l.insert(1, 2, 4.0, 7);
+        l.insert(0, 3, 2.0, 8);
+        // A simple LCG; only the distribution matters here.
+        let mut state = 12345u64;
+        let mut uniform = || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 11) as f64 / (1u64 << 53) as f64
+        };
+        let mut counts = std::collections::HashMap::new();
+        let n = 20_000;
+        for _ in 0..n {
+            let path = l.sample(1.0, &mut uniform);
+            let ids: Vec<usize> = path.iter().map(|&i| l.node(i).id).collect();
+            *counts.entry(ids).or_insert(0usize) += 1;
+        }
+        let p1 = (1.0f64 + 1.2 + 2.5).exp();
+        let p2 = (3.0f64 + 2.5).exp();
+        let p3 = (1.0f64 + 4.0).exp();
+        let p4 = 2.0f64.exp();
+        let z = p1 + p2 + p3 + p4;
+        let freq = |ids: &[usize]| counts.get(ids).copied().unwrap_or(0) as f64 / n as f64;
+        assert!((freq(&[3, 4, 5]) - p1 / z).abs() < 0.02);
+        assert!((freq(&[6, 5]) - p2 / z).abs() < 0.02);
+        assert!((freq(&[3, 7]) - p3 / z).abs() < 0.02);
+        assert!((freq(&[8]) - p4 / z).abs() < 0.02);
+    }
+
+    #[test]
+    fn sample_incomplete_lattice_is_empty() {
+        let l = Lattice::new("ABC", 1, 2);
+        let mut uniform = || 0.5;
+        assert!(l.sample(1.0, &mut uniform).is_empty());
     }
 
     #[test]

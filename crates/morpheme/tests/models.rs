@@ -473,3 +473,139 @@ fn wordpiece_max_input_chars_per_word_zero_makes_every_word_unk() {
     let reloaded = Tokenizer::from_json(&tok.to_json(false).unwrap()).unwrap();
     assert_eq!(reloaded.encode("a", false).unwrap().tokens(), ["[UNK]"]);
 }
+
+// ---------------------------------------------------------------------------
+// Unigram subword-regularization sampling (#52)
+// ---------------------------------------------------------------------------
+
+/// The ALBERT fixture's Unigram model, pulled out of the tokenizer.
+fn albert_unigram() -> Unigram {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/data/hf/albert-base-v2.json"
+    );
+    let tok = Tokenizer::from_file(path).unwrap();
+    match tok.model() {
+        morpheme::models::ModelWrapper::Unigram(u) => u.clone(),
+        other => panic!("expected a Unigram model, got {other:?}"),
+    }
+}
+
+const SAMPLING_INPUTS: &[&str] = &[
+    "▁hello",
+    "▁unbelievable",
+    "▁tokenization",
+    "▁internationalization",
+    "▁the▁quick▁brown▁fox",
+    "▁ünïcödé",
+];
+
+fn check_tokens_cover(input: &str, tokens: &[morpheme::Token]) {
+    let mut pos = 0;
+    let mut text = String::new();
+    for t in tokens {
+        assert_eq!(t.offsets.0, pos, "offsets must be contiguous for {input:?}");
+        assert!(t.offsets.1 >= t.offsets.0);
+        text.push_str(&input[t.offsets.0..t.offsets.1]);
+        pos = t.offsets.1;
+    }
+    assert_eq!(pos, input.len());
+    assert_eq!(text, input);
+    let joined: String = tokens.iter().map(|t| t.value.as_str()).collect();
+    assert_eq!(joined, input, "pieces must concatenate back to the input");
+}
+
+#[test]
+fn unigram_sampling_nbest_one_equals_viterbi() {
+    let viterbi = albert_unigram();
+    let mut one = albert_unigram();
+    one.set_sampling(0.5, 1).unwrap();
+    assert_eq!(one.sampling(), None);
+    let mut zero_alpha = albert_unigram();
+    zero_alpha.set_sampling(0.0, -1).unwrap();
+    assert_eq!(zero_alpha.sampling(), None);
+    for input in SAMPLING_INPUTS {
+        let expected = viterbi.encode(input).unwrap();
+        assert_eq!(one.encode(input).unwrap(), expected);
+        assert_eq!(zero_alpha.encode(input).unwrap(), expected);
+    }
+    assert!(albert_unigram().set_sampling(-0.1, -1).is_err());
+    assert!(albert_unigram().set_sampling(f64::NAN, -1).is_err());
+}
+
+#[test]
+fn unigram_sampling_with_seed_is_reproducible() {
+    let run = |nbest: i32| -> Vec<Vec<String>> {
+        let model = albert_unigram()
+            .with_sampling(0.1, nbest)
+            .unwrap()
+            .with_seed(42);
+        SAMPLING_INPUTS
+            .iter()
+            .map(|s| model.encode(s).unwrap())
+            .collect()
+    };
+    assert_eq!(run(-1), run(-1));
+    assert_eq!(run(8), run(8));
+    // A different seed changes at least one sample over this many inputs.
+    let other = albert_unigram()
+        .with_sampling(0.1, -1)
+        .unwrap()
+        .with_seed(43);
+    let b: Vec<Vec<String>> = SAMPLING_INPUTS
+        .iter()
+        .map(|s| other.encode(s).unwrap())
+        .collect();
+    assert_ne!(run(-1), b);
+}
+
+#[test]
+fn unigram_sampling_produces_distinct_valid_segmentations() {
+    for nbest in [-1, 16] {
+        let model = albert_unigram().with_sampling(0.1, nbest).unwrap();
+        let input = "▁unbelievable";
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..200 {
+            let tokens = model.tokenize(input).unwrap();
+            check_tokens_cover(input, &tokens);
+            seen.insert(tokens.iter().map(|t| t.value.clone()).collect::<Vec<_>>());
+        }
+        assert!(
+            seen.len() >= 2,
+            "nbest_size={nbest}: expected several segmentations, got {seen:?}"
+        );
+    }
+}
+
+#[test]
+fn unigram_sampling_large_alpha_converges_to_viterbi() {
+    let viterbi = albert_unigram();
+    let sharp = albert_unigram().with_sampling(1e6, -1).unwrap();
+    let sharp_nbest = albert_unigram().with_sampling(1e6, 8).unwrap();
+    for input in SAMPLING_INPUTS {
+        let expected = viterbi.encode(input).unwrap();
+        for _ in 0..20 {
+            assert_eq!(sharp.encode(input).unwrap(), expected);
+            assert_eq!(sharp_nbest.encode(input).unwrap(), expected);
+        }
+    }
+}
+
+#[test]
+fn unigram_sampling_encode_batch_under_rayon() {
+    let model = albert_unigram()
+        .with_sampling(0.1, -1)
+        .unwrap()
+        .with_seed(7);
+    let tok = Tokenizer::new(model).with_pre_tokenizer(WhitespaceSplit);
+    let inputs = repeated_batch(&["hello", "unbelievable", "tokenization", "fox"], 2000);
+    let encodings = tok.encode_batch(inputs.clone(), false).unwrap();
+    assert_eq!(encodings.len(), inputs.len());
+    // Seeded sampling is a pure function of the sentence, so batches match
+    // sequential encodes whatever the thread schedule.
+    for (input, enc) in inputs.iter().zip(&encodings) {
+        let single = tok.encode(input.as_str(), false).unwrap();
+        assert_eq!(enc.tokens(), single.tokens());
+        assert_eq!(enc.offsets(), single.offsets());
+    }
+}
