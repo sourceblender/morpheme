@@ -560,7 +560,7 @@ dependencies = [
 
 [[package]]
 name = "morpheme"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aho-corasick",
  "criterion",
@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "morpheme-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",

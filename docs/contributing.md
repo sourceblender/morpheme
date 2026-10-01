@@ -184,3 +184,8 @@ for 5 minutes and uploads any crash as an artifact.
 - `CHANGELOG.md` is updated at release time.
 - `Cargo.toml` versions are bumped by the maintainer.
 - crates.io publish is gated on a passing release workflow.
+- After publication, dispatch `release-smoke.yml` with the published
+  version. It verifies archive checksums and exercises fresh binaries on
+  macOS, Linux and Windows, plus fresh crates.io library and CLI installs.
+  Locally: `python3 scripts/release_smoke.py --version 0.1.1 --target
+  aarch64-apple-darwin` (requires `gh`), or use `--cli /path/to/morpheme`.
