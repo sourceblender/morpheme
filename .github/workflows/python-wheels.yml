@@ -85,7 +85,9 @@ jobs:
 
   publish:
     name: publish to PyPI
-    if: startsWith(github.ref, 'refs/tags/')
+    # Tag pushes only: a manual run dispatched on a tag builds but does not
+    # publish.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     needs: [wheels, sdist]
     runs-on: ubuntu-latest
     timeout-minutes: 15

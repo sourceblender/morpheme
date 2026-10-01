@@ -10,10 +10,11 @@ on:
 permissions:
   contents: read
 
-# A new push to a PR cancels its superseded run; every push to main gets
-# a complete run (and refreshes the caches PRs restore from).
+# A new push to a PR cancels its superseded run. Other events are grouped
+# by commit, so every push to main gets a complete run (and refreshes the
+# caches PRs restore from) instead of a queued run being replaced.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
