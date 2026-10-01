@@ -268,11 +268,12 @@ impl AddedVocabulary {
         model: &dyn Model,
         normalizer: Option<&dyn Normalizer>,
     ) -> Result<usize> {
-        let vocab_size = model.vocab_size() as u32;
-        let mut next_id = match self.by_id.keys().max() {
-            Some(&max) if max >= vocab_size || vocab_size == 0 => max + 1,
-            _ => vocab_size,
-        };
+        let model_vocab = model.vocab();
+        let mut next_id = model_vocab
+            .values()
+            .chain(self.by_id.keys())
+            .max()
+            .map_or(Some(0), |id| id.checked_add(1));
         let mut added = 0;
         for token in tokens {
             if token.content.is_empty() {
@@ -286,8 +287,10 @@ impl AddedVocabulary {
             let id = match self.token_to_id(&token.content, model) {
                 Some(id) => id,
                 None => {
-                    let id = next_id;
-                    next_id += 1;
+                    let id = next_id.ok_or_else(|| {
+                        Error::Config("added token ids exhausted the u32 range".into())
+                    })?;
+                    next_id = id.checked_add(1);
                     id
                 }
             };

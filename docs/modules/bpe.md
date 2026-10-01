@@ -1,8 +1,9 @@
 # `models::Bpe` — Byte-Pair Encoding
 
 Used by GPT-2, RoBERTa, GPT-NeoX, Llama, Qwen and most modern LLMs.
-Semantics follow Hugging Face `tokenizers` exactly (checked against
-real tokenizer files in `tests/hf_golden.rs`).
+Semantics follow Hugging Face `tokenizers` (checked against real tokenizer
+files in `tests/hf_golden.rs`), with deliberate edge-case corrections
+listed in [`docs/interop.md`](../interop.md).
 
 ## Algorithm
 

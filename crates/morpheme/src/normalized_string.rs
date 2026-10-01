@@ -39,11 +39,11 @@ impl<R: RangeBounds<usize> + Clone> OffsetRange<R> {
         let start = match r.start_bound() {
             Bound::Unbounded => 0,
             Bound::Included(i) => *i,
-            Bound::Excluded(i) => *i + 1,
+            Bound::Excluded(i) => i.saturating_add(1),
         };
         let end = match r.end_bound() {
             Bound::Unbounded => max_len,
-            Bound::Included(i) => *i + 1,
+            Bound::Included(i) => i.saturating_add(1),
             Bound::Excluded(i) => *i,
         };
         start..end
@@ -175,11 +175,16 @@ impl NormalizedString {
             range.to_range(self.len())
         };
 
+        let source_len = if original {
+            self.len_original()
+        } else {
+            self.len()
+        };
+        if target.start > target.end || target.end > source_len {
+            return None;
+        }
         if target.start == target.end {
             return Some(target);
-        }
-        if target.start > target.end {
-            return None;
         }
         if original && self.original.is_empty() && target == (0..0) {
             return Some(0..self.len());

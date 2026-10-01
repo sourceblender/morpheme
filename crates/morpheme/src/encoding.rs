@@ -230,16 +230,23 @@ impl Encoding {
         }
     }
 
-    /// Mark the whole encoding as belonging to sequence `sequence_id`.
+    /// Mark the whole encoding and its overflowing parts as belonging
+    /// to sequence `sequence_id`.
     pub fn set_sequence_id(&mut self, sequence_id: usize) {
         self.sequence_ranges.insert(sequence_id, 0..self.len());
+        for overflow in &mut self.overflowing {
+            overflow.set_sequence_id(sequence_id);
+        }
     }
 
     /// For each token, the index of the sequence it belongs to.
     pub fn sequence_ids(&self) -> Vec<Option<usize>> {
+        if self.sequence_ranges.is_empty() {
+            return vec![Some(0); self.len()];
+        }
         let mut out = vec![None; self.len()];
-        for seq in 0..self.n_sequences() {
-            for slot in &mut out[self.sequence_range(seq)] {
+        for (&seq, range) in &self.sequence_ranges {
+            for slot in &mut out[range.clone()] {
                 *slot = Some(seq);
             }
         }
@@ -250,7 +257,13 @@ impl Encoding {
         self.sequence_ranges
             .get(&sequence_id)
             .cloned()
-            .unwrap_or(0..self.len())
+            .unwrap_or_else(|| {
+                if self.sequence_ranges.is_empty() && sequence_id == 0 {
+                    0..self.len()
+                } else {
+                    0..0
+                }
+            })
     }
 
     /// The sequence that token `token` belongs to.
