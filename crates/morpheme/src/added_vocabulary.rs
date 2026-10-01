@@ -351,13 +351,23 @@ impl AddedVocabulary {
                     t.id, t.token.content
                 )));
             }
-            if let Some(model_token) = model.id_to_token(t.id) {
-                if model_token != t.token.content {
-                    return Err(Error::Config(format!(
-                        "added token {:?} has id {}, which the model already uses for {model_token:?}",
-                        t.token.content, t.id
-                    )));
-                }
+        }
+        // Every model token at the id must have the same text, not just the
+        // one `id_to_token` reports, since a vocabulary may map several
+        // tokens to one id.
+        if !seen.is_empty() {
+            let conflict = model
+                .vocab()
+                .into_iter()
+                .filter_map(|(model_token, id)| {
+                    let content = *seen.get(&id)?;
+                    (model_token != content).then_some((id, model_token, content))
+                })
+                .min();
+            if let Some((id, model_token, content)) = conflict {
+                return Err(Error::Config(format!(
+                    "added token {content:?} has id {id}, which the model already uses for {model_token:?}"
+                )));
             }
         }
         let mut updated = self.clone();

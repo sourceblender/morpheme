@@ -236,6 +236,33 @@ fn loading_an_added_token_that_shadows_a_model_token_fails() {
 }
 
 #[test]
+fn loading_an_added_token_that_shares_an_id_with_a_duplicate_model_token_fails() {
+    // A BPE vocabulary may map two tokens to one id; `id_to_token(1)`
+    // reports `a`, but `b` encodes to 1 too, so `a` cannot claim it.
+    let tok = Tokenizer::new(
+        morpheme::models::Bpe::builder()
+            .vocab_and_merges(
+                [("[UNK]", 0), ("a", 1), ("b", 1)]
+                    .into_iter()
+                    .map(|(t, id)| (t.to_string(), id))
+                    .collect(),
+                vec![],
+            )
+            .build()
+            .unwrap(),
+    );
+    assert_eq!(tok.id_to_token(1).as_deref(), Some("a"));
+    let mut value: serde_json::Value = serde_json::from_str(&tok.to_json(false).unwrap()).unwrap();
+    value["added_tokens"] = serde_json::json!([added(1, "a")]);
+    let err = Tokenizer::from_json(&value.to_string()).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("\"a\"") && msg.contains("\"b\"") && msg.contains("id 1"),
+        "{msg}"
+    );
+}
+
+#[test]
 fn loading_an_added_token_at_its_own_model_id_still_works() {
     // BERT-style: `[UNK]` registered as a special added token at its model
     // id; `y` above the vocabulary.
