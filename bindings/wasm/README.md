@@ -1,10 +1,13 @@
 # morpheme-wasm
 
 Browser bindings for [morpheme](../../README.md) through
-[`wasm-bindgen`](https://rustwasm.github.io/wasm-bindgen/). The crate
+[`wasm-bindgen`](https://wasm-bindgen.github.io/wasm-bindgen/). The crate
 depends on `morpheme` with `default-features = false`, so batch paths run
 sequentially (no rayon) and `Tokenizer::save` is compiled out; loading
 from JSON, encoding and decoding are exactly the native code.
+
+The crate is `publish = false` and the package is not on npm yet: build
+it from a checkout as described below.
 
 ## API
 
@@ -22,9 +25,19 @@ class Tokenizer {
 Errors from the Rust side are thrown as JavaScript `Error`s with the
 Rust error message.
 
+```js
+import init, { Tokenizer } from "./pkg/morpheme_wasm.js";
+
+await init();
+const tok = Tokenizer.fromJson(await (await fetch("tokenizer.json")).text());
+const ids = tok.encode("Hello, world!", true); // Uint32Array
+console.log(tok.count("Hello, world!", true), tok.decode(ids, true));
+tok.free();
+```
+
 ## Build
 
-With [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) (`brew install
+With [`wasm-pack`](https://drager.github.io/wasm-pack/) (`brew install
 wasm-pack` or `cargo install wasm-pack`):
 
 ```sh
@@ -38,9 +51,10 @@ TypeScript declarations. For a bundler, use `--target bundler`; for Node,
 `--target nodejs`.
 
 Without `wasm-pack`, use `wasm-bindgen-cli` (its version must match the
-`wasm-bindgen` crate in `Cargo.lock`):
+`wasm-bindgen` crate in `Cargo.lock`, currently 0.2.129):
 
 ```sh
+cargo install --locked wasm-bindgen-cli --version 0.2.129
 cargo build -p morpheme-wasm --release --target wasm32-unknown-unknown
 wasm-bindgen --target web --out-dir bindings/wasm/pkg \
   target/wasm32-unknown-unknown/release/morpheme_wasm.wasm
@@ -64,7 +78,8 @@ The default URL points at GPT-2 on the Hugging Face Hub, which serves
 
 ## Checks
 
-The crate also compiles natively so the workspace gate covers it:
+The crate also compiles natively, so the workspace clippy and build
+cover it:
 
 ```sh
 cargo check -p morpheme-wasm --target wasm32-unknown-unknown
