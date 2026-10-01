@@ -139,13 +139,26 @@ pub fn encode_batch(
                 None => record.text.as_str().into(),
             })
             .collect();
-        let first = batch.first().expect("nonempty batch").0;
-        let encoded = if chars {
-            tokenizer.encode_batch_char_offsets(inputs, specials)
-        } else {
-            tokenizer.encode_batch(inputs, specials)
-        }
-        .with_context(|| format!("encode batch starting at record {first}"))?;
+        let encode_all = |inputs: Vec<EncodeInput<'_>>| {
+            if chars {
+                tokenizer.encode_batch_char_offsets(inputs, specials)
+            } else {
+                tokenizer.encode_batch(inputs, specials)
+            }
+        };
+        let encoded = match encode_all(inputs.clone()) {
+            Ok(encoded) => encoded,
+            // A parallel batch only reports that *something* failed; redo
+            // it one record at a time to name the exact record.
+            Err(batch_err) => {
+                for ((line, _), input) in batch.iter().zip(inputs) {
+                    encode_all(vec![input]).with_context(|| format!("record {line}"))?;
+                }
+                let first = batch.first().expect("nonempty batch").0;
+                return Err(batch_err)
+                    .with_context(|| format!("encode batch starting at record {first}"));
+            }
+        };
         for ((_, record), encoding) in batch.iter().zip(&encoded) {
             emit(
                 &mut output,
@@ -211,13 +224,15 @@ pub fn count(
         None => text.as_str().into(),
     };
     let count = tokenizer.encode(input, specials)?.len();
+    let mut out = std::io::stdout().lock();
     if as_json {
-        println!(
+        writeln!(
+            out,
             "{}",
             json!({"count": count, "add_special_tokens": specials, "use_tokenizer_settings": use_settings})
-        );
+        )?;
     } else {
-        println!("{count}");
+        writeln!(out, "{count}")?;
     }
     Ok(())
 }
@@ -230,7 +245,8 @@ pub fn inspect(source: &Source) -> Result<()> {
         .into_iter()
         .filter(|t| t.token.special)
         .collect();
-    println!(
+    writeln!(
+        std::io::stdout().lock(),
         "{}",
         serde_json::to_string_pretty(&json!({
             "schema_version": 1, "model": type_name(Some(tokenizer.model())),
@@ -246,6 +262,6 @@ pub fn inspect(source: &Source) -> Result<()> {
             },
             "padding": tokenizer.padding(), "truncation": tokenizer.truncation(),
         }))?
-    );
+    )?;
     Ok(())
 }
