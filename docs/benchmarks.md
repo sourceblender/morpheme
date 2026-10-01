@@ -176,10 +176,10 @@ older Python comparison above):
 
 | Tokenizer | Load-only peak MiB | Repeated seq MB/s | Repeated batch MB/s | Diverse seq MB/s | Diverse batch MB/s |
 | --- | --- | --- | --- | --- | --- |
-| bert-base-uncased | 13.8 | 9.4 | 18.9 | 8.4 | 19.1 |
-| gpt2 | 25.7 | 10.3 | 19.2 | 8.8 | 20.1 |
-| llama | 27.8 | 9.4 | 21.8 | 12.1 | 28.8 |
-| t5-small | 23.3 | 9.6 | 18.1 | 9.3 | 18.4 |
+| bert-base-uncased | 13.8 | 9.6 | 16.2 | 8.8 | 20.4 |
+| gpt2 | 25.6 | 9.3 | 19.3 | 9.0 | 19.2 |
+| llama | 29.2 | 9.6 | 21.9 | 12.0 | 28.9 |
+| t5-small | 23.3 | 9.7 | 18.4 | 9.3 | 17.9 |
 
 Dedicated-hardware trend tracking remains future work. The baseline runner and
 Criterion provide the repeatable measurements needed to start that tracking.
