@@ -139,8 +139,17 @@ jobs:
         run: ./scripts/fetch-hf-fixtures.sh
       - run: cargo test -p morpheme --no-default-features --locked
       # The library must keep compiling for the browser (#51): no rayon
-      # (`parallel` off) and no `tempfile`-backed `save`.
+      # (`parallel` off), no `tempfile`-backed `save`, and `hub` a no-op.
       - run: cargo check -p morpheme --no-default-features --locked --target wasm32-unknown-unknown
+      - run: cargo check -p morpheme --all-features --locked --target wasm32-unknown-unknown
+      - run: cargo check -p morpheme-wasm --locked --target wasm32-unknown-unknown
+      # Exercise the generated JavaScript ABI. wasm-bindgen-cli must match
+      # the `wasm-bindgen` crate in Cargo.lock exactly.
+      - name: Install wasm-bindgen-cli
+        run: cargo install --locked wasm-bindgen-cli --version 0.2.129
+      - run: cargo build -p morpheme-wasm --locked --release --target wasm32-unknown-unknown
+      - run: wasm-bindgen --target web --out-dir bindings/wasm/pkg target/wasm32-unknown-unknown/release/morpheme_wasm.wasm
+      - run: node bindings/wasm/tests/smoke.mjs
 
   msrv:
     name: test (MSRV ${{ matrix.rust }})

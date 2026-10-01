@@ -4,6 +4,7 @@ members = [
     "crates/morpheme",
     "apps/morpheme-cli",
     "bindings/python",
+    "bindings/wasm",
 ]
 # cargo-fuzz targets build on nightly in their own workspace.
 exclude = ["fuzz"]
