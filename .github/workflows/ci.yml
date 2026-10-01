@@ -270,6 +270,37 @@ jobs:
       - name: Executable document-budget workflow
         run: python scripts/check_document_workflow.py
 
+  python-bindings:
+    # Builds the PyO3 extension in bindings/python with maturin and runs
+    # its pytest suite against the HF fixtures.
+    name: python bindings
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Cache HF tokenizer fixtures
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: crates/morpheme/tests/data
+          key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
+      - name: Fetch HF tokenizer fixtures
+        shell: bash
+        run: ./scripts/fetch-hf-fixtures.sh
+      - run: python -m venv .venv
+      - run: .venv/bin/pip install maturin pytest
+      - name: Build the extension module
+        working-directory: bindings/python
+        run: ../../.venv/bin/maturin develop --locked
+      - run: .venv/bin/pytest bindings/python/tests
+
   deny:
     # Licenses, bans, sources and RustSec advisories (deny.toml).
     name: cargo-deny
@@ -284,7 +315,7 @@ jobs:
   ci-success:
     name: ci-success
     if: always()
-    needs: [changes, fmt, clippy, test, test-no-default-features, msrv, benches, coverage, docs, hub, python-interop, deny]
+    needs: [changes, fmt, clippy, test, test-no-default-features, msrv, benches, coverage, docs, hub, python-interop, python-bindings, deny]
     runs-on: ubuntu-latest
     steps:
       - name: Check job results
