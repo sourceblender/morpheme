@@ -10,21 +10,25 @@ on:
 permissions:
   contents: read
 
+# A new push to a PR cancels its superseded run; every push to main gets
+# a complete run (and refreshes the caches PRs restore from).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
 
 jobs:
-  # Decides whether the rest of CI is needed. Documentation-only changes
-  # skip every other job. Uses the complete `git diff` (no 300-file cap,
-  # unlike `paths-ignore`); anything it can't classify runs everything.
+  # Decides whether the rest of CI is needed. Changes that touch only
+  # documentation or files no job below reads skip every other job. Uses
+  # the complete `git diff` (no 300-file cap, unlike `paths-ignore`);
+  # anything it can't classify runs everything.
   changes:
     name: detect changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       code: ${{ steps.filter.outputs.code }}
     steps:
@@ -41,8 +45,12 @@ jobs:
           PUSH_AFTER: ${{ github.sha }}
         run: |
           set -euo pipefail
-          # Paths that are never compiled, tested or packaged.
-          docs_only='(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/|^\.github/CODEOWNERS$|^\.github/dependabot\.yml$)'
+          # Paths no job in this workflow compiles, tests or reads: docs
+          # (Markdown anywhere, docs/), repository metadata, the static wasm
+          # demo page, the local task runners, the fuzz workspace (built
+          # only by fuzz.yml) and the other workflows (each runs on its own
+          # trigger; editing ci.yml still runs everything).
+          docs_only='(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/|^\.github/CODEOWNERS$|^\.github/dependabot\.yml$|^\.github/actionlint\.yaml$|^bindings/wasm/www/|^Makefile$|^justfile$|^fuzz/|^\.github/workflows/(release|release-smoke|publish-crates|python-wheels|fuzz|benchmark|benchmark-tracking)\.yml$)'
           case "$EVENT" in
             pull_request) range="$PR_BASE...$PR_HEAD"; base="$PR_BASE" ;;
             push) range="$PUSH_BEFORE..$PUSH_AFTER"; base="$PUSH_BEFORE" ;;
@@ -57,71 +65,106 @@ jobs:
           if printf '%s\n' "$files" | grep . | grep -qvE "$docs_only"; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
-            echo "documentation-only change: skipping the rest of CI"
+            echo "documentation-only (or non-CI) change: skipping the rest of CI"
             echo "code=false" >> "$GITHUB_OUTPUT"
           fi
 
-  fmt:
-    name: rustfmt
+  # rustfmt, clippy (default and no-default features) and rustdoc in one
+  # job: each takes under a minute, and rustdoc reuses the dependency
+  # metadata clippy just built. Every step runs even if an earlier one
+  # failed, so one push reports all lint failures.
+  lint:
+    name: lint (rustfmt, clippy, rustdoc)
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
         with:
           toolchain: stable
-          components: rustfmt
-      - run: cargo fmt --all -- --check
-
-  clippy:
-    name: clippy
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
-        with:
-          toolchain: stable
-          components: clippy
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: rustfmt
+        run: cargo fmt --all -- --check
+      # `--all-targets` also type-checks the Criterion benches and the
+      # examples, so they cannot rot without a separate compile job.
+      - name: clippy
+        if: ${{ !cancelled() }}
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: clippy (library, no default features)
+        if: ${{ !cancelled() }}
         run: cargo clippy -p morpheme --all-targets --no-default-features --locked -- -D warnings
+      - name: rustdoc
+        if: ${{ !cancelled() }}
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --no-deps --locked --all-features
 
   test:
-    name: test (stable)
+    name: test (stable, ${{ matrix.os }})
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          # The Linux leg runs the suite under cargo-llvm-cov rather than a
+          # separate coverage job running the same tests a second time.
+          # (llvm-cov on stable skips doctests; the other legs run them.)
+          - os: ubuntu-latest
+            coverage: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
         with:
           toolchain: stable
+          components: ${{ matrix.coverage && 'llvm-tools-preview' || '' }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: crates/morpheme/tests/data
+          path: crates/morpheme/tests/data/hf
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         shell: bash
         run: ./scripts/fetch-hf-fixtures.sh
-      - run: cargo test --workspace --locked --all-features
+      - name: Test
+        if: ${{ !matrix.coverage }}
+        run: cargo test --workspace --locked --all-features
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        if: ${{ matrix.coverage }}
+        with:
+          tool: cargo-llvm-cov
+      - name: Test with coverage
+        if: ${{ matrix.coverage }}
+        run: cargo llvm-cov --workspace --all-features --locked --lcov --output-path lcov.info
+      - name: Coverage summary
+        if: ${{ matrix.coverage }}
+        run: cargo llvm-cov report --summary-only | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ matrix.coverage }}
+        with:
+          name: lcov
+          path: lcov.info
 
-  test-no-default-features:
-    # The library without `progressbar` (and `hub`): clippy already checks
-    # this configuration compiles; this runs its tests too.
-    name: test (library, no default features)
+  no-default-features-wasm:
+    # The library without default features (`progressbar`, `parallel`):
+    # clippy checks that it compiles; this runs its tests, then builds the
+    # browser bindings (#51) and exercises their JavaScript ABI.
+    name: test (no default features) + wasm
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
@@ -129,24 +172,27 @@ jobs:
           toolchain: stable
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: crates/morpheme/tests/data
+          path: crates/morpheme/tests/data/hf
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         shell: bash
         run: ./scripts/fetch-hf-fixtures.sh
       - run: cargo test -p morpheme --no-default-features --locked
-      # The library must keep compiling for the browser (#51): no rayon
-      # (`parallel` off), no `tempfile`-backed `save`, and `hub` a no-op.
-      - run: cargo check -p morpheme --no-default-features --locked --target wasm32-unknown-unknown
+      # With every feature on wasm32, `hub` must compile to a no-op. The
+      # no-default-features library build for wasm32 is covered by the
+      # morpheme-wasm release build below, which depends on morpheme with
+      # `default-features = false`.
       - run: cargo check -p morpheme --all-features --locked --target wasm32-unknown-unknown
-      - run: cargo check -p morpheme-wasm --locked --target wasm32-unknown-unknown
-      # Exercise the generated JavaScript ABI. wasm-bindgen-cli must match
-      # the `wasm-bindgen` crate in Cargo.lock exactly.
-      - name: Install wasm-bindgen-cli
-        run: cargo install --locked wasm-bindgen-cli --version 0.2.129
+      # wasm-bindgen-cli must match the `wasm-bindgen` crate in Cargo.lock
+      # exactly.
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: wasm-bindgen@0.2.129
       - run: cargo build -p morpheme-wasm --locked --release --target wasm32-unknown-unknown
       - run: wasm-bindgen --target web --out-dir bindings/wasm/pkg target/wasm32-unknown-unknown/release/morpheme_wasm.wasm
       - run: node bindings/wasm/tests/smoke.mjs
@@ -156,6 +202,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -166,149 +213,89 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: crates/morpheme/tests/data
+          path: crates/morpheme/tests/data/hf
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         shell: bash
         run: ./scripts/fetch-hf-fixtures.sh
+      # `cargo test` skips the bindings' cdylibs (`test = false`); the build
+      # covers them.
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked
 
-  benches:
-    # Compile (don't run) the Criterion suite so it can't rot.
-    name: benches compile
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: cargo bench --no-run --workspace --locked
-
-  coverage:
-    name: coverage
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
-        with:
-          toolchain: stable
-          components: llvm-tools-preview
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: cargo-llvm-cov
-      - name: Cache HF tokenizer fixtures
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: crates/morpheme/tests/data
-          key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
-      - name: Fetch HF tokenizer fixtures
-        shell: bash
-        run: ./scripts/fetch-hf-fixtures.sh
-      - name: Test with coverage
-        run: cargo llvm-cov --workspace --all-features --locked --lcov --output-path lcov.info
-      - name: Coverage summary
-        run: cargo llvm-cov report --summary-only | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: lcov
-          path: lcov.info
-
-  docs:
-    name: rustdoc
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    env:
-      RUSTDOCFLAGS: -D warnings
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: cargo doc --workspace --no-deps --locked --all-features
-
   hub:
     # Downloads from the Hugging Face Hub (ignored in the regular test run).
+    # Separate so a Hub outage shows up as its own failure.
     name: hub downloads (network)
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: crates/morpheme/tests/data
+          path: crates/morpheme/tests/data/hf
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
+        shell: bash
         run: ./scripts/fetch-hf-fixtures.sh
       - run: cargo test -p morpheme --features hub --test hub --locked -- --ignored
 
-  python-interop:
-    name: interop with Python tokenizers
+  python:
+    # Interop with the Python `tokenizers` package (via the release CLI),
+    # then the PyO3 extension in bindings/python built with maturin and its
+    # pytest suite against the HF fixtures. One job: one Python setup, one
+    # Rust cache.
+    name: python (interop, bindings)
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
-      - run: pip install tokenizers==0.23.2
-      - run: python scripts/check_python_interop.py
-      - run: python scripts/test_benchmark_baseline.py
-      - name: Executable document-budget workflow
-        run: python scripts/check_document_workflow.py
-
-  python-bindings:
-    # Builds the PyO3 extension in bindings/python with maturin and runs
-    # its pytest suite against the HF fixtures.
-    name: python bindings
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: crates/morpheme/tests/data
+          path: crates/morpheme/tests/data/hf
           key: hf-fixtures-${{ hashFiles('scripts/hf-fixtures.txt') }}
       - name: Fetch HF tokenizer fixtures
         shell: bash
         run: ./scripts/fetch-hf-fixtures.sh
       - run: python -m venv .venv
-      - run: .venv/bin/pip install maturin pytest
+      - run: .venv/bin/pip install tokenizers==0.23.2 maturin pytest
+      - name: Interop with Python tokenizers
+        run: .venv/bin/python scripts/check_python_interop.py
+      - name: Benchmark baseline script tests
+        run: .venv/bin/python scripts/test_benchmark_baseline.py
+      - name: Executable document-budget workflow
+        run: .venv/bin/python scripts/check_document_workflow.py
       - name: Build the extension module
         working-directory: bindings/python
         run: ../../.venv/bin/maturin develop --locked
-      - run: .venv/bin/pytest bindings/python/tests
+      - name: Python bindings tests
+        run: .venv/bin/pytest bindings/python/tests
 
   deny:
     # Licenses, bans, sources and RustSec advisories (deny.toml).
@@ -316,22 +303,31 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+
   # One stable check to require in a branch ruleset: passes when every job
-  # passed or was skipped as docs-only, fails otherwise.
+  # passed, or when `changes` found a docs-only change and the rest were
+  # skipped; fails otherwise (including a job skipped on a code change).
   ci-success:
     name: ci-success
     if: always()
-    needs: [changes, fmt, clippy, test, test-no-default-features, msrv, benches, coverage, docs, hub, python-interop, python-bindings, deny]
+    needs: [changes, lint, test, no-default-features-wasm, msrv, hub, python, deny]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Check job results
         env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          echo "job results: $RESULTS"
-          for r in $RESULTS; do
-            case "$r" in success|skipped) ;; *) exit 1 ;; esac
-          done
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<< "$NEEDS"
+          if [ "$(jq -r '.changes.result' <<< "$NEEDS")" != success ]; then
+            echo "::error::change detection did not succeed"; exit 1
+          fi
+          code=$(jq -r '.changes.outputs.code' <<< "$NEEDS")
+          bad=$(jq -r --arg code "$code" '[to_entries[] | select(.key != "changes")
+            | select(.value.result != "success" and ($code == "true" or .value.result != "skipped"))
+            | .key] | join(", ")' <<< "$NEEDS")
+          if [ -n "$bad" ]; then echo "::error::not successful (code change: $code): $bad"; exit 1; fi
