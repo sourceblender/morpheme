@@ -31,7 +31,9 @@ For each pre-token (word):
 Options:
 
 - `ignore_merges`: if the whole word is already in the vocabulary, emit
-  it directly (Llama-3 style).
+  it directly (Llama-3 style). Like HF, this shortcut only applies when
+  `dropout` is `None` or `0.0`; with dropout active the word is always
+  merged.
 - `dropout` (BPE-dropout, `0.0..=1.0`): each merge is skipped with
   probability `p` during tokenization. Used for training-time
   augmentation; it uses an internal PRNG and bypasses the cache. `None` or
@@ -111,5 +113,7 @@ renumbered — so files with gaps in their ids load correctly.
   (`[a, b]` pairs).
 - Loading accepts files without `"type"` (older `tokenizers`) and legacy
   `"a b"` string merges.
+- A pair listed more than once in `merges` takes the rank of its last
+  occurrence and is written once on re-save, as HF does.
 
 See [trainer.md](./trainer.md) for `BpeTrainer`.
