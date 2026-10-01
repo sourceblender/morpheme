@@ -613,7 +613,7 @@ dependencies = [
 
 [[package]]
 name = "morpheme"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aho-corasick",
  "criterion",
@@ -636,7 +636,7 @@ dependencies = [
 
 [[package]]
 name = "morpheme-cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -648,7 +648,7 @@ dependencies = [
 
 [[package]]
 name = "morpheme-python"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "morpheme",
  "pyo3",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "morpheme-wasm"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "morpheme",
  "wasm-bindgen",
