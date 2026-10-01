@@ -1,151 +1,134 @@
-# `trainer`
+# `trainers` — learning a vocabulary
 
-> Phase 2 work. Filled out as the BPE trainer landed. WordPiece and
-> Unigram trainers land in Phase 2.1.
+Trainers learn a model from text. Use them through the tokenizer so the
+corpus goes through the *same* normalizer and pre-tokenizer that
+encoding will use:
 
-## Purpose
-
-Train a `Model` from raw text corpora.
-
-## Public API
-
-```rust
-pub trait Trainer {
-    fn train<C: Corpus>(&self, corpus: C) -> Result<TrainedModel>;
-}
-
-pub struct TrainedModel {
-    pub vocab: Vocab,
-    pub merges: Vec<(String, String)>,
-    pub end_of_word_suffix: String,
-}
-
-pub trait Corpus {
-    fn for_each_line<F: FnMut(&str)>(&self, f: F);
-}
-
-impl Corpus for &str { ... }
-impl Corpus for String { ... }
-impl Corpus for PathBuf { ... }
-impl Corpus for &[&str] { ... }
-
-pub struct BpeTrainer { ... }
-pub struct BpeTrainerBuilder { ... }
+```rust,ignore
+tokenizer.train(trainer, lines_iterator)?;           // any Iterator<Item: AsRef<str>>
+tokenizer.train_from_files(trainer, &["a.txt"])?;    // lines, endings kept
 ```
 
-`BpeTrainerBuilder` exposes:
+`train` normalizes and pre-tokenizes each input, counts the resulting
+words in parallel (rayon), trains, replaces the model, and registers the
+trainer's special tokens as added tokens. If the tokenizer currently
+holds a different kind of model (e.g. a `Bpe` and a `UnigramTrainer`),
+it is replaced by a default model of the trainer's kind. Options the
+trainer doesn't set (BPE `unk_token`, WordPiece/WordLevel `unk_token`)
+come from the model you start with, so build it first:
+`Tokenizer::new(WordLevel::builder().unk_token("[UNK]").build()?)`.
 
-- `BpeTrainerBuilder::new(vocab_size)`
-- `.end_of_word_suffix(s)`
-- `.alphabet(symbols)`
-- `.min_pair_frequency(n)`
-- `.pre_tokenize(bool)`
-- `.build() -> BpeTrainer`
+`train_from_files` reports missing files and invalid UTF-8 as errors;
+nothing is silently skipped. Feeding again replaces previously fed words.
 
-## BPE algorithm (v0.1)
+## Trainers and options
 
-1. Tokenize the corpus into words (whitespace split by default;
-   `pre_tokenize(false)` treats each line as a single word).
-2. Compute word frequencies (`FxHashMap<String, u64>`).
-3. Build initial symbols for every unique word: split into characters,
-   append `end_of_word_suffix` to the last character.
-4. Initial vocab = `alphabet` symbols + every unique symbol seen in
-   the corpus (sorted lexicographically for determinism).
-5. Pair counts: weighted by word frequency. Ties broken by the
-   lexicographically larger merged token (HF / GPT-2 convention).
-6. Iteratively merge the best pair:
-   - Append `(a, b)` to `merges`.
-   - Append `ab` to `vocab`.
-   - Update every word occurrence that contains the pair:
-     - Subtract the word's frequency from the pairs being destroyed.
-     - Add the word's frequency to the new pairs created.
-   - Stop when `vocab.len() >= vocab_size` or no pairs remain.
+| Trainer | Options (defaults) |
+| --- | --- |
+| `BpeTrainer` | `vocab_size` (30 000), `min_frequency` (0), `special_tokens` ([]), `limit_alphabet` (none), `initial_alphabet` ({}), `continuing_subword_prefix` (none), `end_of_word_suffix` (none), `max_token_length` (none), `show_progress` (true) |
+| `WordPieceTrainer` | same as BPE, with `continuing_subword_prefix` = `##`; trains BPE then builds the model with `WordPiece::from_bpe` (as HF does) |
+| `WordLevelTrainer` | `vocab_size` (30 000), `min_frequency` (0), `special_tokens` ([]), `show_progress` |
+| `UnigramTrainer` | `vocab_size` (8000), `n_sub_iterations` (2), `shrinking_factor` (0.75), `special_tokens` ([]), `initial_alphabet` ({}), `unk_token` (none), `max_piece_length` (16), `seed_size` (1 000 000), `show_progress` |
 
-## Incremental updates
+All are built with `X::builder()...build()`; `UnigramTrainerBuilder::build()`
+returns a `Result` (it rejects `vocab_size` 0, `shrinking_factor`
+outside `(0, 1)`, `n_sub_iterations` 0, `max_piece_length` 0). Special
+tokens always get the first ids, in the order given. `show_progress` is
+accepted for compatibility; no progress output is printed.
 
-For each touched word, the pair-count delta is computed against the
-old word_pairs list and the new symbolization — the global pair-count
-map and `pair_occurrences` index are updated in O(occurrences)
-rather than O(corpus). This is what makes the trainer fast on large
-corpora.
+## How they work
 
-## Correctness
+- **BPE**: builds the alphabet (special tokens, `initial_alphabet`, the
+  most frequent chars up to `limit_alphabet`), then repeatedly merges the
+  most frequent adjacent pair, updating pair counts incrementally. Ties
+  are broken exactly like HF (highest count, then smallest pair of ids).
+  For GPT-2-style models pass `ByteLevel::alphabet()` as the initial
+  alphabet so every byte is representable.
+- **WordPiece**: BPE with the `##` continuation prefix, converted to a
+  WordPiece vocabulary.
+- **WordLevel**: keeps the most frequent words (≥ `min_frequency`).
+- **Unigram** (SentencePiece): seeds the vocabulary with every char plus
+  the most frequent substrings (internal nodes of the corpus suffix tree,
+  found with a pure-Rust suffix array), runs EM with a digamma prior,
+  prunes the pieces whose removal costs the least likelihood (shrinking
+  by `shrinking_factor` per round), keeps every required char, then adds
+  special tokens and cuts to `vocab_size`. It fails if `vocab_size` is
+  smaller than the number of required chars.
 
-Cross-validated against a slow naive reference trainer (rebuilds pair
-counts from scratch every iteration). The two produce *identical*
-merge tables across every test corpus, including:
+## Example
 
-- `aa bb cc cc aa bb`
-- `hello world hello hello world`
-- `the quick brown fox jumps over the lazy dog` (×2)
-- `ab ba ab ba ab ba` (alphabetical-tiebreak stress)
-- `a b c a b c a b c a b c`
+```rust
+use splinter::models::{Bpe, Unigram, WordPiece};
+use splinter::normalizers::{BertNormalizer, Nfkc};
+use splinter::pre_tokenizers::{BertPreTokenizer, ByteLevel, Metaspace};
+use splinter::trainers::{BpeTrainer, UnigramTrainer, WordPieceTrainer};
+use splinter::{AddedToken, Tokenizer};
 
-## Test strategy
+const CORPUS: &[&str] = &[
+    "the quick brown fox jumps over the lazy dog",
+    "hello world, hello again",
+    "pack my box with five dozen liquor jugs",
+];
 
-- Tiny golden tests (`train_small_corpus_produces_merges`,
-  `train_then_tokenize_corpus_yields_expected_tokens`) — assert
-  specific merges appear in the output.
-- Round-trip — train → build Tokenizer → encode the training corpus
-  → assert merged tokens appear.
-- Cross-validation (`matches_naive_reference`) — assert the fast
-  trainer and the naive trainer agree on `merges` and `vocab` for
-  five corpora.
-- Edge cases: empty corpus errors, alphabet pre-population respected,
-  `min_pair_frequency` skips merges but keeps rare symbols, target
-  vocab size respected.
+fn main() -> splinter::Result<()> {
+    // GPT-2 style byte-level BPE.
+    let mut gpt = Tokenizer::new(Bpe::default())
+        .with_pre_tokenizer(ByteLevel::new(false, true, true))
+        .with_decoder(ByteLevel::default());
+    let trainer = BpeTrainer::builder()
+        .vocab_size(300)
+        .min_frequency(1)
+        .initial_alphabet(ByteLevel::alphabet())
+        .special_tokens(vec![AddedToken::from("<|endoftext|>", true)])
+        .show_progress(false)
+        .build();
+    gpt.train(trainer, CORPUS.iter())?;
+    assert_eq!(gpt.token_to_id("<|endoftext|>"), Some(0));
+    let enc = gpt.encode("hello wörld", false)?;
+    assert_eq!(gpt.decode(enc.ids(), false)?, "hello wörld");
 
-## Known limitations
+    // BERT style WordPiece.
+    let mut bert = Tokenizer::new(WordPiece::default())
+        .with_normalizer(BertNormalizer::default())
+        .with_pre_tokenizer(BertPreTokenizer);
+    let specials = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"].map(|s| AddedToken::from(s, true));
+    bert.train(WordPieceTrainer::builder().vocab_size(200).special_tokens(specials.to_vec()).build(), CORPUS.iter())?;
+    assert_eq!(bert.token_to_id("[UNK]"), Some(1));
 
-- Single-threaded. `rayon` parallelism lands in Phase 4.
-- `O(n)` scan to find the best pair per iteration. A
-  `BinaryHeap<(Reverse<u64>, pair)>` with lazy deletion would give
-  amortized `O(log n)` per iteration; left for Phase 4 perf work.
-- No special tokens / unk handling in v0.1. v0.2 will let the trainer
-  pre-populate `<unk>`, `<pad>`, etc. via the `alphabet` field.
-- Initial vocab is built from every symbol seen, even rare ones. The
-  `min_pair_frequency` controls *merges* only, not initial vocab
-  inclusion.
+    // SentencePiece style Unigram.
+    let ms = Metaspace::default();
+    let mut sp = Tokenizer::new(Unigram::default())
+        .with_normalizer(Nfkc)
+        .with_pre_tokenizer(ms.clone())
+        .with_decoder(ms);
+    let trainer = UnigramTrainer::builder()
+        .vocab_size(100)
+        .special_tokens(vec![AddedToken::from("<unk>", true)])
+        .unk_token(Some("<unk>".into()))
+        .show_progress(false)
+        .build()?;
+    sp.train(trainer, CORPUS.iter())?;
+    let enc = sp.encode("hello world", false)?;
+    assert_eq!(sp.decode(enc.ids(), false)?, "hello world");
+    Ok(())
+}
+```
 
-## Roadmap
+## Parity with Hugging Face
 
-Phase 2.1:
-- `WordPieceTrainer` — frequency-weighted greedy vocab reduction.
-- `UnigramTrainer` — EM over an initial vocabulary.
-- Special-token support (auto-prepend `<unk>`, accept user-supplied
-  `<pad>`, `<bos>`, `<eos>`).
-
-Phase 4:
-- `rayon`-parallel pair counting and merge step.
-- Heap-based best-pair lookup.
-- Streaming corpus input for files that don't fit in memory.
-
-## Unigram trainer (Phase 2.2)
-
-The `UnigramTrainer` produces a probability distribution over
-subwords via Expectation-Maximization.
-
-### Algorithm
-
-1. **Seed vocab** — every unique character plus every substring
-   (length ≤ `max_subword_len`) that appears ≥ `seed_min_frequency`
-   times.
-2. **Initialize** — `p ∝ freq` with a `smoothing` constant added
-   to every subword (Laplace-style prior).
-3. **EM loop**, `num_epochs` iterations:
-   - **E-step**: forward + backward lattice passes compute the
-     expected count of each subword across the corpus.
-   - **M-step**: re-estimate probabilities from expected counts.
-   - **Prune**: drop subwords whose expected count falls below
-     `min_frequency` until `vocab_size` is reached. Pinned
-     (alphabet) entries are exempt from pruning.
-4. **Output** — vocab + per-subword log-probs + `min_score` floor.
-
-### Caveats
-
-- Forward/backward passes are O(|vocab| × n) per word, single-
-  threaded. Phase 4 perf work can swap in an Aho-Corasick-style
-  trie for subword matching.
-- For a tiny corpus, the trainer can't generate enough seed
-  candidates to reach the target vocab size — it produces as many
-  as possible and stops.
+- **BPE** produces exactly the same vocabulary ids and merges as HF's
+  `BpeTrainer`: verified on unit-test corpora (special tokens, repeated
+  chars, Unicode/emoji, `min_frequency`, `limit_alphabet`,
+  `max_token_length`) and on a 26 MB, 200 000-line corpus (7 743 merges,
+  identical vocab). Training is deterministic.
+- Where HF itself is nondeterministic — symbol ids assigned in hash-map
+  order when a prefix/suffix is set, `limit_alphabet` ties, Unigram's
+  word iteration and required-char penalties — splinter uses a fixed
+  order (sorted words, code-point tie-breaks, fixed-size parallel
+  chunks), so its results are reproducible across runs and machines.
+- **Unigram** is deterministic and close to HF: on test corpora the
+  pieces overlap HF's completely (e.g. 8000/8000 on a 200k-word corpus),
+  with score differences only where HF's own output varies between runs.
+- Trained tokenizers save as standard `tokenizer.json`; Python
+  `tokenizers` loads them and produces identical encodings
+  (`scripts/check_python_interop.py`).

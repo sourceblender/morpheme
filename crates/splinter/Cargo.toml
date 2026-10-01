@@ -13,14 +13,17 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-memchr = { workspace = true }
 rustc-hash = { workspace = true }
-unicode-normalization = { workspace = true }
+unicode-normalization-alignments = { workspace = true }
+unicode_categories = { workspace = true }
+unicode-segmentation = { workspace = true }
+fancy-regex = { workspace = true }
+aho-corasick = { workspace = true }
 rayon = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
-serde_json = { workspace = true }
-criterion = "0.5"
+# preserve_order lets tests check that JSON field order matches HF.
+serde_json = { workspace = true, features = ["preserve_order"] }

@@ -1,57 +1,145 @@
-//! Integration tests for post-processors.
+//! Post-processing, truncation and padding through the full pipeline.
 
-use splinter::{RobertaPostProcessor, Tokenizer, WordPiece};
+use std::collections::HashMap;
 
-fn build_tokenizer() -> Tokenizer {
-    // Small vocab: <s>=0, </s>=2, plus a few words.
-    let tokens = vec![
-        "<s>".to_string(),
-        "<unk>".to_string(),
-        "</s>".to_string(),
-        "the</w>".to_string(),
-        "quick</w>".to_string(),
-        "brown</w>".to_string(),
-        "fox</w>".to_string(),
-        "hello</w>".to_string(),
+use splinter::models::WordLevel;
+use splinter::pre_tokenizers::Whitespace;
+use splinter::processors::{BertProcessing, TemplateProcessing};
+use splinter::{
+    AddedToken, PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer, TruncationDirection,
+    TruncationParams, TruncationStrategy,
+};
+
+fn tokenizer() -> Tokenizer {
+    let words = [
+        "[PAD]", "[UNK]", "[CLS]", "[SEP]", "a", "b", "c", "d", "e", "f", "g", "h",
     ];
-    let vocab = splinter::Vocab::from_tokens(tokens).unwrap();
-    let wp = WordPiece::new(vocab, "##", "<unk>", 100);
-    let tok = Tokenizer::builder(splinter::ModelKind::WordPiece(wp)).build();
-    tok.with_post_processor(Box::new(RobertaPostProcessor))
+    let vocab: HashMap<String, u32> = words
+        .iter()
+        .enumerate()
+        .map(|(i, w)| (w.to_string(), i as u32))
+        .collect();
+    let model = WordLevel::builder()
+        .vocab(vocab)
+        .unk_token("[UNK]")
+        .build()
+        .unwrap();
+    let mut tok = Tokenizer::new(model).with_pre_tokenizer(Whitespace);
+    tok.add_special_tokens(
+        &["[PAD]", "[UNK]", "[CLS]", "[SEP]"].map(|s| AddedToken::from(s, true)),
+    )
+    .unwrap();
+    tok.with_post_processor(BertProcessing::new(
+        ("[SEP]".into(), 3),
+        ("[CLS]".into(), 2),
+    ))
 }
 
 #[test]
-fn roberta_single_inserts_specials() {
-    let t = build_tokenizer();
-    let enc = t.encode("the quick").unwrap();
-    assert_eq!(enc.tokens[0], "<s>");
-    assert_eq!(enc.tokens[enc.tokens.len() - 1], "</s>");
-    assert_eq!(enc.ids[0], 0);
-    assert_eq!(enc.ids[enc.ids.len() - 1], 2);
-    // Type ids: <s>=0, sentence=0, </s>=2
-    assert_eq!(enc.type_ids, vec![0, 0, 0, 2]);
-}
+fn bert_processing_single_and_pair() {
+    let tok = tokenizer();
+    let enc = tok.encode("a b", true).unwrap();
+    assert_eq!(enc.ids(), &[2, 4, 5, 3]);
+    assert_eq!(enc.special_tokens_mask(), &[1, 0, 0, 1]);
+    assert_eq!(enc.word_ids(), &[None, Some(0), Some(1), None]);
 
-#[test]
-fn roberta_pair_uses_two_segments() {
-    let t = build_tokenizer();
-    let enc = t.encode_pair("the", "brown").unwrap();
-    // <s> the </s> brown </s>
+    let pair = tok.encode(("a b", "c"), true).unwrap();
+    assert_eq!(pair.ids(), &[2, 4, 5, 3, 6, 3]);
+    assert_eq!(pair.type_ids(), &[0, 0, 0, 0, 1, 1]);
     assert_eq!(
-        enc.tokens,
-        vec!["<s>", "the</w>", "</s>", "brown</w>", "</s>"]
+        pair.sequence_ids(),
+        vec![None, Some(0), Some(0), None, Some(1), None]
     );
-    // type ids: 0, 0, 2, 1, 2
-    assert_eq!(enc.type_ids, vec![0, 0, 2, 1, 2]);
+
+    let raw = tok.encode("a b", false).unwrap();
+    assert_eq!(raw.ids(), &[4, 5]);
 }
 
 #[test]
-fn encode_pair_without_post_processor_errors() {
-    let tokens = vec!["<unk>".to_string(), "the</w>".to_string()];
-    let vocab = splinter::Vocab::from_tokens(tokens).unwrap();
-    let wp = WordPiece::new(vocab, "##", "<unk>", 100);
-    let tok = Tokenizer::builder(splinter::ModelKind::WordPiece(wp)).build();
-    let err = tok.encode_pair("the", "the").unwrap_err();
-    let msg = format!("{err}");
-    assert!(msg.contains("post-processor"));
+fn template_processing_with_custom_ids() {
+    let tok = tokenizer().with_post_processor(
+        TemplateProcessing::builder()
+            .try_single("[CLS] $A [SEP]")
+            .unwrap()
+            .special_tokens(vec![("[CLS]", 2), ("[SEP]", 3)])
+            .build()
+            .unwrap(),
+    );
+    assert_eq!(tok.encode("c", true).unwrap().ids(), &[2, 6, 3]);
+}
+
+#[test]
+fn truncation_reserves_room_for_special_tokens_and_overflows() {
+    let mut tok = tokenizer();
+    tok.set_truncation(Some(TruncationParams {
+        max_length: 5,
+        stride: 1,
+        strategy: TruncationStrategy::LongestFirst,
+        direction: TruncationDirection::Right,
+    }))
+    .unwrap();
+    let enc = tok.encode("a b c d e f", true).unwrap();
+    assert_eq!(enc.tokens(), &["[CLS]", "a", "b", "c", "[SEP]"]);
+    let overflow: Vec<Vec<String>> = enc
+        .overflowing()
+        .iter()
+        .map(|o| o.tokens().to_vec())
+        .collect();
+    assert_eq!(
+        overflow,
+        vec![
+            vec!["[CLS]", "c", "d", "e", "[SEP]"],
+            vec!["[CLS]", "e", "f", "[SEP]"]
+        ]
+    );
+}
+
+#[test]
+fn truncation_longest_first_on_pairs() {
+    let mut tok = tokenizer();
+    tok.set_truncation(Some(TruncationParams {
+        max_length: 7,
+        ..Default::default()
+    }))
+    .unwrap();
+    let enc = tok.encode(("a b c d e", "f g"), true).unwrap();
+    // 7 - 3 specials = 4 tokens: the longer sequence gives way.
+    assert_eq!(
+        enc.tokens(),
+        &["[CLS]", "a", "b", "[SEP]", "f", "g", "[SEP]"]
+    );
+}
+
+#[test]
+fn invalid_stride_is_rejected() {
+    let mut tok = tokenizer();
+    let err = tok.set_truncation(Some(TruncationParams {
+        max_length: 4,
+        stride: 2,
+        ..Default::default()
+    }));
+    assert!(err.is_err());
+}
+
+#[test]
+fn padding_batch_longest_and_fixed() {
+    let mut tok = tokenizer();
+    tok.set_padding(Some(PaddingParams {
+        pad_id: 0,
+        pad_token: "[PAD]".into(),
+        ..Default::default()
+    }));
+    let batch = tok.encode_batch(vec!["a", "a b c"], true).unwrap();
+    assert_eq!(batch[0].ids(), &[2, 4, 3, 0, 0]);
+    assert_eq!(batch[0].attention_mask(), &[1, 1, 1, 0, 0]);
+    assert_eq!(batch[1].len(), 5);
+
+    tok.set_padding(Some(PaddingParams {
+        strategy: PaddingStrategy::Fixed(6),
+        direction: PaddingDirection::Left,
+        pad_to_multiple_of: Some(4),
+        ..Default::default()
+    }));
+    let enc = tok.encode("a", true).unwrap();
+    assert_eq!(enc.ids(), &[0, 0, 0, 0, 0, 2, 4, 3][..]);
 }

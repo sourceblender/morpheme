@@ -11,7 +11,11 @@ By participating, you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.
 1. Fork the repository.
 2. Create a topic branch: `git switch -c feat/my-change`.
 3. Make your change. Add tests. Update docs.
-4. Run the local gate:
+4. Fetch the Hugging Face fixtures used by the golden tests (once):
+   ```sh
+   ./scripts/fetch-hf-fixtures.sh
+   ```
+5. Run the local gate:
    ```sh
    cargo fmt --all -- --check
    cargo clippy --workspace --all-targets -- -D warnings

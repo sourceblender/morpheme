@@ -1,9 +1,50 @@
-the quick brown fox jumps over the lazy dog
-the quick brown fox jumps over the lazy dog
-hello world hello world hello world
-pack my box with five dozen liquor jugs
-pack my box with five dozen liquor jugs
-how vexingly quick daft zebras jump
-how vexingly quick daft zebras jump
-sphinx of black quartz judge my vow
-sphinx of black quartz judge my vow
+The quick brown fox jumps over the lazy dog.
+Pack my box with five dozen liquor jugs!
+How vexingly quick daft zebras jump.
+Sphinx of black quartz, judge my vow.
+Hello, world! Hello again, world.
+A tokenizer splits text into smaller pieces called tokens.
+Each token maps to an integer id in the vocabulary.
+Byte-pair encoding starts from single characters and merges the most frequent pairs.
+WordPiece is used by BERT; it marks word continuations with two hashes.
+The unigram model keeps a large vocabulary and prunes the pieces that matter least.
+SentencePiece treats the input as a raw stream and replaces spaces with a special marker.
+Normalization comes first: lowercasing, stripping accents, or Unicode NFKC.
+Pre-tokenization then splits the text into words, punctuation, and numbers.
+After the model runs, a post-processor adds special tokens such as [CLS] and [SEP].
+Decoding reverses the process and turns ids back into readable text.
+Offsets record where each token came from in the original input.
+In 2024 the corpus had 1,000 lines; by 2025 it had 12,500 lines and 3.5 million words.
+Prices rose from $9.99 to $14.50, a 45% increase over 18 months.
+She said, "It's not what you think," and they'd all agree it wasn't.
+Don't panic: we'll check the logs, then we're done.
+Call me at 555-0100 or email hello@example.com before 5:30 p.m.
+The café on the corner serves crème brûlée and a naïve little espresso.
+Zürich, São Paulo, and Kraków are on the itinerary this year.
+Les tokens sont des morceaux de texte; die Wörter werden zerlegt.
+Some tests include emoji like 😀 and 🚀, and symbols like ± and →.
+Fast tokenizers process thousands of sentences per second on a laptop.
+Training a vocabulary of thirty thousand tokens takes only a few seconds.
+The same input should always produce the same tokens, ids, and offsets.
+Edge cases matter: empty strings, repeated spaces, tabs, and newlines.
+Long words such as internationalization and antidisestablishmentarianism split into pieces.
+Rare words fall back to smaller units, down to single bytes if needed.
+Numbers like 3.14159 and 2.71828 appear in scientific writing.
+The dog barked twice; the fox did not look back.
+Quick thinking saved the day, and the lazy afternoon went on.
+Every morning the baker opens the shop at seven o'clock.
+Fresh bread, warm rolls, and sweet pastries fill the window.
+The river runs north through the valley toward the sea.
+Mountains rise on either side, covered in snow until June.
+Children played in the park while their parents talked nearby.
+A gentle wind carried the smell of rain across the fields.
+Libraries hold books, maps, records, and the memory of a town.
+The museum opened a new exhibit about early printing presses.
+Engineers measured the bridge, checked the cables, and approved the design.
+Scientists collected samples, ran experiments, and published the results.
+The orchestra tuned their instruments before the evening concert.
+Music filled the hall, and the audience listened in silence.
+Good documentation explains what a tool does and how to use it.
+Clear error messages help users fix problems quickly.
+Tests protect against regressions when the code changes.
+Small, well-named functions are easier to read and to review.

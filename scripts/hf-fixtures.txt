@@ -1,0 +1,12 @@
+# name                 repo                                    pinned revision
+bert-base-uncased      google-bert/bert-base-uncased           86b5e0934494bd15c9632b12f734a8a67f723594
+bert-base-cased        google-bert/bert-base-cased             cd5ef92a9fb2f889e972770a36d4ed042daf221e
+minilm                 sentence-transformers/all-MiniLM-L6-v2  1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+gpt2                   openai-community/gpt2                   607a30d783dfa663caf39e06633721c8d4cfcd7e
+roberta-base           FacebookAI/roberta-base                 e2da8e2f811d1448a5b465c236feacd80ffbac7b
+gpt-neox-20b           EleutherAI/gpt-neox-20b                 c292233c833e336628618a88a648727eb3dff0a7
+qwen2.5                Qwen/Qwen2.5-0.5B                       060db6499f32faf8b98477b0a26969ef7d8b9987
+llama                  hf-internal-testing/llama-tokenizer     d02ad6cb9dd2c2296a6332199fa2fdca5938fef0
+t5-small               google-t5/t5-small                      df1b051c49625cf57a3d0d8d3863ed4d13564fe4
+albert-base-v2         albert/albert-base-v2                   8e2f239c5f8a2c0f253781ca60135db913e5c80c
+xlm-roberta-base       FacebookAI/xlm-roberta-base             e73636d4f797dec63c3081bb6ed5c7b0bb3f2089

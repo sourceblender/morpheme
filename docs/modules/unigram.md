@@ -1,43 +1,82 @@
-# `unigram`
+# `models::Unigram` — SentencePiece unigram LM
 
-## Purpose
-
-Unigram (SentencePiece) — a probabilistic subword model that picks the
-segmentation with the highest total log-probability.
-
-## Public API
-
-```rust
-pub struct Unigram {
-    pieces: Vec<Piece>,         // id -> (piece string, log_prob)
-    vocab: HashMap<String, u32>,
-    unk_id: u32,
-    min_score: f64,
-}
-
-impl Model for Unigram { ... }
-```
+Used by T5, ALBERT, XLM-RoBERTa, mBART and other SentencePiece models.
+Each piece has a score (a log probability); a pre-token is split into the
+sequence of pieces with the highest total score.
 
 ## Algorithm
 
-1. For each pre-token, build a DAG over byte positions where each edge
-   corresponds to a vocabulary piece that matches at that position.
-2. Run a Viterbi best-path forward pass over the DAG, accumulating the
-   log-prob for the best segmentation.
-3. Backtrace to recover the segments.
+- **Lattice.** A prefix trie over the vocabulary, built once at
+  construction, finds every piece that starts at each char position.
+- **Viterbi.** The best path through the lattice is found with
+  SentencePiece's optimized single-pass Viterbi (an explicit-lattice
+  version backs the trainer and is kept equivalent).
+- **Unknown chars.** A char that no piece covers gets an unknown node
+  scored `min_score - 10.0` (the lowest score in the vocabulary minus
+  SentencePiece's unknown penalty). Consecutive unknown chars are fused
+  into one piece. Like HF, the resulting token keeps the original text as
+  its value and gets the id `unk_id`.
+- **Byte fallback.** With `byte_fallback`, unknown text is emitted as
+  `<0xNN>` byte pieces when those exist in the vocabulary.
+- **Cache.** Encoded strings shorter than 256 bytes are cached (up to
+  10 000 entries); cloning gives an empty cache.
 
-## Performance notes
+The model does not add the `▁` word marker itself — that is the job of
+the `Metaspace` pre-tokenizer (or a `Prepend`/`Replace` normalizer), as in
+HF.
 
-- The DAG construction is the hot loop. It uses prefix-match against
-   the vocab. Sorted vocab + binary search keeps it predictable.
-- The Viterbi pass is O(n) in pre-token length.
+```rust
+use splinter::models::Unigram;
+use splinter::Model;
 
-## Test strategy
+fn main() -> splinter::Result<()> {
+    let model = Unigram::from(
+        vec![
+            ("<unk>".into(), 0.0),
+            ("▁".into(), -2.0),
+            ("▁hello".into(), -3.0),
+            ("▁he".into(), -4.0),
+            ("llo".into(), -4.0),
+            ("w".into(), -5.0),
+            ("o".into(), -5.0),
+        ],
+        Some(0),
+        false,
+    )?;
+    assert_eq!(model.encode("▁hello")?, ["▁hello"]);
+    // Unknown chars: like HF, the piece keeps its text and gets the unk id;
+    // consecutive unknown chars are fused.
+    let toks = model.tokenize("▁hello▁xyz")?;
+    let last = toks.last().unwrap();
+    assert_eq!((last.id, last.value.as_str()), (0, "xyz"));
+    assert!(Unigram::from(vec![("a".into(), 0.0)], Some(3), false).is_err());
+    Ok(())
+}
+```
 
-- Reference SentencePiece vocab — golden output checks.
-- Viterbi probability sums (numerical stability tests).
-- DAG construction edge cases: empty pre-token, all-OOV pre-token.
+## API
 
-## Known limitations
+- `Unigram::from(vocab: Vec<(String, f64)>, unk_id: Option<usize>,
+  byte_fallback: bool) -> Result<Unigram>` — the id of a piece is its
+  index. Fails on an empty vocabulary or an out-of-range `unk_id`.
+- `Unigram::default()` — `[("<unk>", 0.0)]` with `unk_id` 0 (HF default).
+- `encode(&str) -> Result<Vec<String>>`, `unk_id()`, `byte_fallback()`,
+  `vocab()`, `iter()`, `clear_cache()`, plus the `Model` trait.
+- `models::unigram::Lattice` is public (`viterbi`, `nbest`,
+  `populate_marginal`, …) for advanced use.
 
-- No `nbest` segmentation output yet — single best only.
+Not implemented: subword-regularization sampling (`alpha` /
+`nbest_size` sampling). HF does not store these settings in
+`tokenizer.json`, so loading files is unaffected.
+
+## Serialization
+
+```json
+{"type":"Unigram","unk_id":0,"vocab":[["<unk>",0.0],["▁",-2.0],...],"byte_fallback":false}
+```
+
+Missing `"type"` or `byte_fallback` (older files) is accepted; a wrong
+`"type"` is an error. Output is byte-identical to HF's for T5, ALBERT and
+XLM-RoBERTa.
+
+See [trainer.md](./trainer.md) for `UnigramTrainer`.

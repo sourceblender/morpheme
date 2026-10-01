@@ -10,8 +10,8 @@ splinter/
 ├── crates/splinter/        # library — public API lives here
 ├── apps/splinter-cli/      # CLI binary
 ├── docs/                   # markdown documentation (this folder)
-├── benches/                # Criterion benchmarks
-├── tests/                  # cross-crate integration tests
+├── examples/               # sample corpus + trained tokenizers
+├── scripts/                # HF fixtures, golden generation, interop check
 └── .github/                # CI + issue / PR templates
 ```
 
@@ -19,7 +19,7 @@ splinter/
 
 Requirements:
 
-- Rust **stable** (the CI also runs `1.74` for MSRV).
+- Rust **stable** (the CI also runs `1.85`, the MSRV).
 - `rustfmt` and `clippy` (installed by default with rustup).
 - `cargo`, `git`.
 
@@ -35,6 +35,30 @@ cargo build --workspace
 cargo test --workspace
 cargo run -p splinter-cli -- --help
 ```
+
+## Golden tests and Hugging Face fixtures
+
+`crates/splinter/tests/hf_golden.rs` compares splinter with Python
+`tokenizers` on real tokenizer files. The files are pinned in
+`scripts/hf-fixtures.txt` and downloaded (not committed) by:
+
+```sh
+./scripts/fetch-hf-fixtures.sh      # or: just fixtures
+```
+
+The expected outputs in `crates/splinter/tests/golden/` are generated
+from Python and committed. Regenerate them after changing the input
+sentences or the fixture list (needs [`uv`](https://docs.astral.sh/uv/)):
+
+```sh
+just golden    # uv run --with tokenizers==0.23.2 scripts/gen_golden.py
+```
+
+Never hand-edit golden files to make a test pass: a golden mismatch
+means splinter disagrees with the reference implementation.
+
+`just interop` checks the reverse direction (Python loading
+splinter-trained files).
 
 ## Local gate
 
@@ -63,15 +87,16 @@ When you start work on a module:
 
 - **Unit tests** live next to the code (`#[cfg(test)] mod tests`).
 - **Integration tests** live in `crates/splinter/tests/`.
-- **Property tests** use `proptest` (already a workspace dependency) for
-  round-trip invariants (encode → decode → encode).
+- **Property tests** use `proptest` for round-trip and offset
+  invariants (`crates/splinter/tests/roundtrip.rs`).
+- **Regression tests** for fixed bugs go in
+  `crates/splinter/tests/regressions.rs`, one test per bug, named after it.
 
 ## Benchmarking
 
-- Criterion benchmarks live in `crates/splinter/benches/`.
-- Run with `cargo bench -p splinter`.
-- Methodology and machine details go in
-  [`docs/benchmarks.md`](./benchmarks.md).
+- `cargo run --release --example bench_encode -- <tokenizer.json> <text>`
+  measures encode throughput.
+- Methodology and results: [`docs/benchmarks.md`](./benchmarks.md).
 
 ## Style
 

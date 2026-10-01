@@ -5,18 +5,22 @@ use thiserror::Error;
 /// Errors produced by `splinter`.
 #[derive(Debug, Error)]
 pub enum Error {
-    /// A token was not present in the vocabulary.
+    /// A token was not present in the vocabulary and the model has no
+    /// way to represent it (no `unk_token`, no byte fallback).
     #[error("token not in vocabulary: {0:?}")]
     UnknownToken(String),
 
     /// An id was outside the valid range of the vocabulary.
-    #[error("id {id} out of range (vocab size {vocab_size})")]
-    UnknownId {
-        /// The requested id.
-        id: u32,
-        /// The actual vocab size.
-        vocab_size: usize,
-    },
+    #[error("id {0} is not in the vocabulary")]
+    UnknownId(u32),
+
+    /// A component's configuration is invalid or unsupported.
+    #[error("invalid configuration: {0}")]
+    Config(String),
+
+    /// A regular expression failed to compile or to run.
+    #[error("regex error: {0}")]
+    Regex(String),
 
     /// The configured normalizer failed.
     #[error("normalizer failed: {0}")]
@@ -38,6 +42,18 @@ pub enum Error {
     #[error("decoder failed: {0}")]
     Decoder(String),
 
+    /// Truncation could not be applied with the given parameters.
+    #[error("truncation failed: {0}")]
+    Truncation(String),
+
+    /// Padding could not be applied with the given parameters.
+    #[error("padding failed: {0}")]
+    Padding(String),
+
+    /// A trainer failed.
+    #[error("training failed: {0}")]
+    Training(String),
+
     /// JSON (de)serialization failed.
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
@@ -45,6 +61,12 @@ pub enum Error {
     /// I/O failed.
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
+}
+
+impl From<fancy_regex::Error> for Error {
+    fn from(e: fancy_regex::Error) -> Self {
+        Error::Regex(e.to_string())
+    }
 }
 
 /// Result alias for `splinter`.

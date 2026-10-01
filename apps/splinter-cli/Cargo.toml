@@ -11,9 +11,18 @@ authors = ["The splinter authors"]
 [[bin]]
 name = "splinter"
 path = "src/main.rs"
+# The binary has no API to document, and its name collides with the
+# library's docs.
+doc = false
 
 [dependencies]
-splinter = { path = "../../crates/splinter" }
+splinter = { path = "../../crates/splinter", version = "0.0.0" }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
