@@ -8,6 +8,13 @@ use std::path::Path;
 
 use morpheme::{FromPretrainedParameters, Tokenizer};
 
+/// Public repositories need no credentials: an empty token opts out of
+/// `HF_TOKEN` and the `huggingface-cli login` token file, so the
+/// developer's real token is never sent by these tests.
+fn anonymous() -> FromPretrainedParameters {
+    FromPretrainedParameters::default().token("")
+}
+
 /// Revision of google-bert/bert-base-uncased pinned in
 /// scripts/hf-fixtures.txt.
 const BERT_REVISION: &str = "86b5e0934494bd15c9632b12f734a8a67f723594";
@@ -16,9 +23,7 @@ const BERT_REVISION: &str = "86b5e0934494bd15c9632b12f734a8a67f723594";
 #[ignore = "downloads from the Hugging Face Hub"]
 fn hub_download_matches_pinned_fixture() {
     let cache = tempfile::tempdir().unwrap();
-    let params = FromPretrainedParameters::default()
-        .revision(BERT_REVISION)
-        .cache_dir(cache.path());
+    let params = anonymous().revision(BERT_REVISION).cache_dir(cache.path());
     let downloaded =
         Tokenizer::from_pretrained("google-bert/bert-base-uncased", Some(params.clone())).unwrap();
 
@@ -52,7 +57,7 @@ fn hub_download_matches_pinned_fixture() {
 #[ignore = "downloads from the Hugging Face Hub"]
 fn hub_missing_repo_is_a_clear_error() {
     let cache = tempfile::tempdir().unwrap();
-    let params = FromPretrainedParameters::default().cache_dir(cache.path());
+    let params = anonymous().cache_dir(cache.path());
     let err = Tokenizer::from_pretrained("morpheme-tests/definitely-not-a-repo-7f3a", Some(params))
         .unwrap_err()
         .to_string();

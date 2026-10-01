@@ -426,8 +426,19 @@ impl Tokenizer {
             .unwrap_or(Path::new("."));
         let mut file = tempfile::NamedTempFile::new_in(parent)?;
         file.write_all(contents.as_bytes())?;
-        if let Ok(metadata) = std::fs::metadata(path) {
-            file.as_file().set_permissions(metadata.permissions())?;
+        // Keep an existing file's permissions. A new file would otherwise
+        // inherit tempfile's 0600, unreadable by other users of a shared
+        // directory (or a later container uid), so give it the usual 0644.
+        match std::fs::metadata(path) {
+            Ok(metadata) => file.as_file().set_permissions(metadata.permissions())?,
+            #[cfg(unix)]
+            Err(_) => {
+                use std::os::unix::fs::PermissionsExt;
+                file.as_file()
+                    .set_permissions(std::fs::Permissions::from_mode(0o644))?;
+            }
+            #[cfg(not(unix))]
+            Err(_) => {}
         }
         file.as_file().sync_all()?;
         // tempfile's Windows implementation uses MoveFileExW with
