@@ -121,6 +121,10 @@ data corruption (see [ADR 0002](decisions/0002-correct-upstream-edge-case-bugs.m
 - **Hub downloads** (`from_pretrained`, feature `hub`) fetch only
   `tokenizer.json`, not the other files of a repository, and use the
   same cache layout as `huggingface_hub`.
+  Downloads and cached content are verified against content-hash ETags;
+  mirrors using opaque ETags are rejected. Copied snapshots must retain
+  the matching blob, as in the standard HF cache. Corrupt entries are
+  repaired online and rejected offline.
 
 - **Consistent type ids on overflow.** When truncation produces
   overflowing encodings, they get the same type ids as the main

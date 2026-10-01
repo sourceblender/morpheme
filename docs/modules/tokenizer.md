@@ -15,6 +15,14 @@ instance can serve many threads.
 | `set_normalizer` / `set_pre_tokenizer` / `set_model` / `set_post_processor` / `set_decoder` | Replace a component in place |
 | `normalizer()`, `pre_tokenizer()`, `model()`, `post_processor()`, `decoder()`, `truncation()`, `padding()`, `added_vocabulary()` | Inspect |
 
+### Atomic saves
+
+`Tokenizer::save` writes a complete temporary file in the destination
+directory and replaces the destination atomically, preserving existing
+permissions. Readers see the old or new complete file. A destination
+symlink is replaced rather than writing through it. This guarantees
+atomic visibility, not directory-entry durability after power loss.
+
 ### From the Hugging Face Hub (feature `hub`)
 
 `Tokenizer::from_pretrained(id, params)` downloads `tokenizer.json` for
@@ -27,6 +35,11 @@ sets the `revision` (branch, tag or commit; default `main`), `token`,
   else `$HF_HOME/hub`, else `~/.cache/huggingface/hub`, so Python and
   morpheme share downloads. A pinned commit that is already cached is
   served without any network request.
+- **Integrity.** Downloads and cached files are checked against the Hub's
+  Git blob SHA-1 or raw LFS SHA-256 ETag. Corrupt entries are replaced on
+  the next online load; offline loads reject them. Mirrors must provide
+  one of these content hashes. Copied snapshots (including Windows caches)
+  must retain the corresponding content-addressed blob to be verified.
 - **Auth.** `params.token`, else `HF_TOKEN`, else the token saved by
   `huggingface-cli login` (`$HF_HOME/token`). The token is only sent to
   the Hub host, never to the CDN it redirects to.

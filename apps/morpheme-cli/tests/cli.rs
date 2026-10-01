@@ -130,6 +130,32 @@ fn hub_ids_are_served_from_the_cache_offline() {
         snapshot.join("tokenizer.json"),
     )
     .unwrap();
+    let contents = std::fs::read_to_string(snapshot.join("tokenizer.json")).unwrap();
+    std::fs::write(
+        snapshot.join("tokenizer.json"),
+        contents.replace("\r\n", "\n").replace('\n', "\r\n"),
+    )
+    .unwrap();
+    // Git blob hash for the copied snapshot: verified copied HF caches
+    // retain the corresponding content-addressed blob.
+    let output = Command::new("git")
+        .args([
+            "-c",
+            "core.autocrlf=true",
+            "hash-object",
+            "--no-filters",
+            snapshot.join("tokenizer.json").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let etag = String::from_utf8(output.stdout).unwrap();
+    std::fs::create_dir_all(repo.join("blobs")).unwrap();
+    std::fs::copy(
+        snapshot.join("tokenizer.json"),
+        repo.join("blobs").join(etag.trim()),
+    )
+    .unwrap();
     std::fs::create_dir_all(repo.join("refs")).unwrap();
     std::fs::write(repo.join("refs/main"), commit).unwrap();
 

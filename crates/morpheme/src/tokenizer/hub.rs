@@ -21,6 +21,7 @@
 //! | `HF_TOKEN` | Access token (otherwise read from `$HF_HOME/token`) |
 //! | `HF_HUB_OFFLINE` | `1` to only use the cache |
 
+use sha1::Digest;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -206,8 +207,75 @@ pub(crate) fn cached_file(repo_dir: &Path, revision: &str) -> Option<PathBuf> {
             .trim()
             .to_owned()
     };
+    if !is_commit_hash(&commit) {
+        return None;
+    }
     let path = repo_dir.join("snapshots").join(commit).join(FILENAME);
-    path.is_file().then_some(path)
+    let (git, sha256) = file_hashes(&path).ok()?;
+    // Symlinks carry the expected hash. Windows copies can be matched
+    // against the content-addressed blob names in the shared HF cache.
+    let valid = match std::fs::read_link(&path) {
+        Ok(target) => target
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|etag| etag == git || etag == sha256),
+        Err(_) => [git, sha256].iter().any(|etag| {
+            let blob = repo_dir.join("blobs").join(etag);
+            verify_file(&blob, etag).unwrap_or(false)
+        }),
+    };
+    valid.then_some(path)
+}
+
+fn valid_etag(etag: &str) -> bool {
+    matches!(etag.len(), 40 | 64) && etag.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// Git objects include the blob header; LFS hashes are raw SHA-256.
+fn file_hashes(path: &Path) -> std::io::Result<(String, String)> {
+    let mut file = std::fs::File::open(path)?;
+    let mut git = sha1::Sha1::new();
+    git.update(format!("blob {}\0", file.metadata()?.len()).as_bytes());
+    let mut sha256 = sha2::Sha256::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        let n = file.read(&mut buffer)?;
+        if n == 0 {
+            break;
+        }
+        git.update(&buffer[..n]);
+        sha256.update(&buffer[..n]);
+    }
+    Ok((
+        format!("{:x}", git.finalize()),
+        format!("{:x}", sha256.finalize()),
+    ))
+}
+
+fn verify_file(path: &Path, etag: &str) -> std::io::Result<bool> {
+    let (git, sha256) = file_hashes(path)?;
+    Ok(etag == git || etag == sha256)
+}
+
+fn publish_verified_file(
+    file: tempfile::NamedTempFile,
+    path: &Path,
+    etag: &str,
+) -> std::io::Result<()> {
+    if !verify_file(file.path(), etag)? {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "integrity check failed: temporary contents do not match the expected hash",
+        ));
+    }
+    if verify_file(path, etag).unwrap_or(false) {
+        return Ok(());
+    }
+    match file.persist(path) {
+        Ok(_) => Ok(()),
+        Err(_) if verify_file(path, etag).unwrap_or(false) => Ok(()),
+        Err(e) => Err(e.error),
+    }
 }
 
 fn user_agent(params: &FromPretrainedParameters) -> String {
@@ -317,7 +385,7 @@ pub(crate) fn resolve(
         return cached_file(&repo_dir, revision).ok_or_else(|| {
             Error::Hub(format!(
                 "{repo_id:?} at revision {revision:?} is not in the cache ({}) and \
-                 HF_HUB_OFFLINE is set",
+                 HF_HUB_OFFLINE is set; missing or corrupt cache entries require an online download",
                 config.cache_dir.display()
             ))
         });
@@ -433,7 +501,8 @@ fn download(
     let etag = header(&resp, "x-linked-etag")
         .or_else(|| header(&resp, "etag"))
         .map(|e| normalize_etag(&e))
-        .filter(|e| !e.is_empty() && e.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'))
+        .map(|e| e.to_ascii_lowercase())
+        .filter(|e| valid_etag(e))
         .ok_or_else(|| Fetch::Failed(Error::Hub("the Hub did not return a valid ETag".into())))?;
     let download_url = match header(&resp, "location") {
         Some(loc) if (300..400).contains(&status) => loc,
@@ -444,7 +513,7 @@ fn download(
     // 2. Blob (skipped if already cached).
     let blobs = repo_dir.join("blobs");
     let blob = blobs.join(&etag);
-    if !blob.is_file() {
+    if !verify_file(&blob, &etag).unwrap_or(false) {
         std::fs::create_dir_all(&blobs)?;
         // Only send the token to the Hub itself, never to a CDN.
         let same_host = host_of(&download_url) == host_of(&config.endpoint);
@@ -467,13 +536,18 @@ fn download(
             ))));
         }
         file.as_file().sync_all()?;
-        publish_cached_file(file, &blob)?;
+        if !verify_file(file.path(), &etag)? {
+            return Err(Fetch::Failed(Error::Hub(format!(
+                "download integrity check failed for {repo_id:?}: contents do not match ETag {etag}"
+            ))));
+        }
+        publish_verified_file(file, &blob, &etag)?;
     }
 
     // 3. Snapshot entry and ref.
     let snapshot_dir = repo_dir.join("snapshots").join(&commit);
     let snapshot = snapshot_dir.join(FILENAME);
-    if !snapshot.is_file() {
+    if !verify_file(&snapshot, &etag).unwrap_or(false) {
         std::fs::create_dir_all(&snapshot_dir)?;
         link_or_copy(&blob, &snapshot, &etag)?;
     }
@@ -508,17 +582,6 @@ fn publish_revision_ref(
     }
 }
 
-/// Publish a complete file without replacing an entry another caller
-/// has already published. Temporary files are unique to each download
-/// and are removed on failure.
-fn publish_cached_file(file: tempfile::NamedTempFile, path: &Path) -> std::io::Result<()> {
-    match file.persist_noclobber(path) {
-        Ok(_) => Ok(()),
-        Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists && path.is_file() => Ok(()),
-        Err(e) => Err(e.error),
-    }
-}
-
 /// Point the snapshot at the blob with a relative symlink (as
 /// `huggingface_hub` does), falling back to a copy where symlinks are
 /// unavailable (e.g. Windows without developer mode).
@@ -528,7 +591,10 @@ fn link_or_copy(blob: &Path, snapshot: &Path, etag: &str) -> std::io::Result<()>
         let target = Path::new("..").join("..").join("blobs").join(etag);
         match std::os::unix::fs::symlink(&target, snapshot) {
             Ok(()) => return Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && snapshot.is_file() => {
+            Err(e)
+                if e.kind() == std::io::ErrorKind::AlreadyExists
+                    && verify_file(snapshot, etag).unwrap_or(false) =>
+            {
                 return Ok(());
             }
             Err(_) => {}
@@ -539,7 +605,7 @@ fn link_or_copy(blob: &Path, snapshot: &Path, etag: &str) -> std::io::Result<()>
         tempfile::NamedTempFile::new_in(snapshot.parent().expect("snapshot has a parent"))?;
     std::io::copy(&mut std::fs::File::open(blob)?, &mut file)?;
     file.as_file().sync_all()?;
-    publish_cached_file(file, snapshot)
+    publish_verified_file(file, snapshot, etag)
 }
 
 #[cfg(test)]
@@ -552,6 +618,13 @@ mod tests {
     use super::*;
 
     const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
+
+    fn git_hash(body: &[u8]) -> String {
+        let mut hash = sha1::Sha1::new();
+        hash.update(format!("blob {}\0", body.len()).as_bytes());
+        hash.update(body);
+        format!("{:x}", hash.finalize())
+    }
 
     fn env<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
         move |k| {
@@ -632,6 +705,9 @@ mod tests {
         let snap = repo_dir.join("snapshots").join(COMMIT);
         std::fs::create_dir_all(&snap).unwrap();
         std::fs::write(snap.join(FILENAME), "{}").unwrap();
+        let etag = file_hashes(&snap.join(FILENAME)).unwrap().0;
+        std::fs::create_dir_all(repo_dir.join("blobs")).unwrap();
+        std::fs::write(repo_dir.join("blobs").join(etag), "{}").unwrap();
         std::fs::create_dir_all(repo_dir.join("refs")).unwrap();
         std::fs::write(repo_dir.join("refs").join(revision), COMMIT).unwrap();
         snap.join(FILENAME)
@@ -709,7 +785,8 @@ mod tests {
     #[test]
     fn downloads_into_hf_cache_layout_and_reuses_it() {
         let body = r#"{"version":"1.0"}"#;
-        let headers = [("X-Repo-Commit", COMMIT), ("ETag", "\"abc123\"")];
+        let etag = git_hash(body.as_bytes());
+        let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
         let (url, count) = serve(vec![
             response("206 Partial Content", &headers, "{"),
             response("200 OK", &headers, body),
@@ -724,7 +801,7 @@ mod tests {
         assert_eq!(path, repo_dir.join("snapshots").join(COMMIT).join(FILENAME));
         assert_eq!(std::fs::read_to_string(&path).unwrap(), body);
         assert_eq!(
-            std::fs::read_to_string(repo_dir.join("blobs/abc123")).unwrap(),
+            std::fs::read_to_string(repo_dir.join("blobs").join(&etag)).unwrap(),
             body
         );
         assert_eq!(
@@ -741,6 +818,76 @@ mod tests {
         let pinned = params.clone().revision(COMMIT);
         assert_eq!(resolve("org/model", &pinned, &cfg).unwrap(), path);
         assert_eq!(count.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn hash_verification_uses_git_object_headers_and_raw_lfs_sha256() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("file");
+        std::fs::write(&path, b"hello\n").unwrap();
+        // Known Git object hash, not raw SHA-1 of the contents.
+        assert!(verify_file(&path, "ce013625030ba8dba906f756967f9e9ca394464a").unwrap());
+        assert!(
+            verify_file(
+                &path,
+                "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+            )
+            .unwrap()
+        );
+        assert!(!verify_file(&path, &git_hash(b"different")).unwrap());
+        for invalid in [
+            "abc123",
+            "../hash",
+            "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        ] {
+            assert!(!valid_etag(invalid));
+        }
+    }
+
+    #[test]
+    fn mismatched_download_is_not_published_and_corrupt_cache_is_repaired() {
+        let body = r#"{"version":"1.0"}"#;
+        for etag in [
+            git_hash(body.as_bytes()),
+            format!("{:x}", sha2::Sha256::digest(body.as_bytes())),
+        ] {
+            let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
+            let (url, _) = serve(vec![
+                response("206 Partial Content", &headers, "{"),
+                response("200 OK", &headers, "corrupt download"),
+                response("206 Partial Content", &headers, "{"),
+                response("200 OK", &headers, body),
+                response("206 Partial Content", &headers, "{"),
+                response("200 OK", &headers, body),
+            ]);
+            let dir = tempfile::tempdir().unwrap();
+            let cfg = config(dir.path(), &url, false);
+            let params = FromPretrainedParameters::default();
+            let error = resolve("org/model", &params, &cfg).unwrap_err();
+            assert!(error.to_string().contains("integrity check failed"));
+            let repo = repo_cache_dir(dir.path(), "org/model");
+            assert_eq!(std::fs::read_dir(repo.join("blobs")).unwrap().count(), 0);
+            assert!(!repo.join("refs/main").exists());
+            let path = resolve("org/model", &params, &cfg).unwrap();
+            // On Unix this corrupts the linked blob; on Windows it corrupts
+            // the snapshot copy. Repair both independently.
+            std::fs::write(&path, "corrupt snapshot").unwrap();
+            std::fs::write(repo.join("blobs").join(&etag), "corrupt blob").unwrap();
+            let offline = config(dir.path(), &url, true);
+            let pinned = params.clone().revision(COMMIT);
+            assert!(
+                resolve("org/model", &pinned, &offline)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("corrupt")
+            );
+            assert_eq!(resolve("org/model", &pinned, &cfg).unwrap(), path);
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), body);
+            assert!(
+                verify_file(&repo.join("blobs").join(etag), &git_hash(body.as_bytes())).unwrap()
+            );
+            assert_eq!(resolve("org/model", &pinned, &offline).unwrap(), path);
+        }
     }
 
     #[test]
@@ -769,7 +916,8 @@ mod tests {
                         metadata |= line.to_ascii_lowercase().starts_with("range:");
                         line.clear();
                     }
-                    let headers = [("X-Repo-Commit", COMMIT), ("ETag", "\"abc123\"")];
+                    let etag = git_hash(body.as_bytes());
+                    let headers = [("X-Repo-Commit", COMMIT), ("ETag", etag.as_str())];
                     if metadata {
                         stream
                             .write_all(response("206 Partial Content", &headers, "{").as_bytes())
@@ -803,7 +951,7 @@ mod tests {
         server.join().unwrap();
         let repo = repo_cache_dir(dir.path(), "org/model");
         assert_eq!(
-            std::fs::read_to_string(repo.join("blobs/abc123")).unwrap(),
+            std::fs::read_to_string(repo.join("blobs").join(git_hash(body.as_bytes()))).unwrap(),
             *body
         );
         assert_eq!(
@@ -820,8 +968,8 @@ mod tests {
         let path = dir.path().join("blob");
         std::fs::write(&path, "winner").unwrap();
         let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
-        file.write_all(b"other download").unwrap();
-        publish_cached_file(file, &path).unwrap();
+        file.write_all(b"winner").unwrap();
+        publish_verified_file(file, &path, &git_hash(b"winner")).unwrap();
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "winner");
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
@@ -836,6 +984,29 @@ mod tests {
             publish_revision_ref(file, &path, commit).unwrap();
             assert_eq!(std::fs::read_to_string(&path).unwrap(), commit);
             assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        }
+    }
+
+    #[test]
+    fn publication_rejects_corrupt_temporary_contents_without_replacing_destination() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("blob");
+        for existing in [None, Some("existing")] {
+            if let Some(contents) = existing {
+                std::fs::write(&path, contents).unwrap();
+            }
+            let mut file = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+            file.write_all(b"corrupt").unwrap();
+            let error = publish_verified_file(file, &path, &git_hash(b"expected")).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+            match existing {
+                Some(contents) => assert_eq!(std::fs::read_to_string(&path).unwrap(), contents),
+                None => assert!(!path.exists()),
+            }
+            assert_eq!(
+                std::fs::read_dir(dir.path()).unwrap().count(),
+                usize::from(existing.is_some())
+            );
         }
     }
 
