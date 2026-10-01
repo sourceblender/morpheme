@@ -364,6 +364,9 @@ pub fn truncate_encodings(
     Ok((encoding, pair))
 }
 
+/// Batches smaller than this are padded on the calling thread.
+const PAR_PAD_MIN_BATCH: usize = 64;
+
 /// Pad a batch of encodings according to `params`.
 pub fn pad_encodings(encodings: &mut [Encoding], params: &PaddingParams) -> Result<()> {
     if encodings.is_empty() {
@@ -378,7 +381,7 @@ pub fn pad_encodings(encodings: &mut [Encoding], params: &PaddingParams) -> Resu
             target += m - target % m;
         }
     }
-    encodings.par_iter_mut().for_each(|e| {
+    let pad = |e: &mut Encoding| {
         e.pad(
             target,
             params.pad_id,
@@ -386,7 +389,14 @@ pub fn pad_encodings(encodings: &mut [Encoding], params: &PaddingParams) -> Resu
             &params.pad_token,
             params.direction,
         )
-    });
+    };
+    // Padding is cheap per encoding; spinning up rayon only pays off for
+    // larger batches (and never for the single encoding `encode` pads).
+    if encodings.len() < PAR_PAD_MIN_BATCH {
+        encodings.iter_mut().for_each(pad);
+    } else {
+        encodings.par_iter_mut().for_each(pad);
+    }
     Ok(())
 }
 

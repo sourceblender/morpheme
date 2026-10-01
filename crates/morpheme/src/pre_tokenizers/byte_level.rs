@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::encoding::Encoding;
 use crate::error::Result;
 use crate::normalized_string::SplitDelimiterBehavior;
+use crate::normalizers::byte_level::bytes_to_chars;
 use crate::pattern::SysRegex;
 use crate::pre_tokenized_string::PreTokenizedString;
 use crate::traits::{Decoder, PostProcessor, PreTokenizer};
@@ -25,34 +26,50 @@ fn gpt2_regex() -> &'static SysRegex {
     RE.get_or_init(|| SysRegex::new(GPT2_PATTERN).expect("GPT-2 pattern is valid"))
 }
 
-fn build_bytes_char() -> HashMap<u8, char> {
-    // Printable bytes map to themselves; the rest are shifted past 255 so
-    // that every byte gets a visible, unambiguous char.
-    let mut printable: Vec<u8> = Vec::with_capacity(256);
-    printable.extend(b'!'..=b'~');
-    printable.extend(0xA1u8..=0xAC);
-    printable.extend(0xAEu8..=0xFF);
-    let mut map: HashMap<u8, char> = printable.iter().map(|&b| (b, char::from(b))).collect();
-    let mut next = 256u32;
-    for b in 0..=255u8 {
-        if let std::collections::hash_map::Entry::Vacant(e) = map.entry(b) {
-            e.insert(char::from_u32(next).expect("256..=323 are valid chars"));
-            next += 1;
-        }
-    }
-    map
-}
-
-/// The GPT-2 byte → char table.
+/// The GPT-2 byte → char table: printable bytes map to themselves, the
+/// rest are shifted past 255 so that every byte gets a visible,
+/// unambiguous char.
+///
+/// This is a map view of the crate's `[char; 256]` table (which the hot
+/// paths index directly); it is built once, on first use.
 pub fn bytes_char() -> &'static HashMap<u8, char> {
     static MAP: OnceLock<HashMap<u8, char>> = OnceLock::new();
-    MAP.get_or_init(build_bytes_char)
+    MAP.get_or_init(|| {
+        bytes_to_chars()
+            .iter()
+            .enumerate()
+            .map(|(b, c)| (b as u8, *c))
+            .collect()
+    })
 }
 
 /// The GPT-2 char → byte table (inverse of [`bytes_char`]).
 pub fn char_bytes() -> &'static HashMap<char, u8> {
     static MAP: OnceLock<HashMap<char, u8>> = OnceLock::new();
-    MAP.get_or_init(|| bytes_char().iter().map(|(b, c)| (*c, *b)).collect())
+    MAP.get_or_init(|| {
+        bytes_to_chars()
+            .iter()
+            .enumerate()
+            .map(|(b, c)| (*c, b as u8))
+            .collect()
+    })
+}
+
+/// Highest code point in the byte-level alphabet (`U+0143`).
+const MAX_BYTE_LEVEL_CHAR: usize = 256 + 67;
+
+/// Inverse of [`bytes_char`] as a dense array indexed by code point, so
+/// decoding does not hash.
+fn char_to_byte(c: char) -> Option<u8> {
+    static TABLE: OnceLock<[Option<u8>; MAX_BYTE_LEVEL_CHAR + 1]> = OnceLock::new();
+    let table = TABLE.get_or_init(|| {
+        let mut table = [None; MAX_BYTE_LEVEL_CHAR + 1];
+        for (b, c) in bytes_to_chars().iter().enumerate() {
+            table[*c as usize] = Some(b as u8);
+        }
+        table
+    });
+    table.get(c as usize).copied().flatten()
 }
 
 fn default_true() -> bool {
@@ -120,7 +137,7 @@ impl ByteLevel {
 
     /// The 256 chars of the byte-level alphabet.
     pub fn alphabet() -> HashSet<char> {
-        bytes_char().values().copied().collect()
+        bytes_to_chars().iter().copied().collect()
     }
 
     /// Set `add_prefix_space`.
@@ -157,14 +174,14 @@ impl PreTokenizer for ByteLevel {
                 Ok(vec![normalized])
             }
         })?;
-        let table = bytes_char();
+        let table = bytes_to_chars();
         pretokenized.normalize(|normalized| {
             let s = normalized.get();
             let mut dest: Vec<(char, isize)> = Vec::with_capacity(s.len());
+            let mut buf = [0u8; 4];
             for c in s.chars() {
-                let mut buf = [0u8; 4];
                 for (i, b) in c.encode_utf8(&mut buf).bytes().enumerate() {
-                    dest.push((table[&b], isize::from(i > 0)));
+                    dest.push((table[b as usize], isize::from(i > 0)));
                 }
             }
             normalized.transform(dest, 0);
@@ -175,10 +192,9 @@ impl PreTokenizer for ByteLevel {
 
 impl Decoder for ByteLevel {
     fn decode_chain(&self, tokens: Vec<String>) -> Result<Vec<String>> {
-        let table = char_bytes();
         let mut bytes: Vec<u8> = Vec::new();
         for token in &tokens {
-            let mapped: Option<Vec<u8>> = token.chars().map(|c| table.get(&c).copied()).collect();
+            let mapped: Option<Vec<u8>> = token.chars().map(char_to_byte).collect();
             match mapped {
                 Some(b) => bytes.extend(b),
                 // Not a byte-level token (e.g. an added token): keep as is.
@@ -219,8 +235,9 @@ impl PostProcessor for ByteLevel {
 /// kept when `add_prefix_space` is on, since it was added by the
 /// pre-tokenizer and maps to no original char.
 pub fn process_offsets(encoding: &mut Encoding, add_prefix_space: bool) {
-    let space = bytes_char()[&b' '];
-    let is_space = |c: &char| *c == space || c.is_whitespace();
+    /// `bytes_to_chars()[b' ']`: the byte-level char for a space.
+    const SPACE: char = 'Ġ';
+    let is_space = |c: &char| *c == SPACE || c.is_whitespace();
     let tokens: Vec<String> = encoding.tokens().to_vec();
     for (i, (token, offsets)) in tokens
         .iter()
@@ -258,6 +275,15 @@ mod tests {
         assert_eq!(bytes_char()[&b' '], 'Ġ');
         assert_eq!(bytes_char()[&b'\n'], 'Ċ');
         assert_eq!(bytes_char()[&b'a'], 'a');
+        assert_eq!(bytes_to_chars().iter().copied().max(), Some('Ń'));
+        assert_eq!('Ń' as usize, MAX_BYTE_LEVEL_CHAR);
+        for (b, c) in bytes_to_chars().iter().enumerate() {
+            assert_eq!(bytes_char()[&(b as u8)], *c);
+            assert_eq!(char_to_byte(*c), Some(b as u8));
+            assert_eq!(char_bytes()[c], b as u8);
+        }
+        assert_eq!(char_to_byte('€'), None);
+        assert_eq!(char_to_byte('\u{144}'), None);
     }
 
     #[test]

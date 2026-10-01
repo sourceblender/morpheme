@@ -7,7 +7,7 @@
 //! `tokenizer.json` representation.
 
 mod bert;
-mod byte_level;
+pub(crate) mod byte_level;
 mod precompiled;
 mod prepend;
 mod replace;

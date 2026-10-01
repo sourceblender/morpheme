@@ -21,6 +21,58 @@ pub(crate) const UNK_PENALTY: f64 = 10.0;
 const CACHE_MAX_LENGTH: usize = 256;
 /// Maximum number of cached sentences.
 const CACHE_CAPACITY: usize = 10_000;
+/// Number of cache shards (same as the BPE word cache).
+const CACHE_SHARDS: usize = 64;
+
+/// Memoizes encoded sentences. Cloning a model gives it a fresh cache.
+///
+/// Sharded so that parallel batch encoding doesn't serialize on a single
+/// lock: lookups and inserts are non-blocking (`try_read` / `try_write`)
+/// and simply miss when the shard is busy.
+#[derive(Debug)]
+struct SentenceCache {
+    shards: Vec<RwLock<FxHashMap<String, Vec<String>>>>,
+}
+
+impl SentenceCache {
+    fn new() -> Self {
+        Self {
+            shards: (0..CACHE_SHARDS)
+                .map(|_| RwLock::new(FxHashMap::default()))
+                .collect(),
+        }
+    }
+
+    fn shard(&self, key: &str) -> &RwLock<FxHashMap<String, Vec<String>>> {
+        use std::hash::{BuildHasher, BuildHasherDefault};
+        let h = BuildHasherDefault::<rustc_hash::FxHasher>::default().hash_one(key);
+        &self.shards[(h as usize) % self.shards.len()]
+    }
+
+    fn get(&self, key: &str) -> Option<Vec<String>> {
+        self.shard(key).try_read().ok()?.get(key).cloned()
+    }
+
+    fn insert(&self, key: &str, pieces: &[String]) {
+        if key.len() >= CACHE_MAX_LENGTH {
+            return;
+        }
+        let per_shard = CACHE_CAPACITY.div_ceil(self.shards.len());
+        if let Ok(mut map) = self.shard(key).try_write() {
+            if map.len() < per_shard {
+                map.insert(key.to_owned(), pieces.to_vec());
+            }
+        }
+    }
+
+    fn clear(&self) {
+        for shard in &self.shards {
+            if let Ok(mut map) = shard.write() {
+                map.clear();
+            }
+        }
+    }
+}
 
 /// A Unigram language model (SentencePiece): every piece has a score
 /// (log probability) and a sentence is split into the pieces maximizing
@@ -63,7 +115,7 @@ pub struct Unigram {
     fuse_unk: bool,
     is_optimized: bool,
     byte_fallback: bool,
-    cache: RwLock<HashMap<String, Vec<String>>>,
+    cache: SentenceCache,
 }
 
 impl Clone for Unigram {
@@ -80,7 +132,7 @@ impl Clone for Unigram {
             fuse_unk: self.fuse_unk,
             is_optimized: self.is_optimized,
             byte_fallback: self.byte_fallback,
-            cache: RwLock::new(HashMap::new()),
+            cache: SentenceCache::new(),
         }
     }
 }
@@ -163,7 +215,7 @@ impl Unigram {
             fuse_unk: true,
             is_optimized: true,
             byte_fallback,
-            cache: RwLock::new(HashMap::new()),
+            cache: SentenceCache::new(),
         })
     }
 
@@ -189,9 +241,7 @@ impl Unigram {
 
     /// Drop all cached encodings.
     pub fn clear_cache(&self) {
-        if let Ok(mut c) = self.cache.write() {
-            c.clear();
-        }
+        self.cache.clear();
     }
 
     #[cfg(test)]
@@ -241,23 +291,15 @@ impl Unigram {
         if sentence.is_empty() {
             return Ok(vec![]);
         }
-        if let Ok(cache) = self.cache.try_read() {
-            if let Some(hit) = cache.get(sentence) {
-                return Ok(hit.clone());
-            }
+        if let Some(hit) = self.cache.get(sentence) {
+            return Ok(hit);
         }
         let result = if self.is_optimized {
             self.encode_optimized(sentence)?
         } else {
             self.encode_unoptimized(sentence)?
         };
-        if sentence.len() < CACHE_MAX_LENGTH {
-            if let Ok(mut cache) = self.cache.try_write() {
-                if cache.len() < CACHE_CAPACITY {
-                    cache.insert(sentence.to_owned(), result.clone());
-                }
-            }
-        }
+        self.cache.insert(sentence, &result);
         Ok(result)
     }
 
