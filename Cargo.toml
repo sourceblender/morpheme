@@ -13,7 +13,6 @@ rust-version = "1.85"
 license = "MIT"
 repository = "https://github.com/sourceblender/splinter"
 authors = ["The splinter authors"]
-homepage = "https://github.com/sourceblender/splinter"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
