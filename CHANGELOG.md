@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `parallel` feature (default on) gating `rayon`; with it off,
+  `encode_batch`, `decode_batch`, batch padding and the trainers run
+  sequentially. The library now compiles for `wasm32-unknown-unknown`
+  (`Tokenizer::save` is compiled out there, as `tempfile` is a non-wasm
+  dependency), and CI checks that target (#51).
+
 ## [0.3.0] - 2026-10-01
 
 ### Added

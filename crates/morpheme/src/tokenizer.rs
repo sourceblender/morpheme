@@ -21,6 +21,7 @@ pub use hub::FromPretrainedParameters;
 /// attempts; about 1.3 s in all). Other errors are returned at once.
 /// Unix renames are never retried. The temporary file is removed when
 /// the move ultimately fails.
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn persist_with_retry(
     file: tempfile::NamedTempFile,
     dest: &std::path::Path,
@@ -109,9 +110,12 @@ mod persist_tests {
 
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::io::{BufRead, Write};
+use std::io::BufRead;
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::Write;
 use std::path::Path;
 
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -365,6 +369,7 @@ pub fn truncate_encodings(
 }
 
 /// Batches smaller than this are padded on the calling thread.
+#[cfg(feature = "parallel")]
 const PAR_PAD_MIN_BATCH: usize = 64;
 
 /// Pad a batch of encodings according to `params`.
@@ -392,11 +397,12 @@ pub fn pad_encodings(encodings: &mut [Encoding], params: &PaddingParams) -> Resu
     };
     // Padding is cheap per encoding; spinning up rayon only pays off for
     // larger batches (and never for the single encoding `encode` pads).
-    if encodings.len() < PAR_PAD_MIN_BATCH {
-        encodings.iter_mut().for_each(pad);
-    } else {
+    #[cfg(feature = "parallel")]
+    if encodings.len() >= PAR_PAD_MIN_BATCH {
         encodings.par_iter_mut().for_each(pad);
+        return Ok(());
     }
+    encodings.iter_mut().for_each(pad);
     Ok(())
 }
 
@@ -523,6 +529,10 @@ impl Tokenizer {
     /// Save as `tokenizer.json` using atomic replacement. Readers see the
     /// previous complete file or the new complete file. A destination
     /// symlink is replaced, rather than writing through it.
+    ///
+    /// Not available on `wasm32`, which has no filesystem; use
+    /// [`to_json`](Self::to_json) there.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn save(&self, path: impl AsRef<Path>, pretty: bool) -> Result<()> {
         let contents = self.to_json(pretty)?;
         let path = path.as_ref();
@@ -897,8 +907,11 @@ impl Tokenizer {
     where
         E: Into<EncodeInput<'s>> + Send,
     {
-        let mut encodings = inputs
-            .into_par_iter()
+        #[cfg(feature = "parallel")]
+        let iter = inputs.into_par_iter();
+        #[cfg(not(feature = "parallel"))]
+        let iter = inputs.into_iter();
+        let mut encodings = iter
             .map(|i| self.encode_with(i, add_special_tokens, offset_type))
             .collect::<Result<Vec<_>>>()?;
         if let Some(params) = &self.padding {
@@ -1059,9 +1072,11 @@ impl Tokenizer {
         sequences: &[&[u32]],
         skip_special_tokens: bool,
     ) -> Result<Vec<String>> {
-        sequences
-            .par_iter()
-            .map(|ids| self.decode(ids, skip_special_tokens))
+        #[cfg(feature = "parallel")]
+        let iter = sequences.par_iter();
+        #[cfg(not(feature = "parallel"))]
+        let iter = sequences.iter();
+        iter.map(|ids| self.decode(ids, skip_special_tokens))
             .collect()
     }
 

@@ -127,6 +127,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
         with:
           toolchain: stable
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Cache HF tokenizer fixtures
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -137,6 +138,9 @@ jobs:
         shell: bash
         run: ./scripts/fetch-hf-fixtures.sh
       - run: cargo test -p morpheme --no-default-features --locked
+      # The library must keep compiling for the browser (#51): no rayon
+      # (`parallel` off) and no `tempfile`-backed `save`.
+      - run: cargo check -p morpheme --no-default-features --locked --target wasm32-unknown-unknown
 
   msrv:
     name: test (MSRV ${{ matrix.rust }})
