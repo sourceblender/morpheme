@@ -19,8 +19,52 @@ env:
   RUSTFLAGS: -D warnings
 
 jobs:
+  # Decides whether the rest of CI is needed. Documentation-only changes
+  # skip every other job. Uses the complete `git diff` (no 300-file cap,
+  # unlike `paths-ignore`); anything it can't classify runs everything.
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: filter
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # Paths that are never compiled, tested or packaged.
+          docs_only='(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/|^\.github/CODEOWNERS$|^\.github/dependabot\.yml$)'
+          case "$EVENT" in
+            pull_request) range="$PR_BASE...$PR_HEAD"; base="$PR_BASE" ;;
+            push) range="$PUSH_BEFORE..$PUSH_AFTER"; base="$PUSH_BEFORE" ;;
+            *) echo "code=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          files=$(git diff --name-only "$range")
+          echo "changed files: $(printf '%s\n' "$files" | grep -c . || true)"
+          if printf '%s\n' "$files" | grep . | grep -qvE "$docs_only"; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "documentation-only change: skipping the rest of CI"
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   fmt:
     name: rustfmt
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -31,6 +75,8 @@ jobs:
 
   clippy:
     name: clippy
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -44,6 +90,8 @@ jobs:
 
   test:
     name: test (stable)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -65,6 +113,8 @@ jobs:
 
   msrv:
     name: test (MSRV ${{ matrix.rust }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -90,6 +140,8 @@ jobs:
   benches:
     # Compile (don't run) the Criterion suite so it can't rot.
     name: benches compile
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -99,6 +151,8 @@ jobs:
 
   coverage:
     name: coverage
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -128,6 +182,8 @@ jobs:
 
   docs:
     name: rustdoc
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: -D warnings
@@ -140,6 +196,8 @@ jobs:
   hub:
     # Downloads from the Hugging Face Hub (ignored in the regular test run).
     name: hub downloads (network)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -156,6 +214,8 @@ jobs:
 
   python-interop:
     name: interop with Python tokenizers
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -170,7 +230,26 @@ jobs:
   deny:
     # Licenses, bans, sources and RustSec advisories (deny.toml).
     name: cargo-deny
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: EmbarkStudios/cargo-deny-action@v2
+
+  # One stable check to require in a branch ruleset: passes when every job
+  # passed or was skipped as docs-only, fails otherwise.
+  ci-success:
+    name: ci-success
+    if: always()
+    needs: [changes, fmt, clippy, test, msrv, benches, coverage, docs, hub, python-interop, deny]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "job results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) exit 1 ;; esac
+          done

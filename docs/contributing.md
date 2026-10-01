@@ -61,6 +61,22 @@ means morpheme disagrees with the reference implementation.
 `just interop` checks the reverse direction (Python loading
 morpheme-trained files).
 
+## CI and docs-only changes
+
+Every CI run starts with a small `detect changes` job that lists the
+changed files with `git diff` (complete, unlike `paths-ignore`, which
+only looks at the first 300 files). If every changed file is
+documentation (`*.md`, `docs/`, `LICENSE`, issue templates,
+`CODEOWNERS`, `dependabot.yml`), all other jobs are skipped. Anything
+else, including a change that mixes docs and code, runs the full suite,
+as do manual runs (`workflow_dispatch`) and any change the job cannot
+classify.
+
+The `ci-success` job always runs and passes only if every job passed or
+was skipped as docs-only. To make CI required on `main`, require that
+single check in the branch ruleset: it reports on docs-only changes
+too, so they are never left pending.
+
 ## Local gate
 
 Before opening a PR, run:
