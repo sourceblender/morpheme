@@ -19,5 +19,8 @@ targets = [
 ]
 install-path = "CARGO_HOME"
 publish-jobs = ["./publish-crates"]
+# A reusable workflow may only use permissions its caller grants; the
+# publish job just needs to read the repository.
+github-custom-job-permissions = { "publish-crates" = { contents = "read" } }
 # Run the release plan on PRs that touch release config, without building.
 pr-run-mode = "plan"
