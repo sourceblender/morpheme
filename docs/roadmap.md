@@ -1,8 +1,10 @@
 # Roadmap
 
-> Living document. Phases, not dates.
+> Living document: what has shipped, and what is planned next. No dates.
 
-## Done (v0.1.0)
+## Released
+
+### v0.1 (2026-10-01)
 
 - [x] Hugging Face-compatible pipeline: added tokens, normalizers,
       pre-tokenizers, models, post-processors, decoders, with offset
@@ -25,43 +27,58 @@
       training and memory comparisons with Python.
 - [x] Public API review (`pub(crate)`, `#[non_exhaustive]`, Rust API
       Guidelines naming) and rustdoc examples.
-- [x] Release pipeline (`dist`): CLI binaries for six targets, checksums,
-      installers; crates.io publishing.
-- [x] Released v0.1.0 (2026-10-01): [`morpheme`](https://crates.io/crates/morpheme)
-      and [`morpheme-cli`](https://crates.io/crates/morpheme-cli) on crates.io,
-      binaries on the [GitHub Release](https://github.com/sourceblender/morpheme/releases/tag/v0.1.0).
+- [x] Release pipeline (`dist`): CLI binaries, checksums, installers;
+      crates.io publishing of [`morpheme`](https://crates.io/crates/morpheme)
+      and [`morpheme-cli`](https://crates.io/crates/morpheme-cli).
+
+### v0.2 (2026-10-01)
+
+- [x] CLI token budgeting (`count`), bounded JSONL batches
+      (`encode-batch`, `decode-batch`) and JSON inspection.
+- [x] Hash-check Hub downloads and cached files against their ETag;
+      repair corrupt entries online and reject them offline.
+- [x] Atomic `tokenizer.json` saves.
+- [x] Executable document-budget consumer with atomic dataset publication,
+      pinned/offline Hub replay, and a 10,000-record stress check.
+- [x] Repeatable local performance baselines with input fingerprints,
+      diverse text, isolated load memory, and opt-in timing/RSS regression
+      thresholds.
+
+### v0.3 (2026-10-01)
+
+- [x] Accept the legacy untagged normalizer/decoder JSON forms.
+- [x] Review fixes across the pipeline, trainers, Hub client and CLI
+      (see the [changelog](../CHANGELOG.md#030---2026-10-01)).
+- [x] Fuzz targets for the `Precompiled` parser and for decoding; all
+      fuzz targets run in a weekly CI workflow.
+
+### v0.4 (2026-10-01)
+
+- [x] Python bindings via PyO3 and maturin, published to
+      [PyPI](https://pypi.org/project/morpheme/) as `morpheme` (abi3
+      wheels for Linux, macOS arm64 and Windows, plus an sdist).
+- [x] WebAssembly: the library compiles for `wasm32-unknown-unknown`
+      (`parallel` feature gates rayon), and `bindings/wasm` exposes
+      `fromJson` / `encode` / `tokens` / `count` / `decode` with a
+      browser token-counter example.
+- [x] Unigram subword-regularization sampling (`alpha`, `nbest_size`)
+      with seeded, order-independent draws; `Tokenizer::model_mut` and
+      `Bpe::set_dropout` for runtime model settings.
+- [x] Benchmark regression tracking on dedicated hardware: the
+      `bench-9800x3d` self-hosted runner measures daily and on tags and
+      stores every result on the `benchmarks` branch.
 
 ## Next
 
-- [x] CLI token budgeting, bounded JSONL batches, and JSON inspection.
-- [x] Exercise all four fuzz targets for five minutes in CI (2026-10-01).
-- [x] Executable document-budget consumer with atomic dataset publication,
-      pinned/offline Hub replay, and a 10,000-record stress check.
-
-- [x] Unigram subword-regularization sampling (`alpha`, `nbest_size`) with
-      seeded, order-independent draws (2026-10-01).
-- [x] Repeatable local performance baselines with input fingerprints, diverse
-      text, isolated load memory, and opt-in timing/RSS regression thresholds.
-- [ ] Benchmark regression tracking on dedicated hardware (in progress:
-      workflow, host setup script and results branch layout landed; pending
-      registration of the `bench-9800x3d` runner and its first run, #49).
-- [x] Accept the legacy untagged normalizer/decoder JSON forms (no file
-      in the fixture set needs them today).
-- [x] Hash-check Hub downloads and cached files against their ETag;
-      repair corrupt entries online and reject them offline.
-
-## Ecosystem
-
-- [x] Python bindings via PyO3 (partial): `bindings/python` builds a `morpheme`
-      module with maturin (load from file / string / Hub, encode, decode, batch
-      variants, count, vocab lookups, save). Platform wheels in CI and a
-      published package are still to do.
-- [x] WASM target via `wasm-bindgen`: the library compiles for
-      `wasm32-unknown-unknown` (`parallel` feature gates rayon with a
-      sequential fallback; `save` is compiled out there), and
-      `bindings/wasm` exposes `fromJson`/`encode`/`tokens`/`count`/`decode`
-      with a browser token-counter example. Not published to npm.
+- [ ] Publish the WASM package to npm (today it is built from source).
+- [ ] Switch PyPI uploads from the API token to trusted publishing
+      (OIDC), once the project registers this repository's workflow.
+- [ ] Broaden the Python API beyond load/encode/decode/count (for
+      example pairs, padding and truncation settings, and training),
+      driven by user requests.
 
 ## Out of scope
 
 - Tokenizer-free models, model training, a model registry.
+- Prebuilt Intel macOS CLI binaries and Python wheels: Intel Macs use
+  `cargo install morpheme-cli` or the Python sdist.
