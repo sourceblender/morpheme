@@ -184,7 +184,7 @@ jobs:
             echo "- Verdict: $verdict"
             echo "- Settings: repeats $REPEATS, cpuset $BENCH_CPUSET, threshold ${THRESHOLD_PERCENT}%"
             echo
-            [ -f "$out/summary.md" ] && cat "$out/summary.md"
+            if [ -f "$out/summary.md" ]; then cat "$out/summary.md"; fi
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && steps.measure.outputs.recorded == 'true'
