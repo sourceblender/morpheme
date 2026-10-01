@@ -12,8 +12,6 @@
 
 ## Non-goals (v0.x)
 
-- Downloading from the Hugging Face Hub (`from_pretrained`). Load files
-  from disk instead.
 - Python/JS bindings (see the roadmap).
 - Custom, user-defined pipeline components that serialize to
   `tokenizer.json` (built-in components only; see
@@ -102,6 +100,14 @@ fallback.
   the look-around used by GPT-2-style patterns).
 - BPE memoizes merged words in a sharded cache; Unigram builds its trie
   once at load.
+
+## Hub downloads
+
+The optional `hub` feature adds `Tokenizer::from_pretrained`
+(`tokenizer/hub.rs`): a blocking HTTPS client (`ureq` with rustls, no
+OpenSSL) that writes the standard `huggingface_hub` cache layout. It is
+off by default in the library, so the core has no network dependencies;
+the CLI enables it.
 
 ## Testing
 

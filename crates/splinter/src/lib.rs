@@ -57,6 +57,8 @@ pub use normalizers::NormalizerWrapper;
 pub use pre_tokenized_string::{OffsetType, PreTokenizedString, Split};
 pub use pre_tokenizers::PreTokenizerWrapper;
 pub use processors::PostProcessorWrapper;
+#[cfg(feature = "hub")]
+pub use tokenizer::hub::FromPretrainedParameters;
 pub use tokenizer::{
     DecodeStream, EncodeInput, InputSequence, PaddingParams, PaddingStrategy, Tokenizer,
     TruncationParams, TruncationStrategy,

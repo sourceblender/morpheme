@@ -97,7 +97,9 @@ Deliberate differences, all in the direction of *accepting more* or
   reproducible but can differ from a particular HF run in those cases.
 - **Unigram subword-regularization sampling** (`alpha`, `nbest_size`) is
   not implemented; it is not part of `tokenizer.json`.
-- **No `from_pretrained`.** splinter does not download from the Hub.
+- **Hub downloads** (`from_pretrained`, feature `hub`) fetch only
+  `tokenizer.json`, not the other files of a repository, and use the
+  same cache layout as `huggingface_hub`.
 - **Progress bars** are not printed by trainers (`show_progress` is
   accepted and ignored).
 

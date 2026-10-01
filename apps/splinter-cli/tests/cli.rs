@@ -100,3 +100,51 @@ fn errors_are_reported_with_nonzero_exit() {
     assert!(!o.status.success());
     assert!(String::from_utf8_lossy(&o.stderr).contains("corpus.txt"));
 }
+
+#[test]
+fn revision_is_rejected_for_files() {
+    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/bpe.json");
+    let o = splinter(&[
+        "inspect",
+        "-t",
+        file.to_str().unwrap(),
+        "--revision",
+        "main",
+    ]);
+    assert!(!o.status.success());
+    assert!(String::from_utf8_lossy(&o.stderr).contains("--revision only applies"));
+}
+
+#[test]
+#[cfg(feature = "hub")]
+fn hub_ids_are_served_from_the_cache_offline() {
+    // Pre-populate a Hugging Face cache, then load by model id with
+    // HF_HUB_OFFLINE=1: no network involved.
+    let cache = tempfile::tempdir().unwrap();
+    let commit = "0123456789abcdef0123456789abcdef01234567";
+    let repo = cache.path().join("models--example--tiny");
+    let snapshot = repo.join("snapshots").join(commit);
+    std::fs::create_dir_all(&snapshot).unwrap();
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/wordlevel.json"),
+        snapshot.join("tokenizer.json"),
+    )
+    .unwrap();
+    std::fs::create_dir_all(repo.join("refs")).unwrap();
+    std::fs::write(repo.join("refs/main"), commit).unwrap();
+
+    let run = |id: &str, text: &str| {
+        Command::new(env!("CARGO_BIN_EXE_splinter"))
+            .args(["encode", "-t", id, text])
+            .env("HF_HUB_CACHE", cache.path())
+            .env("HF_HUB_OFFLINE", "1")
+            .output()
+            .unwrap()
+    };
+    let out = stdout(&run("example/tiny", "the quick fox"));
+    assert!(out.contains("\"the\""), "{out}");
+
+    let o = run("example/not-cached", "hi");
+    assert!(!o.status.success());
+    assert!(String::from_utf8_lossy(&o.stderr).contains("HF_HUB_OFFLINE"));
+}

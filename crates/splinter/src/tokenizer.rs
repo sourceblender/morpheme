@@ -2,6 +2,8 @@
 //! Hugging Face `tokenizer.json` format.
 
 mod decode_stream;
+#[cfg(feature = "hub")]
+pub mod hub;
 mod serialization;
 
 pub use decode_stream::DecodeStream;
@@ -329,6 +331,32 @@ impl Tokenizer {
     pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
         let bytes = std::fs::read(path)?;
         Self::from_bytes(bytes)
+    }
+
+    /// Download `tokenizer.json` for `identifier` (`name` or `org/name`)
+    /// from the Hugging Face Hub and load it. Requires the `hub` feature.
+    ///
+    /// Files are cached in the standard Hugging Face cache (shared with
+    /// Python), honoring `HF_HOME`, `HF_HUB_CACHE`, `HF_TOKEN`,
+    /// `HF_ENDPOINT` and `HF_HUB_OFFLINE`. When the Hub is unreachable a
+    /// cached copy is used if there is one. See [`hub`] for details.
+    ///
+    /// ```no_run
+    /// use splinter::{FromPretrainedParameters, Tokenizer};
+    ///
+    /// let tokenizer = Tokenizer::from_pretrained("google-bert/bert-base-uncased", None)?;
+    /// let pinned = Tokenizer::from_pretrained(
+    ///     "openai-community/gpt2",
+    ///     Some(FromPretrainedParameters::default().revision("607a30d783dfa663caf39e06633721c8d4cfcd7e")),
+    /// )?;
+    /// # Ok::<(), splinter::Error>(())
+    /// ```
+    #[cfg(feature = "hub")]
+    pub fn from_pretrained(
+        identifier: &str,
+        params: Option<hub::FromPretrainedParameters>,
+    ) -> Result<Self> {
+        Self::from_file(hub::from_pretrained(identifier, params)?)
     }
 
     /// Serialize to `tokenizer.json`.

@@ -54,6 +54,10 @@ pub enum Error {
     #[error("training failed: {0}")]
     Training(String),
 
+    /// Downloading from the Hugging Face Hub failed (feature `hub`).
+    #[error("hub error: {0}")]
+    Hub(String),
+
     /// JSON (de)serialization failed.
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),

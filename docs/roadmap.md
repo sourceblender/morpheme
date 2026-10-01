@@ -15,6 +15,8 @@
       parallel batch encode/decode.
 - [x] Streaming decode (`DecodeStream`) for token-by-token generation.
 - [x] CLI: `train` (presets), `encode`, `decode`, `inspect`.
+- [x] Hub download (`from_pretrained`, feature `hub`) with the shared
+      Hugging Face cache; the CLI accepts model ids.
 - [x] Golden tests against 11 real tokenizers; reverse interop check
       with Python; property and regression tests; MSRV 1.85 in CI.
 
@@ -33,7 +35,6 @@
 - [ ] Progress reporting for trainers (`show_progress`).
 - [ ] Criterion benchmark suite with regression tracking in CI; decode
       and memory measurements.
-- [ ] Optional Hub download (`from_pretrained`) behind a feature flag.
 - [ ] Accept the legacy untagged normalizer/decoder JSON forms (no file
       in the fixture set needs them today).
 

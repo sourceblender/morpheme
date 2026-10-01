@@ -23,6 +23,14 @@ unicode-segmentation = { workspace = true }
 fancy-regex = { workspace = true }
 aho-corasick = { workspace = true }
 rayon = { workspace = true }
+ureq = { workspace = true, optional = true }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[features]
+# `Tokenizer::from_pretrained`: download tokenizers from the Hugging Face Hub.
+hub = ["dep:ureq"]
 
 [dev-dependencies]
 proptest = { workspace = true }

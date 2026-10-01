@@ -60,6 +60,11 @@ format, and is now verified against the reference implementation.
   per-component ground-truth tests, regression tests for every defect
   found in review.
 - `bench_encode` example and measured results in `docs/benchmarks.md`.
+- `Tokenizer::from_pretrained` (feature `hub`): download `tokenizer.json`
+  from the Hugging Face Hub into the standard cache shared with Python,
+  with revisions, tokens (`HF_TOKEN` / saved login), `HF_ENDPOINT`,
+  offline mode and cache fallback. The CLI accepts Hub model ids for
+  `-t` (plus `--revision`).
 
 ### Changed
 

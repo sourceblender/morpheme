@@ -33,6 +33,8 @@ Not yet published to crates.io; depend on it from git:
 ```toml
 [dependencies]
 splinter = { git = "https://github.com/sourceblender/splinter" }
+# or, to download tokenizers from the Hugging Face Hub:
+splinter = { git = "https://github.com/sourceblender/splinter", features = ["hub"] }
 ```
 
 ## Library
@@ -54,6 +56,20 @@ println!("{:?}", pair.type_ids()); // [0, 0, 0, 0, 0, 0, 1, 1, 1]
 
 let text = tokenizer.decode(encoding.ids(), true)?;
 assert_eq!(text, "hello, world!");
+```
+
+With the `hub` feature, load straight from the Hugging Face Hub. Files
+go to the standard Hugging Face cache (shared with Python) and
+`HF_TOKEN`, `HF_HOME`, `HF_ENDPOINT` and `HF_HUB_OFFLINE` work as usual:
+
+```rust
+use splinter::{FromPretrainedParameters, Tokenizer};
+
+let tokenizer = Tokenizer::from_pretrained("google-bert/bert-base-uncased", None)?;
+let pinned = Tokenizer::from_pretrained(
+    "openai-community/gpt2",
+    Some(FromPretrainedParameters::default().revision("607a30d783dfa663caf39e06633721c8d4cfcd7e")),
+)?;
 ```
 
 `encode` returns byte offsets; `encode_char_offsets` returns char
@@ -97,6 +113,10 @@ splinter encode -t tokenizer.json "the quick brown fox"
 splinter encode -t tokenizer.json --json --pair "second" "first"
 splinter decode -t tokenizer.json 84,259,420,1209,513   # → "the quick brown fox"
 splinter inspect -t tokenizer.json
+
+# Any Hugging Face Hub model id works in place of a path (cached locally)
+splinter encode -t google-bert/bert-base-uncased "Hello, world!"
+splinter inspect -t meta-llama/Llama-3.2-1B --revision main   # gated: set HF_TOKEN
 ```
 
 Every command uses the full pipeline stored in the file; `--help` on

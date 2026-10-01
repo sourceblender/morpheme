@@ -15,8 +15,37 @@ instance can serve many threads.
 | `set_normalizer` / `set_pre_tokenizer` / `set_model` / `set_post_processor` / `set_decoder` | Replace a component in place |
 | `normalizer()`, `pre_tokenizer()`, `model()`, `post_processor()`, `decoder()`, `truncation()`, `padding()`, `added_vocabulary()` | Inspect |
 
-There is no `from_pretrained` (no network access): download
-`tokenizer.json` yourself.
+### From the Hugging Face Hub (feature `hub`)
+
+`Tokenizer::from_pretrained(id, params)` downloads `tokenizer.json` for
+a model id (`name` or `org/name`) and loads it. `FromPretrainedParameters`
+sets the `revision` (branch, tag or commit; default `main`), `token`,
+`cache_dir` and extra `User-Agent` entries.
+
+- **Cache.** Files are stored in the standard `huggingface_hub` layout
+  (`models--org--name/{blobs,refs,snapshots}`) under `HF_HUB_CACHE`,
+  else `$HF_HOME/hub`, else `~/.cache/huggingface/hub`, so Python and
+  splinter share downloads. A pinned commit that is already cached is
+  served without any network request.
+- **Auth.** `params.token`, else `HF_TOKEN`, else the token saved by
+  `huggingface-cli login` (`$HF_HOME/token`). The token is only sent to
+  the Hub host, never to the CDN it redirects to.
+- **Offline.** `HF_HUB_OFFLINE=1` serves from the cache only; if the Hub
+  is unreachable, a cached copy is used when available.
+- **Errors.** Missing, private or gated repositories, unknown revisions
+  and repositories without a `tokenizer.json` return `Error::Hub` with a
+  message saying which.
+- `HF_ENDPOINT` points at a mirror or private Hub.
+
+```rust,ignore
+use splinter::{FromPretrainedParameters, Tokenizer};
+
+let params = FromPretrainedParameters::default().revision("v1.0").token("hf_...");
+let tokenizer = Tokenizer::from_pretrained("my-org/my-model", Some(params))?;
+```
+
+The CLI accepts a model id anywhere it accepts a path (`-t org/name`,
+with `--revision`).
 
 ## Encoding
 

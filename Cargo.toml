@@ -26,6 +26,7 @@ unicode_categories = "0.1"
 unicode-segmentation = "1"
 fancy-regex = "0.19"
 aho-corasick = "1"
+ureq = "3"
 rayon = "1"
 
 [profile.release]

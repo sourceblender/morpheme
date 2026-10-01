@@ -11,12 +11,17 @@ yanked = "deny"
 [licenses]
 version = 2
 # Permissive licenses only, listing exactly what the dependency tree
-# uses. `Unicode-3.0` covers Unicode data tables.
+# uses. `Unicode-3.0` covers Unicode data tables. ISC, BSD-3-Clause and
+# CDLA-Permissive-2.0 (Mozilla's root certificates) come from the rustls
+# TLS stack used by the optional `hub` feature.
 allow = [
     "MIT",
     "Apache-2.0",
     "Unlicense",
     "Unicode-3.0",
+    "ISC",
+    "BSD-3-Clause",
+    "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.9
 

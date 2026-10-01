@@ -1,15 +1,16 @@
 //! `splinter` command-line interface.
 //!
 //! A thin wrapper over the library: every command works on a
-//! `tokenizer.json` file (Hugging Face format) and uses the full pipeline
-//! stored in it — nothing is replaced or dropped.
+//! `tokenizer.json` file (Hugging Face format) — a local path or, with the
+//! `hub` feature (on by default), a Hugging Face Hub model id — and uses
+//! the full pipeline stored in it; nothing is replaced or dropped.
 
 use std::collections::HashSet;
 use std::io::Read;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use splinter::decoders::{self, DecoderWrapper};
 use splinter::models::{Bpe, ModelWrapper, Unigram, WordLevel, WordPiece};
 use splinter::normalizers::{BertNormalizer, Nfkc};
@@ -35,9 +36,8 @@ struct Cli {
 enum Command {
     /// Encode text into tokens and ids.
     Encode {
-        /// Path to a tokenizer.json file.
-        #[arg(short, long, visible_alias = "from")]
-        tokenizer: PathBuf,
+        #[command(flatten)]
+        source: Source,
         /// Second sequence, for pair inputs.
         #[arg(long)]
         pair: Option<String>,
@@ -55,9 +55,8 @@ enum Command {
     },
     /// Decode ids back into text.
     Decode {
-        /// Path to a tokenizer.json file.
-        #[arg(short, long, visible_alias = "from")]
-        tokenizer: PathBuf,
+        #[command(flatten)]
+        source: Source,
         /// Drop special tokens from the output.
         #[arg(long)]
         skip_special_tokens: bool,
@@ -67,9 +66,8 @@ enum Command {
     },
     /// Describe a tokenizer.json file.
     Inspect {
-        /// Path to a tokenizer.json file.
-        #[arg(short, long, visible_alias = "from")]
-        tokenizer: PathBuf,
+        #[command(flatten)]
+        source: Source,
     },
     /// Train a new tokenizer from text files.
     Train {
@@ -98,6 +96,18 @@ enum Command {
     },
 }
 
+/// Where to load a tokenizer from.
+#[derive(Args)]
+struct Source {
+    /// A tokenizer.json path, or a Hugging Face Hub model id such as
+    /// `google-bert/bert-base-uncased` (downloaded and cached).
+    #[arg(short, long, visible_alias = "from")]
+    tokenizer: String,
+    /// Hub revision (branch, tag or commit hash) for a model id.
+    #[arg(long)]
+    revision: Option<String>,
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
 enum ModelKind {
     Bpe,
@@ -121,26 +131,19 @@ enum Preset {
 fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Encode {
-            tokenizer,
+            source,
             pair,
             no_special_tokens,
             char_offsets,
             json,
             text,
-        } => encode(
-            &tokenizer,
-            text,
-            pair,
-            !no_special_tokens,
-            char_offsets,
-            json,
-        ),
+        } => encode(&source, text, pair, !no_special_tokens, char_offsets, json),
         Command::Decode {
-            tokenizer,
+            source,
             skip_special_tokens,
             ids,
-        } => decode(&tokenizer, &ids, skip_special_tokens),
-        Command::Inspect { tokenizer } => inspect(&tokenizer),
+        } => decode(&source, &ids, skip_special_tokens),
+        Command::Inspect { source } => inspect(&source),
         Command::Train {
             model,
             preset,
@@ -161,19 +164,50 @@ fn main() -> Result<()> {
     }
 }
 
-fn load(path: &PathBuf) -> Result<Tokenizer> {
-    Tokenizer::from_file(path).with_context(|| format!("failed to load {}", path.display()))
+fn load(source: &Source) -> Result<Tokenizer> {
+    let path = std::path::Path::new(&source.tokenizer);
+    if path.exists() {
+        if source.revision.is_some() {
+            bail!("--revision only applies to Hugging Face Hub model ids, not files");
+        }
+        return Tokenizer::from_file(path)
+            .with_context(|| format!("failed to load {}", path.display()));
+    }
+    load_from_hub(source)
+}
+
+#[cfg(feature = "hub")]
+fn load_from_hub(source: &Source) -> Result<Tokenizer> {
+    let id = &source.tokenizer;
+    let looks_like_id = !id.ends_with(".json") && id.matches('/').count() <= 1;
+    if !looks_like_id {
+        bail!("failed to load {id}: no such file");
+    }
+    let mut params = splinter::FromPretrainedParameters::default();
+    if let Some(revision) = &source.revision {
+        params = params.revision(revision.clone());
+    }
+    Tokenizer::from_pretrained(id, Some(params))
+        .with_context(|| format!("failed to load {id} (not a file; tried the Hugging Face Hub)"))
+}
+
+#[cfg(not(feature = "hub"))]
+fn load_from_hub(source: &Source) -> Result<Tokenizer> {
+    bail!(
+        "failed to load {}: no such file (Hub downloads need the `hub` feature)",
+        source.tokenizer
+    )
 }
 
 fn encode(
-    path: &PathBuf,
+    source: &Source,
     text: String,
     pair: Option<String>,
     add_special_tokens: bool,
     char_offsets: bool,
     json: bool,
 ) -> Result<()> {
-    let tokenizer = load(path)?;
+    let tokenizer = load(source)?;
     let text = if text == "-" {
         let mut buf = String::new();
         std::io::stdin().read_to_string(&mut buf)?;
@@ -225,8 +259,8 @@ fn parse_ids(raw: &[String]) -> Result<Vec<u32>> {
         .collect()
 }
 
-fn decode(path: &PathBuf, raw_ids: &[String], skip_special_tokens: bool) -> Result<()> {
-    let tokenizer = load(path)?;
+fn decode(source: &Source, raw_ids: &[String], skip_special_tokens: bool) -> Result<()> {
+    let tokenizer = load(source)?;
     let ids = parse_ids(raw_ids)?;
     let vocab_size = tokenizer.get_vocab_size(true);
     if let Some(bad) = ids.iter().find(|id| tokenizer.id_to_token(**id).is_none()) {
@@ -258,8 +292,8 @@ fn describe(v: &serde_json::Value) -> String {
     }
 }
 
-fn inspect(path: &PathBuf) -> Result<()> {
-    let t = load(path)?;
+fn inspect(source: &Source) -> Result<()> {
+    let t = load(source)?;
     let model = match t.model() {
         ModelWrapper::Bpe(m) => format!(
             "BPE ({} merges, unk={:?}, byte_fallback={})",

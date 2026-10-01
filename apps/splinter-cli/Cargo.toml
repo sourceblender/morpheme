@@ -19,6 +19,11 @@ path = "src/main.rs"
 # library's docs.
 doc = false
 
+[features]
+default = ["hub"]
+# Accept Hugging Face Hub model ids wherever a tokenizer path is expected.
+hub = ["splinter/hub"]
+
 [dependencies]
 splinter = { path = "../../crates/splinter", version = "0.0.0" }
 anyhow = { workspace = true }
