@@ -38,7 +38,8 @@
 - [x] Executable document-budget consumer with atomic dataset publication,
       pinned/offline Hub replay, and a 10,000-record stress check.
 
-- [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
+- [x] Unigram subword-regularization sampling (`alpha`, `nbest_size`) with
+      seeded, order-independent draws (2026-10-01).
 - [x] Repeatable local performance baselines with input fingerprints, diverse
       text, isolated load memory, and opt-in timing/RSS regression thresholds.
 - [ ] Benchmark regression tracking on dedicated hardware.
