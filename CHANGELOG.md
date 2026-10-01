@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CLI token counting with explicit special-token and padding/truncation
+  behavior, bounded JSONL batch encoding/decoding, and JSON inspection.
+
 ### Fixed
 
 - Verify Hub downloads and cached files against Git blob SHA-1 or LFS

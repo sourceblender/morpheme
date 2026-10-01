@@ -33,6 +33,9 @@
 
 ## Next
 
+- [x] CLI token budgeting, bounded JSONL batches, and JSON inspection.
+- [x] Exercise all four fuzz targets for five minutes in CI (2026-10-01).
+
 - [ ] Unigram subword-regularization sampling (`alpha`, `nbest_size`).
 - [ ] Benchmark regression tracking on dedicated hardware.
 - [ ] Accept the legacy untagged normalizer/decoder JSON forms (no file

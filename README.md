@@ -122,6 +122,12 @@ morpheme encode -t tokenizer.json --json --pair "second" "first"
 morpheme decode -t tokenizer.json 84,259,420,1209,513   # → "the quick brown fox"
 morpheme inspect -t tokenizer.json
 
+# Budget raw text without configured padding or truncation
+morpheme count -t tokenizer.json --no-special-tokens "the quick brown fox"
+# Process bounded JSONL batches with one tokenizer load
+morpheme encode-batch -t tokenizer.json --input documents.jsonl --ignore-tokenizer-settings
+morpheme inspect -t tokenizer.json --json
+
 # Any Hugging Face Hub model id works in place of a path (cached locally)
 morpheme encode -t google-bert/bert-base-uncased "Hello, world!"
 morpheme inspect -t meta-llama/Llama-3.2-1B --revision main   # gated: set HF_TOKEN
@@ -129,6 +135,8 @@ morpheme inspect -t meta-llama/Llama-3.2-1B --revision main   # gated: set HF_TO
 
 Every command uses the full pipeline stored in the file; `--help` on
 any command lists its options.
+See [CLI automation](./docs/cli.md) for JSONL schemas, counting semantics,
+size limits, and streaming error behavior.
 
 ## What's supported
 
