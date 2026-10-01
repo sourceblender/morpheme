@@ -135,38 +135,49 @@ fn assert_concurrent_batches_match_sequential(tok: &Tokenizer, inputs: &[String]
         "the batch should produce multi-token encodings"
     );
 
-    std::thread::scope(|scope| {
-        let handles: Vec<_> = (0..8)
-            .map(|t| {
-                let expected = &expected;
-                scope.spawn(move || {
-                    // Each thread starts at a different offset so the
-                    // caches are hit in different orders.
-                    let rotated: Vec<&str> = inputs
-                        .iter()
-                        .cycle()
-                        .skip(t * 101)
-                        .take(inputs.len())
-                        .map(String::as_str)
-                        .collect();
-                    let got = tok.encode_batch(rotated, false).unwrap();
-                    for (i, enc) in got.iter().enumerate() {
-                        let want = &expected[(i + t * 101) % inputs.len()];
-                        assert_eq!(enc, want, "thread {t}, item {i}");
-                    }
+    let run_threads = |tok: &Tokenizer| {
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..8)
+                .map(|t| {
+                    let expected = &expected;
+                    scope.spawn(move || {
+                        // Each thread starts at a different offset so the
+                        // caches are hit in different orders.
+                        let rotated: Vec<&str> = inputs
+                            .iter()
+                            .cycle()
+                            .skip(t * 101)
+                            .take(inputs.len())
+                            .map(String::as_str)
+                            .collect();
+                        let got = tok.encode_batch(rotated, false).unwrap();
+                        for (i, enc) in got.iter().enumerate() {
+                            let want = &expected[(i + t * 101) % inputs.len()];
+                            assert_eq!(enc, want, "thread {t}, item {i}");
+                        }
+                    })
                 })
-            })
-            .collect();
-        for h in handles {
-            h.join().unwrap();
-        }
-    });
+                .collect();
+            for h in handles {
+                h.join().unwrap();
+            }
+        });
+    };
 
-    // The caches are warm now: the results are still the same.
-    let again = tok
-        .encode_batch(inputs.iter().map(String::as_str).collect(), false)
-        .unwrap();
-    assert_eq!(again, expected);
+    // Cold caches: `Bpe::clone` and `Unigram::clone` start with an empty
+    // cache, so the threads race on insertion as well as lookup.
+    let cold = tok.clone();
+    run_threads(&cold);
+    // Warm caches (filled by the sequential pass above): lookups only.
+    run_threads(tok);
+
+    // The results are still the same afterwards, on both.
+    for t in [&cold, tok] {
+        let again = t
+            .encode_batch(inputs.iter().map(String::as_str).collect(), false)
+            .unwrap();
+        assert_eq!(again, expected);
+    }
 }
 
 #[test]
