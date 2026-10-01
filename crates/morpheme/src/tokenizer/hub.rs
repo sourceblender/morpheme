@@ -445,14 +445,48 @@ fn resolve_location(base: &str, location: &str) -> Option<String> {
         } else {
             let base = base.split('?').next().unwrap_or(base);
             let prefix = origin_prefix(base)?;
-            let dir = match base[prefix.len()..].rfind('/') {
-                Some(i) => &base[..prefix.len() + i + 1],
-                None => return Some(format!("{prefix}/{location}")),
-            };
-            format!("{dir}{location}")
+            match base[prefix.len()..].rfind('/') {
+                Some(i) => format!("{}{location}", &base[..prefix.len() + i + 1]),
+                None => format!("{prefix}/{location}"),
+            }
         }
     };
-    origin_of(&resolved).map(|_| resolved)
+    origin_of(&resolved)?;
+    // Normalize `.` and `..` in the path (RFC 3986, section 5.2.4), keeping
+    // the query and fragment: servers need not do it before routing.
+    let prefix = origin_prefix(&resolved)?;
+    let rest = &resolved[prefix.len()..];
+    let path_end = rest.find(['?', '#']).unwrap_or(rest.len());
+    let (path, tail) = rest.split_at(path_end);
+    if path.is_empty() {
+        return Some(resolved);
+    }
+    Some(format!("{prefix}{}{tail}", remove_dot_segments(path)))
+}
+
+/// Remove `.` and `..` segments from an absolute URL path (one starting
+/// with `/`); `..` never climbs above the root.
+fn remove_dot_segments(path: &str) -> String {
+    let segments: Vec<&str> = path.split('/').skip(1).collect();
+    let mut out: Vec<&str> = Vec::with_capacity(segments.len());
+    for (i, segment) in segments.iter().enumerate() {
+        let last = i + 1 == segments.len();
+        match *segment {
+            "." => {}
+            ".." => {
+                out.pop();
+            }
+            other => {
+                out.push(other);
+                continue;
+            }
+        }
+        // A trailing `.` or `..` names a directory: keep the slash.
+        if last {
+            out.push("");
+        }
+    }
+    format!("/{}", out.join("/"))
 }
 
 /// Whether `status` is a redirect that carries a `Location` to follow
@@ -725,15 +759,21 @@ fn download(
     let https_only = config.endpoint.starts_with("https://");
 
     // 1. Metadata: commit hash and etag, without following redirects
-    //    (relative redirects, e.g. for renamed repos, are followed).
+    //    (absolute-path redirects on the same origin, e.g. for renamed
+    //    repos, are followed with the token; a scheme-relative `//host`
+    //    is another origin and is not).
     let no_redirects = agent(0, https_only);
     let mut resp = get(&no_redirects, &url, token, &ua, true)?;
     for _ in 0..5 {
         let status = resp.status().as_u16();
         let location = header(&resp, "location");
         match location {
-            Some(loc) if (300..400).contains(&status) && loc.starts_with('/') => {
-                url = format!("{}{loc}", config.endpoint);
+            Some(loc)
+                if (300..400).contains(&status)
+                    && loc.starts_with('/')
+                    && !loc.starts_with("//") =>
+            {
+                url = resolve_location(&url, &loc).ok_or_else(|| invalid_redirect(&url, &loc))?;
                 resp = get(&no_redirects, &url, token, &ua, true)?;
             }
             _ => break,
@@ -1699,6 +1739,20 @@ mod tests {
                 "https://huggingface.co/org/model/resolve/main/tokenizer.json?b=2",
             ),
             (" /trimmed ", "https://huggingface.co/trimmed"),
+            // Dot segments are removed; the query and fragment are kept.
+            (
+                "../protected?sig=a/../b",
+                "https://huggingface.co/org/model/resolve/protected?sig=a/../b",
+            ),
+            (
+                "./x/./y",
+                "https://huggingface.co/org/model/resolve/main/x/y",
+            ),
+            ("/a/b/../../../c#f", "https://huggingface.co/c#f"),
+            ("/a/b/..", "https://huggingface.co/a/"),
+            ("/a/.", "https://huggingface.co/a/"),
+            ("//cdn.hf.co/a/../b", "https://cdn.hf.co/b"),
+            ("https://cdn.hf.co/a/./b/../c", "https://cdn.hf.co/a/c"),
         ];
         for (location, want) in cases {
             assert_eq!(
