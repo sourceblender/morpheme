@@ -11,11 +11,16 @@ import tempfile
 import zipfile
 
 
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
 def smoke(cli, version, work):
     def run(*args):
         return subprocess.check_output([str(cli), *map(str, args)], text=True).strip()
 
-    assert run("--version") == f"morpheme {version}"
+    require(run("--version") == f"morpheme {version}", "CLI version mismatch")
     corpus = work / "corpus.txt"
     corpus.write_text("alpha beta gamma\nalpha beta\n", encoding="utf-8")
     for model in ["bpe", "wordpiece", "wordlevel", "unigram"]:
@@ -23,11 +28,12 @@ def smoke(cli, version, work):
         run("train", "--quiet", "--model", model, "--vocab-size", "100",
             "--out", tokenizer, corpus)
         encoded = json.loads(run("encode", "-t", tokenizer, "--json", "alpha beta"))
-        assert encoded["ids"] and len(encoded["ids"]) == len(encoded["tokens"])
+        require(encoded["ids"] and len(encoded["ids"]) == len(encoded["tokens"]),
+                f"{model}: inconsistent encoding")
         text = run("decode", "-t", tokenizer, "--skip-special-tokens",
                    ",".join(map(str, encoded["ids"])))
-        assert text == "alpha beta", (model, text)
-        assert run("inspect", "-t", tokenizer)
+        require(text == "alpha beta", f"{model}: unexpected decoded text {text!r}")
+        require(run("inspect", "-t", tokenizer), f"{model}: inspect returned no output")
     print(f"Release smoke passed: {cli} ({version})")
 
 
@@ -49,7 +55,8 @@ def main():
                             "--repo", "sourceblender/morpheme", "--dir", str(work),
                             "--pattern", archive, "--pattern", archive + ".sha256"], check=True)
             expected = (work / (archive + ".sha256")).read_text().split()[0]
-            assert hashlib.sha256((work / archive).read_bytes()).hexdigest() == expected
+            require(hashlib.sha256((work / archive).read_bytes()).hexdigest() == expected,
+                    "archive checksum mismatch")
             # Extract only the executable, never arbitrary archive paths.
             executable = "morpheme.exe" if windows else "morpheme"
             cli = work / executable
@@ -57,13 +64,13 @@ def main():
                 with zipfile.ZipFile(work / archive) as package:
                     matches = [n for n in package.namelist()
                                if pathlib.PurePosixPath(n).name == executable]
-                    assert len(matches) == 1, matches
+                    require(len(matches) == 1, f"expected one executable, found {matches!r}")
                     cli.write_bytes(package.read(matches[0]))
             else:
                 with tarfile.open(work / archive) as package:
                     matches = [m for m in package.getmembers()
                                if m.isfile() and pathlib.PurePosixPath(m.name).name == executable]
-                    assert len(matches) == 1, matches
+                    require(len(matches) == 1, f"expected one executable, found {matches!r}")
                     with package.extractfile(matches[0]) as binary:
                         cli.write_bytes(binary.read())
                 cli.chmod(0o755)
