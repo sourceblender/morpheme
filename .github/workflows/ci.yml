@@ -226,6 +226,8 @@ jobs:
           python-version: "3.12"
       - run: pip install tokenizers==0.23.2
       - run: python scripts/check_python_interop.py
+      - name: Executable document-budget workflow
+        run: python scripts/check_document_workflow.py
 
   deny:
     # Licenses, bans, sources and RustSec advisories (deny.toml).
